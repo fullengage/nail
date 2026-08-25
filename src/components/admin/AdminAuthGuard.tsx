@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { ShieldCheck, Lock, KeyRound, AlertCircle, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Lock, KeyRound, AlertCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface AdminAuthGuardProps {
@@ -12,7 +12,7 @@ interface AdminAuthGuardProps {
 }
 
 export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavigate }) => {
-  const { user, role, loginAsDemoUser } = useAuth();
+  const { role, loginAsDemoUser } = useAuth();
   
   // Track if admin has unlocked the current session
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
@@ -21,7 +21,6 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
 
   const [email, setEmail] = useState('admin@nailclubpro.com.br');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,12 +30,11 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
     setErrorMsg('');
 
     setTimeout(() => {
-      // Validate credentials (accepts master admin email and password or default PIN)
+      // Validate credentials (accepts master admin email and password)
       if (
         (email.toLowerCase().includes('admin') && password.length >= 4) ||
-        pin === '998877' ||
-        pin === '123456' ||
-        password === 'admin123'
+        password === 'admin123' ||
+        password === '123456'
       ) {
         loginAsDemoUser('admin');
         setIsAdminUnlocked(true);
@@ -44,16 +42,15 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
         confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
         setIsLoading(false);
       } else {
-        setErrorMsg('Credenciais administrativas inválidas. Use a senha master ou PIN fornecido.');
+        setErrorMsg('Credenciais administrativas inválidas. Use a senha de administrador.');
         setIsLoading(false);
       }
-    }, 400);
+    }, 300);
   };
 
   const handleQuickMasterUnlock = () => {
     setEmail('admin@nailclubpro.com.br');
     setPassword('admin123');
-    setPin('998877');
     loginAsDemoUser('admin');
     setIsAdminUnlocked(true);
     localStorage.setItem('ncp_admin_unlocked', 'true');
@@ -85,7 +82,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
             Autenticação Administrativa
           </h1>
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-            Informe suas credenciais de gestor ou chave master para acessar o painel executivo do NAIL CLUB PRO.
+            Informe seu e-mail e senha de administrador para acessar o painel executivo do NAIL CLUB PRO.
           </p>
         </div>
 
@@ -103,30 +100,13 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
             />
 
             <Input
-              label="Senha Master"
+              label="Senha de Administrador"
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span>PIN / Chave de Segurança (Opcional)</span>
-                <span className="text-[10px] text-muted-foreground font-normal">Ex: 998877</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="998877"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3.5 text-center font-mono tracking-widest text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
 
             {errorMsg && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-xs flex items-center gap-2">
