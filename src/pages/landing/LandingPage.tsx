@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { CampaignCard } from '../../components/creator/CampaignCard';
+import { RegisterBrandModal } from '../../components/brand/RegisterBrandModal';
+import { RegisterCreatorModal } from '../../components/creator/RegisterCreatorModal';
 import { formatNumber } from '../../lib/utils';
 import {
   Sparkles,
@@ -14,7 +16,9 @@ import {
   CheckCircle2,
   ArrowRight,
   Gift,
-  Play
+  Play,
+  Building2,
+  UserPlus
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -25,19 +29,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const { loginAsDemoUser } = useAuth();
   const { campaigns, creators, courses } = useData();
 
-  const handleStartAsCreator = () => {
-    loginAsDemoUser('creator');
-    onNavigate('creator-dashboard');
-  };
-
-  const handleStartAsBrand = () => {
-    loginAsDemoUser('brand');
-    onNavigate('brand-dashboard');
-  };
+  // Modals state
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isCreatorModalOpen, setIsCreatorModalOpen] = useState(false);
 
   return (
     <div className="space-y-24 pb-20">
       
+      {/* Modals */}
+      <RegisterBrandModal
+        isOpen={isBrandModalOpen}
+        onClose={() => setIsBrandModalOpen(false)}
+        onSuccess={() => onNavigate('brand-dashboard')}
+      />
+
+      <RegisterCreatorModal
+        isOpen={isCreatorModalOpen}
+        onClose={() => setIsCreatorModalOpen(false)}
+        onSuccess={() => onNavigate('creator-dashboard')}
+      />
+
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
         {/* Glow ambient background */}
@@ -64,11 +75,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
               {/* Action CTAs */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <Button size="lg" onClick={handleStartAsCreator} className="w-full sm:w-auto shadow-lg shadow-primary/30">
+                <Button
+                  size="lg"
+                  onClick={() => setIsCreatorModalOpen(true)}
+                  className="w-full sm:w-auto shadow-lg shadow-primary/30"
+                >
                   <Sparkles className="w-5 h-5 mr-2 text-amber-300" />
                   Quero ser Nail Creator
                 </Button>
-                <Button size="lg" variant="outline" onClick={handleStartAsBrand} className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => setIsBrandModalOpen(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <Building2 className="w-4 h-4 mr-2 text-amber-500" />
                   Sou uma Marca Parceira
                 </Button>
               </div>
@@ -269,8 +290,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </div>
 
               <div className="pt-4">
-                <Button size="lg" onClick={handleStartAsBrand} className="shadow-lg">
-                  Lançar Minha Campanha Agora
+                <Button
+                  size="lg"
+                  onClick={() => setIsBrandModalOpen(true)}
+                  className="shadow-lg bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Cadastrar Minha Marca & Lançar Campanha
                 </Button>
               </div>
             </div>
@@ -389,10 +415,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           Junte-se à maior comunidade de Nail Creators do país e conecte-se hoje mesmo com marcas que valorizam sua arte.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button size="lg" onClick={handleStartAsCreator}>
+          <Button size="lg" onClick={() => setIsCreatorModalOpen(true)}>
+            <UserPlus className="w-4 h-4 mr-2" />
             Criar Meu Perfil de Nail Creator
           </Button>
-          <Button size="lg" variant="outline" onClick={handleStartAsBrand}>
+          <Button size="lg" variant="outline" onClick={() => setIsBrandModalOpen(true)}>
+            <Building2 className="w-4 h-4 mr-2 text-amber-500" />
             Cadastrar Minha Marca
           </Button>
         </div>
