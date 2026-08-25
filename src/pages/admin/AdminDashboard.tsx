@@ -42,12 +42,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => onNavigate('admin-moderation-campaigns')}>
             Moderar Campanhas
           </Button>
           <Button variant="outline" onClick={() => onNavigate('admin-finance')}>
             Financeiro & Repasses
+          </Button>
+          <Button
+            variant="ghost"
+            className="text-xs text-muted-foreground hover:text-red-500"
+            onClick={() => {
+              localStorage.removeItem('ncp_admin_unlocked');
+              window.location.reload();
+            }}
+          >
+            Bloquear Sessão
           </Button>
         </div>
       </div>

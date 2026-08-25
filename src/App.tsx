@@ -33,6 +33,8 @@ import { BrandProducts } from './pages/brand/BrandProducts';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminModeration } from './pages/admin/AdminModeration';
 import { AdminFinance } from './pages/admin/AdminFinance';
+// Admin Guard
+import { AdminAuthGuard } from './components/admin/AdminAuthGuard';
 
 import { ShieldAlert } from 'lucide-react';
 import { Button } from './components/ui/Button';
@@ -117,17 +119,17 @@ const MainApp: React.FC = () => {
       case 'brand-products':
         return checkPermission('brand', <BrandProducts />);
 
-      // Admin Routes (Protected strictly for Admin)
+      // Admin Routes (Protected strictly with Admin Authentication Guard)
       case 'admin-dashboard':
-        return checkPermission('admin', <AdminDashboard onNavigate={setCurrentView} />);
+        return <AdminAuthGuard onNavigate={setCurrentView}><AdminDashboard onNavigate={setCurrentView} /></AdminAuthGuard>;
       case 'admin-moderation-creators':
       case 'admin-moderation-brands':
       case 'admin-moderation-campaigns':
-        return checkPermission('admin', <AdminModeration />);
+        return <AdminAuthGuard onNavigate={setCurrentView}><AdminModeration /></AdminAuthGuard>;
       case 'admin-finance':
-        return checkPermission('admin', <AdminFinance />);
+        return <AdminAuthGuard onNavigate={setCurrentView}><AdminFinance /></AdminAuthGuard>;
       case 'admin-academy':
-        return checkPermission('admin', <CreatorAcademy />);
+        return <AdminAuthGuard onNavigate={setCurrentView}><CreatorAcademy /></AdminAuthGuard>;
 
       default:
         return <LandingPage onNavigate={setCurrentView} />;
