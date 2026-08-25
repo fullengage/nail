@@ -5,11 +5,22 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Tabs } from '../../components/ui/Tabs';
 import { formatCurrency, formatNumber, formatDate } from '../../lib/utils';
-import { ShieldCheck, Check, X, Building2, Users, FileCheck } from 'lucide-react';
+import { ShieldCheck, Check, X, Building2, Users, FileCheck, CheckCircle2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export const AdminModeration: React.FC = () => {
-  const { creators, brands, campaigns } = useData();
+  const { creators, brands, campaigns, validateCreator, validateBrand, validateCampaign } = useData();
   const [activeTab, setActiveTab] = useState('creators');
+  const [verifiedMap, setVerifiedMap] = useState<Record<string, boolean>>({});
+
+  const handleValidate = (id: string, type: 'creator' | 'brand' | 'campaign') => {
+    if (type === 'creator') validateCreator(id);
+    else if (type === 'brand') validateBrand(id);
+    else validateCampaign(id);
+
+    setVerifiedMap(prev => ({ ...prev, [id]: true }));
+    confetti({ particleCount: 50, spread: 50 });
+  };
 
   const tabs = [
     { id: 'creators', label: 'Moderação de Creators', count: creators.length },
@@ -49,35 +60,46 @@ export const AdminModeration: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {creators.map((c) => (
-                  <tr key={c.id} className="hover:bg-muted/30">
-                    <td className="p-3.5">
-                      <p className="font-bold text-foreground">{c.professional_name}</p>
-                      <p className="text-muted-foreground">{c.instagram}</p>
-                    </td>
-                    <td className="p-3.5">{c.city}/{c.state}</td>
-                    <td className="p-3.5 font-semibold text-foreground">
-                      {formatNumber(c.instagram_followers)} seguidores
-                    </td>
-                    <td className="p-3.5">
-                      <div className="flex flex-wrap gap-1">
-                        {c.specialties.slice(0, 2).map((s) => (
-                          <span key={s} className="px-1.5 py-0.5 bg-secondary text-[10px] rounded">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-3.5">
-                      <Badge variant="success" size="sm">✓ Ativa</Badge>
-                    </td>
-                    <td className="p-3.5 text-right space-x-2">
-                      <Button size="sm" variant="ghost" onClick={() => alert(`Perfil de ${c.professional_name} verificado!`)}>
-                        Validar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {creators.map((c) => {
+                  const isVerified = verifiedMap[c.id] || c.verification_status === 'verified';
+                  return (
+                    <tr key={c.id} className="hover:bg-muted/30">
+                      <td className="p-3.5">
+                        <p className="font-bold text-foreground">{c.professional_name}</p>
+                        <p className="text-muted-foreground">{c.instagram}</p>
+                      </td>
+                      <td className="p-3.5">{c.city}/{c.state}</td>
+                      <td className="p-3.5 font-semibold text-foreground">
+                        {formatNumber(c.instagram_followers)} seguidores
+                      </td>
+                      <td className="p-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {c.specialties.slice(0, 2).map((s) => (
+                            <span key={s} className="px-1.5 py-0.5 bg-secondary text-[10px] rounded">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-3.5">
+                        {isVerified ? (
+                          <Badge variant="success" size="sm">✓ Verificada</Badge>
+                        ) : (
+                          <Badge variant="secondary" size="sm">Pendente</Badge>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-right space-x-2">
+                        <Button
+                          size="sm"
+                          variant={isVerified ? "outline" : "primary"}
+                          onClick={() => handleValidate(c.id, 'creator')}
+                        >
+                          {isVerified ? 'Verificado ✓' : 'Aprovar Perfil'}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -113,8 +135,8 @@ export const AdminModeration: React.FC = () => {
                       <Badge variant="success" size="sm">✓ Homologada</Badge>
                     </td>
                     <td className="p-3.5 text-right">
-                      <Button size="sm" variant="outline" onClick={() => alert('Empresa em conformidade!')}>
-                        Gerenciar
+                      <Button size="sm" variant="outline" onClick={() => handleValidate(b.id, 'brand')}>
+                        Validar CNPJ ✓
                       </Button>
                     </td>
                   </tr>
@@ -151,8 +173,8 @@ export const AdminModeration: React.FC = () => {
                       <Badge variant="success" size="sm">✓ Aberta ao Público</Badge>
                     </td>
                     <td className="p-3.5 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => alert('Campanha verificada!')}>
-                        Revisar
+                      <Button size="sm" variant="ghost" onClick={() => handleValidate(camp.id, 'campaign')}>
+                        Aprovar Campanha ✓
                       </Button>
                     </td>
                   </tr>

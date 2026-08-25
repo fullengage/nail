@@ -165,6 +165,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                   >
                     <User className="w-3.5 h-3.5" /> Perfil & Configurações
                   </button>
+                  <button
+                    onClick={() => {
+                      logout();
+                      onNavigate('auth');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-red-500/10 text-red-600 flex items-center gap-2 border-t border-border/50 mt-1 pt-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Sair da Conta
+                  </button>
                 </div>
               </div>
             )}

@@ -22,7 +22,7 @@ import { MOCK_AFFILIATES } from '../../data/mockData';
 import confetti from 'canvas-confetti';
 
 export const CreatorEarnings: React.FC = () => {
-  const { earnings } = useData();
+  const { earnings, requestPixWithdrawal } = useData();
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [pixKey, setPixKey] = useState('camila@camilanails.art');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
@@ -40,6 +40,7 @@ export const CreatorEarnings: React.FC = () => {
 
   const handleWithdraw = (e: React.FormEvent) => {
     e.preventDefault();
+    requestPixWithdrawal(creatorId, pixKey);
     setWithdrawSuccess(true);
     confetti({ particleCount: 80, spread: 60 });
     setTimeout(() => {

@@ -25,6 +25,7 @@ import {
   MOCK_CREATORS,
   MOCK_BRANDS,
 } from '../data/mockData';
+import { supabaseService } from '../services/supabaseService';
 
 interface DataContextType {
   campaigns: Campaign[];
@@ -44,6 +45,7 @@ interface DataContextType {
   submitContent: (campaignId: string, contentType: any, mediaUrl: string, publishedUrl: string, caption: string) => boolean;
   addPortfolioItem: (mediaUrl: string, caption: string, technique: string) => void;
   markLessonComplete: (courseId: string, lessonId: string) => void;
+  requestPixWithdrawal: (creatorId: string, pixKey: string) => void;
   
   // Actions for Brand Flow
   createCampaign: (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -51,7 +53,14 @@ interface DataContextType {
   rejectApplication: (applicationId: string) => void;
   approveContentSubmission: (submissionId: string) => void;
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
+  inviteCreatorToCampaign: (creatorId: string, campaignId: string) => void;
   
+  // Actions for Admin
+  processAllPixPayouts: () => void;
+  validateCreator: (creatorId: string) => void;
+  validateBrand: (brandId: string) => void;
+  validateCampaign: (campaignId: string) => void;
+
   // Notifications
   markNotificationAsRead: (notificationId: string) => void;
   
@@ -107,8 +116,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : MOCK_NOTIFICATIONS;
   });
 
-  const [creators] = useState<CreatorProfile[]>(MOCK_CREATORS);
-  const [brands] = useState<BrandProfile[]>(MOCK_BRANDS);
+  const [creators, setCreators] = useState<CreatorProfile[]>(MOCK_CREATORS);
+  const [brands, setBrands] = useState<BrandProfile[]>(MOCK_BRANDS);
 
   // Sync to localStorage
   useEffect(() => {
@@ -143,104 +152,89 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ncp_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
-  // Demo Action: Apply to Campaign
-  const applyToCampaign = (campaignId: string, message: string): boolean => {
-    const creatorId = 'creator-1';
-    
-    // Check if already applied
-    const exists = applications.some(a => a.campaign_id === campaignId && a.creator_id === creatorId);
-    if (exists) return false;
+  // Demo Action 1: Creator Applies to Campaign
+  const applyToCampaign = (campaignId: string, message: string) => {
+    const existing = applications.find(
+      (a) => a.campaign_id === campaignId && a.creator_id === 'creator-1'
+    );
+    if (existing) return false;
 
     const newApp: CampaignApplication = {
       id: `app-${Date.now()}`,
       campaign_id: campaignId,
-      creator_id: creatorId,
+      creator_id: 'creator-1',
       message,
       status: 'pending',
       applied_at: new Date().toISOString(),
     };
 
-    setApplications(prev => [newApp, ...prev]);
+    setApplications((prev) => [newApp, ...prev]);
 
-    // Add notification to brand
+    // Send notification to Brand
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-b1',
-      title: '📥 Nova candidatura recebida!',
-      message: `Camila Nails (@camilanails_art) se candidatou à sua campanha.`,
+      title: '💅 Nova Candidatura Recebida!',
+      message: 'Camila Nails candidatou-se à sua campanha. Revise o perfil e portfólio.',
       type: 'application',
       read: false,
       link: '/brand/applications',
       created_at: new Date().toISOString(),
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setNotifications((prev) => [newNotif, ...prev]);
 
+    supabaseService.applyToCampaign(campaignId, 'creator-1', message);
     return true;
   };
 
-  // Demo Action: Submit Content
+  // Demo Action 2: Creator Submits Content
   const submitContent = (
     campaignId: string,
     contentType: any,
     mediaUrl: string,
     publishedUrl: string,
     caption: string
-  ): boolean => {
-    const creatorId = 'creator-1';
-
+  ) => {
     const newSub: ContentSubmission = {
       id: `sub-${Date.now()}`,
       campaign_id: campaignId,
-      creator_id: creatorId,
+      creator_id: 'creator-1',
       content_type: contentType,
       media_url: mediaUrl,
       published_url: publishedUrl,
       caption,
       status: 'submitted',
       submitted_at: new Date().toISOString(),
-      metrics: {
-        id: `met-${Date.now()}`,
-        submission_id: `sub-${Date.now()}`,
-        views: 12400,
-        likes: 950,
-        comments: 84,
-        shares: 120,
-        saves: 340,
-        clicks: 210,
-        sales: 14,
-        revenue: 1260.00,
-        updated_at: new Date().toISOString(),
-      }
     };
 
-    setSubmissions(prev => [newSub, ...prev]);
+    setSubmissions((prev) => [newSub, ...prev]);
 
     // Update participant status to submitted
-    setParticipants(prev =>
-      prev.map(p =>
-        p.campaign_id === campaignId && p.creator_id === creatorId
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.campaign_id === campaignId && p.creator_id === 'creator-1'
           ? { ...p, status: 'submitted', updated_at: new Date().toISOString() }
           : p
       )
     );
 
-    // Notify brand
+    // Notify Brand
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-b1',
-      title: '🎬 Conteúdo enviado para aprovação!',
-      message: 'Camila Nails enviou o conteúdo da campanha. Confira na aba de conteúdos.',
+      title: '🎬 Novo Conteúdo Enviado para Aprovação',
+      message: 'Camila Nails enviou o Reels produzido para a campanha. Analise a entrega e libere o cachê.',
       type: 'content',
       read: false,
       link: '/brand/content',
       created_at: new Date().toISOString(),
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setNotifications((prev) => [newNotif, ...prev]);
 
     return true;
   };
 
-  // Demo Action: Add Portfolio Item
+  // Add Portfolio Item
   const addPortfolioItem = (mediaUrl: string, caption: string, technique: string) => {
     const newItem: CreatorPortfolioItem = {
       id: `port-${Date.now()}`,
@@ -250,122 +244,164 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       caption,
       technique,
       is_featured: false,
-      likes_count: 0,
+      likes_count: Math.floor(Math.random() * 200) + 150,
       created_at: new Date().toISOString(),
     };
-    setPortfolio(prev => [newItem, ...prev]);
+    setPortfolio((prev) => [newItem, ...prev]);
   };
 
-  // Demo Action: Mark Lesson Complete
-  const markLessonComplete = (_courseId: string, _lessonId: string) => {
-    // In demo mode, simply acknowledge progress
+  // Complete lesson in Academy
+  const markLessonComplete = (courseId: string, lessonId: string) => {
+    setCourses((prev) =>
+      prev.map((course) => {
+        if (course.id !== courseId) return course;
+        return {
+          ...course,
+          lessons: course.lessons.map((lesson) =>
+            lesson.id === lessonId ? { ...lesson, completed: true } : lesson
+          ),
+        };
+      })
+    );
   };
 
-  // Demo Action: Create Campaign
-  const createCampaign = (campaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
-    const newCampaign: Campaign = {
-      ...campaignData,
-      id: `camp-${Date.now()}`,
-      occupied_slots: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setCampaigns(prev => [newCampaign, ...prev]);
-  };
-
-  // Demo Action: Approve Application (Flow 2)
-  const approveApplication = (applicationId: string) => {
-    const app = applications.find(a => a.id === applicationId);
-    if (!app) return;
-
-    setApplications(prev =>
-      prev.map(a => (a.id === applicationId ? { ...a, status: 'approved', reviewed_at: new Date().toISOString() } : a))
+  // Creator PIX Withdrawal Request
+  const requestPixWithdrawal = (creatorId: string, pixKey: string) => {
+    setEarnings((prev) =>
+      prev.map((e) =>
+        e.creator_id === creatorId && e.status === 'approved'
+          ? { ...e, status: 'paid', paid_at: new Date().toISOString() }
+          : e
+      )
     );
 
-    // Create participant entry
-    const newPart: CampaignParticipant = {
-      id: `part-${Date.now()}`,
-      campaign_id: app.campaign_id,
-      creator_id: app.creator_id,
-      status: 'selected',
-      tracking_code: `BR${Math.floor(100000000 + Math.random() * 900000000)}SP`,
-      product_sent_at: new Date().toISOString(),
+    const newNotif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      user_id: 'user-c1',
+      title: '💸 Saque PIX Solicitado!',
+      message: `Sua solicitação de saque para a chave ${pixKey} foi recebida e está em processamento bancário.`,
+      type: 'payment',
+      read: false,
+      link: '/creator/earnings',
+      created_at: new Date().toISOString(),
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  };
+
+  // Demo Action 3: Brand Creates Campaign
+  const createCampaign = (campData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
+    const newCamp: Campaign = {
+      ...campData,
+      id: `cp-${Date.now()}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    setCampaigns((prev) => [newCamp, ...prev]);
+    supabaseService.createCampaign(newCamp);
+  };
 
-    setParticipants(prev => {
-      const filtered = prev.filter(p => !(p.campaign_id === app.campaign_id && p.creator_id === app.creator_id));
-      return [newPart, ...filtered];
-    });
+  // Demo Action 4: Brand Approves Application
+  const approveApplication = (applicationId: string) => {
+    const app = applications.find((a) => a.id === applicationId);
+    if (!app) return;
+
+    setApplications((prev) =>
+      prev.map((a) => (a.id === applicationId ? { ...a, status: 'approved' } : a))
+    );
+
+    // Add to participants if not already
+    const existingPart = participants.find(
+      (p) => p.campaign_id === app.campaign_id && p.creator_id === app.creator_id
+    );
+
+    if (!existingPart) {
+      const newPart: CampaignParticipant = {
+        id: `part-${Date.now()}`,
+        campaign_id: app.campaign_id,
+        creator_id: app.creator_id,
+        status: 'producing',
+        tracking_code: 'BR123456789SP',
+        product_sent_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      setParticipants((prev) => [newPart, ...prev]);
+    }
+
+    // Increment occupied slots
+    setCampaigns((prev) =>
+      prev.map((c) => (c.id === app.campaign_id ? { ...c, occupied_slots: (c.occupied_slots || 0) + 1 } : c))
+    );
 
     // Notify Creator
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-c1',
-      title: '🎉 Sua candidatura foi APROVADA!',
-      message: `A marca aprovou sua participação na campanha. Verifique em "Minhas Campanhas".`,
+      title: '🎉 Parabéns! Você foi selecionada!',
+      message: 'A marca aprovou sua candidatura. O kit de produtos foi enviado via Correios.',
       type: 'campaign',
       read: false,
       link: '/creator/my-campaigns',
       created_at: new Date().toISOString(),
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setNotifications((prev) => [newNotif, ...prev]);
   };
 
-  // Demo Action: Reject Application
+  // Brand Rejects Application
   const rejectApplication = (applicationId: string) => {
-    setApplications(prev =>
-      prev.map(a => (a.id === applicationId ? { ...a, status: 'rejected', reviewed_at: new Date().toISOString() } : a))
+    setApplications((prev) =>
+      prev.map((a) => (a.id === applicationId ? { ...a, status: 'rejected' } : a))
     );
   };
 
-  // Demo Action: Approve Content (Flow 4)
+  // Demo Action 5: Brand Approves Content & Releases Payment
   const approveContentSubmission = (submissionId: string) => {
-    const sub = submissions.find(s => s.id === submissionId);
+    const sub = submissions.find((s) => s.id === submissionId);
     if (!sub) return;
 
-    setSubmissions(prev =>
-      prev.map(s => (s.id === submissionId ? { ...s, status: 'approved', approved_at: new Date().toISOString() } : s))
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === submissionId ? { ...s, status: 'approved' } : s))
     );
 
-    // Update participant to completed
-    setParticipants(prev =>
-      prev.map(p =>
+    // Update participant
+    setParticipants((prev) =>
+      prev.map((p) =>
         p.campaign_id === sub.campaign_id && p.creator_id === sub.creator_id
           ? { ...p, status: 'completed', updated_at: new Date().toISOString() }
           : p
       )
     );
 
-    // Add earning entry
+    // Release Earnings to Creator
+    const camp = campaigns.find((c) => c.id === sub.campaign_id);
+    const amount = camp?.commission_value || 350;
+
     const newEarning: CreatorEarning = {
       id: `earn-${Date.now()}`,
       creator_id: sub.creator_id,
       campaign_id: sub.campaign_id,
-      campaign_title: 'Campanha Concluída com Sucesso',
       earning_type: 'campaign',
-      amount: 350.00,
-      status: 'approved',
+      amount,
+      status: 'approved', // Liberado para saque
       created_at: new Date().toISOString(),
     };
-    setEarnings(prev => [newEarning, ...prev]);
+    setEarnings((prev) => [newEarning, ...prev]);
 
     // Notify Creator
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-c1',
-      title: '✨ Conteúdo aprovado e comissão liberada!',
-      message: 'A marca aprovou seu Reels com elogios! Seu cachê foi liberado no extrato.',
+      title: '✨ Conteúdo aprovado e cachê liberado!',
+      message: `A marca aprovou seu Reels com sucesso! O valor de R$ ${amount.toFixed(2)} foi liberado no seu saldo PIX.`,
       type: 'payment',
       read: false,
       link: '/creator/earnings',
       created_at: new Date().toISOString(),
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setNotifications((prev) => [newNotif, ...prev]);
   };
 
-  // Demo Action: Add Product
+  // Add Product
   const addProduct = (prodData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     const newProd: Product = {
       ...prodData,
@@ -373,11 +409,66 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setProducts(prev => [newProd, ...prev]);
+    setProducts((prev) => [newProd, ...prev]);
+  };
+
+  // Brand Invites Creator
+  const inviteCreatorToCampaign = (creatorId: string, campaignId: string) => {
+    const camp = campaigns.find((c) => c.id === campaignId) || campaigns[0];
+    const newNotif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      user_id: 'user-c1',
+      title: '💌 Convite VIP de Parceria da Marca!',
+      message: `A marca convidou você com exclusividade para participar da campanha: "${camp.title}".`,
+      type: 'campaign',
+      read: false,
+      link: '/creator/campaigns',
+      created_at: new Date().toISOString(),
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  };
+
+  // Admin Processes All PIX Payouts
+  const processAllPixPayouts = () => {
+    setEarnings((prev) =>
+      prev.map((e) =>
+        e.status === 'approved' ? { ...e, status: 'paid', paid_at: new Date().toISOString() } : e
+      )
+    );
+
+    const newNotif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      user_id: 'user-c1',
+      title: '💰 Lote PIX Concluído!',
+      message: 'Todos os cachês e comissões aprovados foram transferidos via PIX com sucesso.',
+      type: 'payment',
+      read: false,
+      link: '/creator/earnings',
+      created_at: new Date().toISOString(),
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  };
+
+  const validateCreator = (creatorId: string) => {
+    setCreators((prev) =>
+      prev.map((c) => (c.id === creatorId ? { ...c, verification_status: 'verified' } : c))
+    );
+  };
+
+  const validateBrand = (brandId: string) => {
+    setBrands((prev) =>
+      prev.map((b) => (b.id === brandId ? { ...b, status: 'active' } : b))
+    );
+  };
+
+  const validateCampaign = (campaignId: string) => {
+    setCampaigns((prev) =>
+      prev.map((c) => (c.id === campaignId ? { ...c, status: 'open' } : c))
+    );
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const resetToDemoDefaults = () => {
@@ -397,6 +488,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEarnings(MOCK_EARNINGS);
     setPortfolio(MOCK_PORTFOLIO);
     setNotifications(MOCK_NOTIFICATIONS);
+    setCreators(MOCK_CREATORS);
+    setBrands(MOCK_BRANDS);
   };
 
   return (
@@ -417,11 +510,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         submitContent,
         addPortfolioItem,
         markLessonComplete,
+        requestPixWithdrawal,
         createCampaign,
         approveApplication,
         rejectApplication,
         approveContentSubmission,
         addProduct,
+        inviteCreatorToCampaign,
+        processAllPixPayouts,
+        validateCreator,
+        validateBrand,
+        validateCampaign,
         markNotificationAsRead,
         resetToDemoDefaults,
       }}
