@@ -11,6 +11,7 @@ import { Footer } from './components/layout/Footer';
 // Pages
 import { LandingPage } from './pages/landing/LandingPage';
 import { AuthPage } from './pages/auth/AuthPage';
+import { ClientManualPage } from './pages/docs/ClientManualPage';
 
 // Creator Pages
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
@@ -43,12 +44,21 @@ const MainApp: React.FC = () => {
   const { role, isAuthenticated } = useAuth();
   const [currentView, setCurrentView] = useState<string>('landing');
 
+  // Check URL query parameters or hash on initial load (e.g. ?view=manual or #manual)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (viewParam === 'manual' || window.location.hash === '#manual') {
+      setCurrentView('manual');
+    }
+  }, []);
+
   // Scroll to top on navigation
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView]);
 
-  const isDashboardView = currentView !== 'landing' && currentView !== 'auth';
+  const isDashboardView = currentView !== 'landing' && currentView !== 'auth' && currentView !== 'manual';
 
   // Permission Guard Function
   const checkPermission = (requiredRole: 'creator' | 'brand' | 'admin', component: React.ReactNode) => {
@@ -81,11 +91,13 @@ const MainApp: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
-      // Landing & Auth
+      // Landing, Auth & Executive Client Manual
       case 'landing':
         return <LandingPage onNavigate={setCurrentView} />;
       case 'auth':
         return <AuthPage onNavigate={setCurrentView} />;
+      case 'manual':
+        return <ClientManualPage onNavigate={setCurrentView} />;
 
       // Creator Routes (Protected for Creator or Admin)
       case 'creator-dashboard':
