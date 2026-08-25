@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CreatorPortfolioItem } from '../../types/database';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
-import { Input, Textarea } from '../ui/Input';
-import { Heart, Plus, Sparkles, Filter, Eye } from 'lucide-react';
+import { Textarea } from '../ui/Input';
+import { Heart, Plus, Sparkles, Eye, UploadCloud, Image as ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { storageService } from '../../services/storageService';
+import confetti from 'canvas-confetti';
 
 interface PortfolioGalleryProps {
   items: CreatorPortfolioItem[];
@@ -20,23 +22,66 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
   const [newUrl, setNewUrl] = useState('');
   const [newCaption, setNewCaption] = useState('');
   const [newTechnique, setNewTechnique] = useState('Fibra de Vidro');
   const [previewItem, setPreviewItem] = useState<CreatorPortfolioItem | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const techniques = ['Fibra de Vidro', 'Nail Art', 'Gel', 'Acrílico', 'Esmaltação em Gel'];
 
   const filteredItems = activeFilter === 'all'
     ? items
     : items.filter(item => item.technique?.toLowerCase() === activeFilter.toLowerCase());
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (!newUrl) return;
-    onAddItem(newUrl, newCaption, newTechnique);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+
+    let finalMediaUrl = newUrl;
+
+    if (uploadMode === 'file' && selectedFile) {
+      const uploadRes = await storageService.uploadFile(selectedFile, 'portfolio');
+      if (uploadRes.url) {
+        finalMediaUrl = uploadRes.url;
+      }
+    }
+
+    if (!finalMediaUrl && !previewUrl) {
+      setIsUploading(false);
+      return;
+    }
+
+    onAddItem(finalMediaUrl || previewUrl, newCaption, newTechnique);
+    confetti({ particleCount: 70, spread: 60 });
+    
+    // Reset state
+    setSelectedFile(null);
+    setPreviewUrl('');
     setNewUrl('');
     setNewCaption('');
+    setIsUploading(false);
     setIsModalOpen(false);
   };
 
@@ -74,7 +119,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
         {isEditable && (
           <Button size="sm" onClick={() => setIsModalOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
-            Adicionar ao Portfólio
+            Adicionar Nova Arte
           </Button>
         )}
       </div>
@@ -121,23 +166,103 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
         ))}
       </div>
 
-      {/* Add Item Modal */}
+      {/* Add Item Modal (with Supabase Storage Direct Upload) */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Adicionar Novo Trabalho ao Portfólio"
-        description="Mostre suas melhores unhas e atraia parcerias com grandes marcas."
+        description="Suba fotos em alta resolução de unhas feitas por você para atrair marcas parceiras."
+        maxWidth="lg"
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
-            label="URL da Foto do Trabalho"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            placeholder="https://images.unsplash.com/..."
-            required
-            helperText="Insira uma imagem de alta resolução em iluminação natural ou LED."
-          />
+          
+          {/* Mode Switcher */}
+          <div className="flex p-1 bg-muted rounded-xl text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setUploadMode('file')}
+              className={`flex-1 py-1.5 rounded-lg transition-all ${
+                uploadMode === 'file' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+              }`}
+            >
+              Upload do Dispositivo (Foto/Câmera)
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadMode('url')}
+              className={`flex-1 py-1.5 rounded-lg transition-all ${
+                uploadMode === 'url' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+              }`}
+            >
+              Inserir Link de Imagem
+            </button>
+          </div>
 
+          {/* Direct File Dropzone */}
+          {uploadMode === 'file' ? (
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {previewUrl ? (
+                <div className="relative rounded-2xl overflow-hidden border border-border group">
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="w-full h-48 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl('');
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white text-xs hover:bg-black/80 transition-colors"
+                  >
+                    Trocar Foto
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-primary/40 hover:border-primary rounded-2xl p-8 text-center cursor-pointer transition-colors bg-primary/5 hover:bg-primary/10 space-y-2"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground">
+                    Clique para selecionar ou arraste sua foto aqui
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Formatos aceitos: JPG, PNG, WEBP (armazenamento seguro no Supabase Storage)
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1.5">
+                URL da Imagem
+              </label>
+              <input
+                type="url"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full h-11 rounded-xl border border-input bg-background px-3.5 text-xs focus:ring-2 focus:ring-primary"
+                required
+              />
+            </div>
+          )}
+
+          {/* Technique Selector */}
           <div>
             <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1.5">
               Técnica / Especialidade
@@ -145,7 +270,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             <select
               value={newTechnique}
               onChange={(e) => setNewTechnique(e.target.value)}
-              className="w-full h-11 rounded-xl border border-input bg-background px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full h-11 rounded-xl border border-input bg-background px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary font-medium"
             >
               {techniques.map((t) => (
                 <option key={t} value={t}>
@@ -159,7 +284,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             label="Descrição / Detalhes dos Produtos Utilizados"
             value={newCaption}
             onChange={(e) => setNewCaption(e.target.value)}
-            placeholder="Ex: Alongamento em fibra com curvatura C estruturada e esmaltação francesa..."
+            placeholder="Ex: Alongamento em fibra de vidro com esmaltação francesa reversa e finalização em top coat diamante..."
             rows={3}
             required
           />
@@ -168,7 +293,10 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar no Portfólio</Button>
+            <Button type="submit" isLoading={isUploading}>
+              <UploadCloud className="w-4 h-4 mr-2" />
+              Publicar no Portfólio
+            </Button>
           </div>
         </form>
       </Modal>
@@ -181,7 +309,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
           title={previewItem.technique || 'Trabalho do Portfólio'}
           maxWidth="lg"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 text-left">
             <img
               src={previewItem.media_url}
               alt={previewItem.caption}

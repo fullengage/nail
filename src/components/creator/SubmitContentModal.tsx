@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Campaign, ContentType } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Textarea } from '../ui/Input';
-import { Video, Link as LinkIcon, Sparkles, CheckCircle2, Upload } from 'lucide-react';
+import { Video, Link as LinkIcon, Sparkles, CheckCircle2, Upload, UploadCloud } from 'lucide-react';
+import { storageService } from '../../services/storageService';
 import confetti from 'canvas-confetti';
 
 interface SubmitContentModalProps {
@@ -33,17 +34,34 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
   const [caption, setCaption] = useState(
     'Unhas perfeitas com os novos lançamentos da @bellavittacosmeticos! 💅✨ Apaixonada nessa pigmentação e brilho espelhado que dura 30 dias. Cupom CAMILA10 na bio! #publi #BellaVittaNails'
   );
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!campaign) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setFilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    let finalMediaUrl = mediaUrl;
+    if (selectedFile) {
+      const res = await storageService.uploadFile(selectedFile, 'submissions');
+      if (res.url) finalMediaUrl = res.url;
+    }
+
     setTimeout(() => {
-      onSubmit(campaign.id, contentType, mediaUrl, publishedUrl, caption);
+      onSubmit(campaign.id, contentType, finalMediaUrl, publishedUrl, caption);
       setIsSubmitting(false);
       setIsSuccess(true);
       confetti({
@@ -55,7 +73,7 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
         setIsSuccess(false);
         onClose();
       }, 1800);
-    }, 700);
+    }, 600);
   };
 
   return (
@@ -79,7 +97,7 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
           </p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div className="p-3.5 bg-muted/60 rounded-xl border border-border flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Campanha</p>
@@ -96,7 +114,7 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
               <select
                 value={contentType}
                 onChange={(e) => setContentType(e.target.value as ContentType)}
-                className="w-full h-11 rounded-xl border border-input bg-background/80 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-11 rounded-xl border border-input bg-background/80 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary font-medium"
               >
                 <option value="instagram_reel">Instagram Reel</option>
                 <option value="story">Instagram Stories (Sequência)</option>
@@ -107,7 +125,7 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
             </div>
 
             <Input
-              label="Link da Publicação no Feed / Post"
+              label="Link da Publicação (Reels / TikTok)"
               value={publishedUrl}
               onChange={(e) => setPublishedUrl(e.target.value)}
               placeholder="https://instagram.com/reel/..."
@@ -115,24 +133,43 @@ export const SubmitContentModal: React.FC<SubmitContentModalProps> = ({
             />
           </div>
 
-          <Input
-            label="URL da Foto / Thumbnail do Conteúdo"
-            value={mediaUrl}
-            onChange={(e) => setMediaUrl(e.target.value)}
-            helperText="Link direto de imagem/vídeo para pré-visualização da marca"
-            required
-          />
-
-          {mediaUrl && (
-            <div className="rounded-xl border border-border p-2 bg-muted/30">
-              <p className="text-[11px] font-bold text-muted-foreground mb-1.5">Prévia da Mídia:</p>
-              <img
-                src={mediaUrl}
-                alt="Preview"
-                className="w-full h-36 object-cover rounded-lg"
-              />
-            </div>
-          )}
+          {/* Media upload / screenshot */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1.5">
+              Arquivo / Comprovante do Post (Upload para Supabase Storage)
+            </label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*,video/*"
+              className="hidden"
+            />
+            {filePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-border h-36">
+                <img src={filePreview} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setFilePreview('');
+                  }}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white text-xs hover:bg-black/80"
+                >
+                  Trocar Arquivo
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-border hover:border-primary rounded-xl p-4 text-center cursor-pointer transition-colors bg-muted/30 hover:bg-muted/60 space-y-1"
+              >
+                <UploadCloud className="w-5 h-5 mx-auto text-primary" />
+                <p className="text-xs font-bold text-foreground">Clique para anexar print ou thumbnail do post</p>
+                <p className="text-[10px] text-muted-foreground">Formatos JPG, PNG ou MP4</p>
+              </div>
+            )}
+          </div>
 
           <Textarea
             label="Legenda Utilizada na Publicação"

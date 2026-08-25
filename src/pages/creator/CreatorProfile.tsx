@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
 import { CheckCircle2, MapPin, Save } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { storageService } from '../../services/storageService';
 
 export const CreatorProfilePage: React.FC = () => {
   const { user, creatorProfile, updateCreatorProfile } = useAuth();
@@ -24,7 +25,24 @@ export const CreatorProfilePage: React.FC = () => {
   const [acceptsAffiliate, setAcceptsAffiliate] = useState(creatorProfile?.accepts_affiliate_campaigns ?? true);
   const [acceptsLive, setAcceptsLive] = useState(creatorProfile?.accepts_live_campaigns ?? true);
 
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarPreview(URL.createObjectURL(file));
+      setIsUploadingAvatar(true);
+      const res = await storageService.uploadFile(file, 'avatars');
+      if (res.url) {
+        setAvatarPreview(res.url);
+        updateCreatorProfile({ portfolio_cover_url: res.url });
+      }
+      setIsUploadingAvatar(false);
+      confetti({ particleCount: 50, spread: 50 });
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,17 +93,32 @@ export const CreatorProfilePage: React.FC = () => {
         {/* Avatar & Cover Section */}
         <Card variant="elevated" className="p-6 space-y-6 border-border/80">
           <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <img
-              src={user?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-              alt={name}
-              className="w-24 h-24 rounded-2xl object-cover ring-4 ring-primary/20 shadow-md"
-            />
+            <div className="relative">
+              <img
+                src={avatarPreview || user?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
+                alt={name}
+                className="w-24 h-24 rounded-2xl object-cover ring-4 ring-primary/20 shadow-md"
+              />
+              <input
+                type="file"
+                id="avatar-upload"
+                className="hidden"
+                accept="image/*"
+                onChange={handleAvatarChange}
+              />
+            </div>
             <div className="space-y-2 text-center sm:text-left">
               <h3 className="font-bold text-lg text-foreground">{name}</h3>
               <p className="text-xs text-muted-foreground flex items-center justify-center sm:justify-start gap-1">
                 <MapPin className="w-3.5 h-3.5 text-primary" /> {city}/{state} • Nail Designer Verificada
               </p>
-              <Button size="sm" variant="outline" type="button" onClick={() => alert('Foto atualizada!')}>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                isLoading={isUploadingAvatar}
+                onClick={() => document.getElementById('avatar-upload')?.click()}
+              >
                 Alterar Foto de Perfil
               </Button>
             </div>
