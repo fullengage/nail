@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 345 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 345 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 345 20% 15%;
+
+    --primary: 348 68% 57%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 345 35% 96%;
+    --secondary-foreground: 348 60% 35%;
+
+    --muted: 340 15% 95%;
+    --muted-foreground: 345 10% 45%;
+
+    --accent: 38 65% 53%;
+    --accent-foreground: 345 20% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 345 20% 90%;
+    --input: 345 20% 90%;
+    --ring: 348 68% 57%;
+
+    --radius: 0.85rem;
+  }
+
+  .dark {
+    --background: 345 30% 6%;
+    --foreground: 340 20% 96%;
+
+    --card: 345 25% 10%;
+    --card-foreground: 340 20% 96%;
+
+    --popover: 345 25% 10%;
+    --popover-foreground: 340 20% 96%;
+
+    --primary: 348 72% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 345 25% 16%;
+    --secondary-foreground: 340 20% 96%;
+
+    --muted: 345 20% 15%;
+    --muted-foreground: 340 10% 65%;
+
+    --accent: 38 75% 55%;
+    --accent-foreground: 345 30% 6%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 345 20% 18%;
+    --input: 345 20% 18%;
+    --ring: 348 72% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}
+
+/* Glassmorphism & Glow Effects */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(244, 114, 182, 0.15);
+}
+
+.dark .glass-panel {
+  background: rgba(22, 12, 16, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(244, 114, 182, 0.1);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #d94b68 0%, #b81f44 50%, #921132 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-gold-text {
+  background: linear-gradient(135deg, #d4af37 0%, #f3e5ab 50%, #aa820a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(217, 75, 104, 0.15), transparent 70%);
+}
