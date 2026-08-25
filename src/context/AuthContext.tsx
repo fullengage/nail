@@ -131,6 +131,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(foundProfile);
       setRoleState(foundProfile.role);
       localStorage.setItem('ncp_active_role', foundProfile.role);
+
+      if (foundProfile.role === 'creator') {
+        const c = MOCK_CREATORS.find((c) => c.user_id === foundProfile.id) || MOCK_CREATORS[0];
+        setCreatorProfile(c);
+        localStorage.setItem('ncp_creator_profile', JSON.stringify(c));
+      } else if (foundProfile.role === 'brand') {
+        const b = MOCK_BRANDS.find((b) => b.user_id === foundProfile.id) || MOCK_BRANDS[0];
+        setBrandProfile(b);
+        localStorage.setItem('ncp_brand_profile', JSON.stringify(b));
+      }
+
       setIsLoading(false);
       return { success: true };
     }
