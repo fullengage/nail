@@ -19,9 +19,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
   const [isLogin, setIsLogin] = useState(true);
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
 
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
   // Login form state
-  const [email, setEmail] = useState('camila@camilanails.art');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState(isDemoMode ? 'camila@camilanails.art' : '');
+  const [password, setPassword] = useState(isDemoMode ? '123456' : '');
 
   // Creator Register state
   const [creatorName, setCreatorName] = useState('');
@@ -55,9 +57,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
-    if (role === 'creator') setEmail('camila@camilanails.art');
-    else if (role === 'brand') setEmail('parcerias@bellavitta.com.br');
-    else setEmail('admin@nailclubpro.com.br');
+    if (isDemoMode) {
+      if (role === 'creator') setEmail('camila@camilanails.art');
+      else if (role === 'brand') setEmail('parcerias@bellavitta.com.br');
+      else setEmail('admin@nailclubpro.com.br');
+    }
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {

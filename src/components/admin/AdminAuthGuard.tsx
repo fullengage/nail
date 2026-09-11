@@ -14,12 +14,14 @@ interface AdminAuthGuardProps {
 export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavigate }) => {
   const { role, loginAsDemoUser } = useAuth();
   
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
   // Track if admin has unlocked the current session
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
     return role === 'admin' && localStorage.getItem('ncp_admin_unlocked') === 'true';
   });
 
-  const [email, setEmail] = useState('admin@nailclubpro.com.br');
+  const [email, setEmail] = useState(isDemoMode ? 'admin@nailclubpro.com.br' : '');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,25 +32,34 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
     setErrorMsg('');
 
     setTimeout(() => {
-      // Validate credentials (accepts master admin email and password)
-      if (
-        (email.toLowerCase().includes('admin') && password.length >= 4) ||
-        password === 'admin123' ||
-        password === '123456'
-      ) {
-        loginAsDemoUser('admin');
+      if (isDemoMode) {
+        if (
+          (email.toLowerCase().includes('admin') && password.length >= 4) ||
+          password === 'admin123' ||
+          password === '123456'
+        ) {
+          loginAsDemoUser('admin');
+          setIsAdminUnlocked(true);
+          localStorage.setItem('ncp_admin_unlocked', 'true');
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+          setIsLoading(false);
+          return;
+        }
+      }
+      // Validação segura quando fora do modo demo
+      if (role === 'admin') {
         setIsAdminUnlocked(true);
         localStorage.setItem('ncp_admin_unlocked', 'true');
-        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
         setIsLoading(false);
       } else {
-        setErrorMsg('Credenciais administrativas inválidas. Use a senha de administrador.');
+        setErrorMsg('Credenciais administrativas inválidas.');
         setIsLoading(false);
       }
     }, 300);
   };
 
   const handleQuickMasterUnlock = () => {
+    if (!isDemoMode) return;
     setEmail('admin@nailclubpro.com.br');
     setPassword('admin123');
     loginAsDemoUser('admin');
@@ -128,14 +139,16 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
 
           {/* Quick Demo Access Trigger */}
           <div className="pt-3 border-t border-border space-y-3 text-center">
-            <button
-              type="button"
-              onClick={handleQuickMasterUnlock}
-              className="w-full py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-500/20 transition-all flex items-center justify-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              Acesso Rápido Master (1 Clique)
-            </button>
+            {isDemoMode && (
+              <button
+                type="button"
+                onClick={handleQuickMasterUnlock}
+                className="w-full py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-500/20 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Acesso Rápido Master (1 Clique)
+              </button>
+            )}
 
             {onNavigate && (
               <button

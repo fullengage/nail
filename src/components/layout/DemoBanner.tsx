@@ -17,10 +17,16 @@ export const DemoBanner: React.FC<DemoBannerProps> = ({ onNavigate }) => {
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
 
   useEffect(() => {
-    supabaseService.checkConnection().then((res) => {
-      setDbStatus(res.connected ? 'connected' : 'offline');
-    });
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      supabaseService.checkConnection().then((res) => {
+        setDbStatus(res.connected ? 'connected' : 'offline');
+      });
+    }
   }, []);
+
+  if (import.meta.env.VITE_DEMO_MODE !== 'true') {
+    return null;
+  }
 
   const handleRoleChange = (newRole: UserRole) => {
     loginAsDemoUser(newRole);

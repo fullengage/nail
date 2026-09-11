@@ -79,5 +79,39 @@ export const supabaseService = {
     } catch {
       return false;
     }
+  },
+
+  // Approve content submission and release earning via Security Definer RPC
+  async approveSubmissionAndReleaseEarning(submissionId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('ncp_approve_submission_and_release_earning', {
+        p_submission_id: submissionId,
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true, data };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // Mark earning as paid via Security Definer RPC
+  async markEarningPaid(earningId: string, receiptUrl?: string, notes?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('ncp_mark_earning_paid', {
+        p_earning_id: earningId,
+        p_receipt_url: receiptUrl || null,
+        p_notes: notes || null,
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true, data };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   }
 };

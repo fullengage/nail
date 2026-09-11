@@ -46,10 +46,12 @@ const MainApp: React.FC = () => {
 
   // Check URL query parameters or hash on initial load (e.g. ?view=manual or #manual)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    if (viewParam === 'manual' || window.location.hash === '#manual') {
-      setCurrentView('manual');
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      if (viewParam === 'manual' || window.location.hash === '#manual') {
+        setCurrentView('manual');
+      }
     }
   }, []);
 
@@ -97,7 +99,9 @@ const MainApp: React.FC = () => {
       case 'auth':
         return <AuthPage onNavigate={setCurrentView} />;
       case 'manual':
-        return <ClientManualPage onNavigate={setCurrentView} />;
+        return import.meta.env.VITE_DEMO_MODE === 'true'
+          ? <ClientManualPage onNavigate={setCurrentView} />
+          : <LandingPage onNavigate={setCurrentView} />;
 
       // Creator Routes (Protected for Creator or Admin)
       case 'creator-dashboard':
@@ -151,7 +155,9 @@ const MainApp: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* 1. Floating Demo Quick Role Switcher */}
-      <DemoBanner currentView={currentView} onNavigate={setCurrentView} />
+      {import.meta.env.VITE_DEMO_MODE === 'true' && (
+        <DemoBanner currentView={currentView} onNavigate={setCurrentView} />
+      )}
 
       {/* 2. Top Header Navigation */}
       <Navbar currentView={currentView} onNavigate={setCurrentView} />
