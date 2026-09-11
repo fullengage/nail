@@ -71,53 +71,83 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
     const saved = localStorage.getItem('ncp_campaigns');
-    return saved ? JSON.parse(saved) : MOCK_CAMPAIGNS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_CAMPAIGNS : [];
   });
 
   const [applications, setApplications] = useState<CampaignApplication[]>(() => {
     const saved = localStorage.getItem('ncp_applications');
-    return saved ? JSON.parse(saved) : MOCK_APPLICATIONS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_APPLICATIONS : [];
   });
 
   const [participants, setParticipants] = useState<CampaignParticipant[]>(() => {
     const saved = localStorage.getItem('ncp_participants');
-    return saved ? JSON.parse(saved) : MOCK_PARTICIPANTS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_PARTICIPANTS : [];
   });
 
   const [submissions, setSubmissions] = useState<ContentSubmission[]>(() => {
     const saved = localStorage.getItem('ncp_submissions');
-    return saved ? JSON.parse(saved) : MOCK_SUBMISSIONS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_SUBMISSIONS : [];
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ncp_products');
-    return saved ? JSON.parse(saved) : MOCK_PRODUCTS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_PRODUCTS : [];
   });
 
   const [earnings, setEarnings] = useState<CreatorEarning[]>(() => {
     const saved = localStorage.getItem('ncp_earnings');
-    return saved ? JSON.parse(saved) : MOCK_EARNINGS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_EARNINGS : [];
   });
 
   const [courses, setCourses] = useState<Course[]>(() => {
     const saved = localStorage.getItem('ncp_courses');
-    return saved ? JSON.parse(saved) : MOCK_COURSES;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_COURSES : [];
   });
 
   const [portfolio, setPortfolio] = useState<CreatorPortfolioItem[]>(() => {
     const saved = localStorage.getItem('ncp_portfolio');
-    return saved ? JSON.parse(saved) : MOCK_PORTFOLIO;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_PORTFOLIO : [];
   });
 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('ncp_notifications');
-    return saved ? JSON.parse(saved) : MOCK_NOTIFICATIONS;
+    if (saved) return JSON.parse(saved);
+    return isDemoMode ? MOCK_NOTIFICATIONS : [];
   });
 
-  const [creators, setCreators] = useState<CreatorProfile[]>(MOCK_CREATORS);
-  const [brands, setBrands] = useState<BrandProfile[]>(MOCK_BRANDS);
+  const [creators, setCreators] = useState<CreatorProfile[]>(() => {
+    return isDemoMode ? MOCK_CREATORS : [];
+  });
+  const [brands, setBrands] = useState<BrandProfile[]>(() => {
+    return isDemoMode ? MOCK_BRANDS : [];
+  });
+
+  // When not in demo mode, fetch real data from Supabase
+  useEffect(() => {
+    if (!isDemoMode) {
+      supabaseService.getCampaigns().then((data) => {
+        if (data && data.length > 0) setCampaigns(data);
+      });
+      supabaseService.getCreators().then((data) => {
+        if (data && data.length > 0) setCreators(data);
+      });
+      supabaseService.getBrands().then((data) => {
+        if (data && data.length > 0) setBrands(data);
+      });
+    }
+  }, [isDemoMode]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -480,17 +510,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ncp_earnings');
     localStorage.removeItem('ncp_portfolio');
     localStorage.removeItem('ncp_notifications');
-    setCampaigns(MOCK_CAMPAIGNS);
-    setApplications(MOCK_APPLICATIONS);
-    setParticipants(MOCK_PARTICIPANTS);
-    setSubmissions(MOCK_SUBMISSIONS);
-    setProducts(MOCK_PRODUCTS);
-    setEarnings(MOCK_EARNINGS);
-    setPortfolio(MOCK_PORTFOLIO);
-    setNotifications(MOCK_NOTIFICATIONS);
-    setCreators(MOCK_CREATORS);
-    setBrands(MOCK_BRANDS);
+    setCampaigns(isDemoMode ? MOCK_CAMPAIGNS : []);
+    setApplications(isDemoMode ? MOCK_APPLICATIONS : []);
+    setParticipants(isDemoMode ? MOCK_PARTICIPANTS : []);
+    setSubmissions(isDemoMode ? MOCK_SUBMISSIONS : []);
+    setProducts(isDemoMode ? MOCK_PRODUCTS : []);
+    setEarnings(isDemoMode ? MOCK_EARNINGS : []);
+    setPortfolio(isDemoMode ? MOCK_PORTFOLIO : []);
+    setNotifications(isDemoMode ? MOCK_NOTIFICATIONS : []);
+    setCreators(isDemoMode ? MOCK_CREATORS : []);
+    setBrands(isDemoMode ? MOCK_BRANDS : []);
   };
+
 
   return (
     <DataContext.Provider

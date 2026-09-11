@@ -3,8 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Badge } from '../../components/ui/Badge';
-import { Crown, Sparkles, Building2, User, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Crown, Sparkles, Building2, User, ShieldCheck, ArrowRight } from 'lucide-react';
 import { UserRole } from '../../types/database';
 import confetti from 'canvas-confetti';
 
@@ -44,6 +43,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
   const [contactPhone, setContactPhone] = useState('');
   const [brandCity, setBrandCity] = useState('');
   const [brandState, setBrandState] = useState('SP');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const specialtiesList = ['fibra de vidro', 'alongamento', 'gel', 'acrílico', 'esmaltação em gel', 'nail art', 'manicure tradicional', 'pedicure'];
 
@@ -77,6 +77,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
 
   const handleCreatorRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!termsAccepted) {
+      alert('Você precisa aceitar os Termos de Uso e a Política de Privacidade para prosseguir.');
+      return;
+    }
     const res = await signUpCreator({
       fullName: creatorName,
       email: creatorEmail,
@@ -94,6 +98,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
 
   const handleBrandRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!termsAccepted) {
+      alert('Você precisa aceitar os Termos de Uso e a Política de Privacidade para prosseguir.');
+      return;
+    }
     const res = await signUpBrand({
       companyName,
       brandName,
@@ -334,7 +342,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
+                <div className="flex items-start space-x-2.5 pt-1 text-left">
+                  <input
+                    type="checkbox"
+                    id="creator-terms"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    required
+                    className="mt-0.5 rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <label htmlFor="creator-terms" className="text-xs text-muted-foreground leading-tight cursor-pointer">
+                    Li e concordo com os{' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('termos')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Termos de Uso
+                    </button>{' '}
+                    e a{' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('privacidade')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Política de Privacidade
+                    </button>.
+                  </label>
+                </div>
+
+                <Button type="submit" className="w-full" size="lg" isLoading={isLoading} disabled={!termsAccepted}>
                   <Sparkles className="w-4 h-4 mr-2" />
                   Concluir Cadastro de Nail Creator
                 </Button>
@@ -435,7 +472,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'c
                   required
                 />
 
-                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" size="lg" isLoading={isLoading}>
+                <div className="flex items-start space-x-2.5 pt-1 text-left">
+                  <input
+                    type="checkbox"
+                    id="brand-terms"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    required
+                    className="mt-0.5 rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <label htmlFor="brand-terms" className="text-xs text-muted-foreground leading-tight cursor-pointer">
+                    Declaro poderes de representação e aceito os{' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('termos')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Termos de Uso
+                    </button>{' '}
+                    e a{' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('privacidade')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Política de Privacidade
+                    </button>.
+                  </label>
+                </div>
+
+                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" size="lg" isLoading={isLoading} disabled={!termsAccepted}>
                   <Building2 className="w-4 h-4 mr-2" />
                   Concluir Cadastro da Marca
                 </Button>

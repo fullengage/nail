@@ -12,6 +12,8 @@ import { Footer } from './components/layout/Footer';
 import { LandingPage } from './pages/landing/LandingPage';
 import { AuthPage } from './pages/auth/AuthPage';
 import { ClientManualPage } from './pages/docs/ClientManualPage';
+import { TermsPage } from './pages/legal/TermsPage';
+import { PrivacyPage } from './pages/legal/PrivacyPage';
 
 // Creator Pages
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
@@ -44,14 +46,16 @@ const MainApp: React.FC = () => {
   const { role, isAuthenticated } = useAuth();
   const [currentView, setCurrentView] = useState<string>('landing');
 
-  // Check URL query parameters or hash on initial load (e.g. ?view=manual or #manual)
+  // Check URL query parameters or hash on initial load (e.g. ?view=manual or #manual or ?view=termos)
   useEffect(() => {
-    if (import.meta.env.VITE_DEMO_MODE === 'true') {
-      const params = new URLSearchParams(window.location.search);
-      const viewParam = params.get('view');
-      if (viewParam === 'manual' || window.location.hash === '#manual') {
-        setCurrentView('manual');
-      }
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (viewParam === 'termos' || viewParam === 'terms') {
+      setCurrentView('termos');
+    } else if (viewParam === 'privacidade' || viewParam === 'privacy') {
+      setCurrentView('privacidade');
+    } else if (import.meta.env.VITE_DEMO_MODE === 'true' && (viewParam === 'manual' || window.location.hash === '#manual')) {
+      setCurrentView('manual');
     }
   }, []);
 
@@ -60,7 +64,17 @@ const MainApp: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView]);
 
-  const isDashboardView = currentView !== 'landing' && currentView !== 'auth' && currentView !== 'manual';
+  const isPublicStandaloneView = 
+    currentView === 'landing' || 
+    currentView === 'auth' || 
+    currentView === 'manual' || 
+    currentView === 'termos' || 
+    currentView === 'terms' || 
+    currentView === 'privacidade' || 
+    currentView === 'privacy';
+
+  const isDashboardView = !isPublicStandaloneView;
+
 
   // Permission Guard Function
   const checkPermission = (requiredRole: 'creator' | 'brand' | 'admin', component: React.ReactNode) => {
@@ -102,6 +116,14 @@ const MainApp: React.FC = () => {
         return import.meta.env.VITE_DEMO_MODE === 'true'
           ? <ClientManualPage onNavigate={setCurrentView} />
           : <LandingPage onNavigate={setCurrentView} />;
+
+      // Legal Pages
+      case 'termos':
+      case 'terms':
+        return <TermsPage onNavigate={setCurrentView} />;
+      case 'privacidade':
+      case 'privacy':
+        return <PrivacyPage onNavigate={setCurrentView} />;
 
       // Creator Routes (Protected for Creator or Admin)
       case 'creator-dashboard':
@@ -173,7 +195,7 @@ const MainApp: React.FC = () => {
       </div>
 
       {/* 4. Footer */}
-      <Footer />
+      <Footer onNavigate={setCurrentView} />
     </div>
   );
 };

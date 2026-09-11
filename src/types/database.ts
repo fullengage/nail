@@ -53,6 +53,8 @@ export interface Profile {
   phone?: string;
   avatar_url?: string;
   status: UserStatus;
+  terms_accepted_at?: string;
+  privacy_accepted_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +82,8 @@ export interface CreatorProfile {
   portfolio_cover_url?: string;
   profile_completion: number;
   verification_status: 'verified' | 'pending' | 'unverified';
+  is_featured?: boolean;
+  featured_consent_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -300,4 +304,30 @@ export interface AppNotification {
   read: boolean;
   link?: string;
   created_at: string;
+}
+
+export interface BrandLead {
+  id?: string;
+  name: string;
+  company: string;
+  role?: string;
+  email: string;
+  whatsapp: string;
+  category?: string;
+  sales_channel?: string;
+  budget_tier?: string;
+  origin?: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface CreatorWaitlistEntry {
+  id?: string;
+  name: string;
+  city?: string;
+  state?: string;
+  techniques?: string[];
+  instagram: string;
+  whatsapp: string;
+  created_at?: string;
 }

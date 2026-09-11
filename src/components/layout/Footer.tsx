@@ -1,8 +1,11 @@
 import React from 'react';
-import { Crown, Heart, Sparkles } from 'lucide-react';
-import { InstagramIcon } from '../ui/InstagramIcon';
+import { Crown, Heart, Sparkles, Shield } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onNavigate?: (view: string) => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
     <footer className="border-t border-border bg-card/50 backdrop-blur text-muted-foreground text-xs py-10 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -19,15 +22,24 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Links */}
-        <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium">
+        <div className="flex flex-wrap items-center justify-center gap-5 text-xs font-medium">
           <a href="#como-funciona-manicure" className="hover:text-primary transition-colors">Para Manicures</a>
           <a href="#como-funciona-marcas" className="hover:text-primary transition-colors">Para Marcas</a>
           <a href="#campanhas" className="hover:text-primary transition-colors">Campanhas</a>
           <a href="#academy" className="hover:text-primary transition-colors">Nail Academy</a>
           <span className="text-border">|</span>
-          <span className="flex items-center gap-1 text-primary font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> 100% Focado no Nicho Nail
-          </span>
+          <button
+            onClick={() => onNavigate?.('termos')}
+            className="hover:text-primary transition-colors"
+          >
+            Termos de Uso
+          </button>
+          <button
+            onClick={() => onNavigate?.('privacidade')}
+            className="hover:text-primary transition-colors"
+          >
+            Privacidade & LGPD
+          </button>
         </div>
 
         {/* Copyright */}
