@@ -164,9 +164,20 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
             <span className="text-sm sm:text-base font-bold text-zinc-300">
               Investimento por vídeo:
             </span>
-            <span className="text-lg sm:text-2xl font-black text-emerald-400 font-mono tracking-tight">
-              R$ {investmentPerVideo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </span>
+            <div className="flex items-center bg-zinc-900 border border-zinc-750 px-2.5 py-1 rounded-xl">
+              <span className="text-xs text-zinc-400 mr-1 font-mono font-bold">R$</span>
+              <input
+                type="number"
+                min={50}
+                max={2000}
+                value={investmentPerVideo}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (val >= 0 && val <= 5000) setInvestmentPerVideo(val);
+                }}
+                className="w-24 bg-transparent text-lg sm:text-2xl font-black text-emerald-400 font-mono focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="relative flex items-center">
@@ -208,16 +219,27 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
           </div>
         </div>
 
-        {/* Régua 2: Quantidade de Creators */}
+        {/* Régua 2: Quantidade de Creators (1 a 500) */}
         <div className="space-y-3 pt-2 border-t border-zinc-850">
           <div className="flex items-center justify-between text-left">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="text-sm sm:text-base font-bold text-zinc-300">
                 Creators por missão:
               </span>
-              <span className="text-lg sm:text-2xl font-black text-emerald-400 font-mono">
-                {creatorCount}
-              </span>
+              <div className="flex items-center bg-zinc-900 border border-zinc-750 px-2.5 py-1 rounded-xl">
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={creatorCount}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val >= 1 && val <= 500) setCreatorCount(val);
+                    else if (val > 500) setCreatorCount(500);
+                  }}
+                  className="w-16 bg-transparent text-lg sm:text-2xl font-black text-emerald-400 font-mono focus:outline-none"
+                />
+              </div>
             </div>
 
             {/* Ícones de Creators que crescem visualmente com a régua */}
@@ -239,7 +261,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
             <input
               type="range"
               min={1}
-              max={50}
+              max={500}
               step={1}
               value={creatorCount}
               onChange={(e) => setCreatorCount(Number(e.target.value))}
@@ -249,9 +271,28 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
 
           <div className="flex items-center justify-between text-[11px] text-zinc-500 font-medium">
             <span>1 Creator (Teste)</span>
-            <span>10 Creators (Squad Padrão)</span>
-            <span>25 Creators (Escala)</span>
-            <span>50 Creators (Massivo)</span>
+            <span>50 Creators (Squad Médio)</span>
+            <span>200 Creators (Escala)</span>
+            <span>500 Creators (Mega Squad)</span>
+          </div>
+
+          {/* Atalhos rápidos de volume */}
+          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
+            <span className="text-[10px] text-zinc-500 shrink-0">Atalhos:</span>
+            {[10, 50, 100, 200, 350, 500].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setCreatorCount(preset)}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+                  creatorCount === preset
+                    ? 'bg-emerald-500 text-black shadow'
+                    : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+                }`}
+              >
+                {preset}
+              </button>
+            ))}
           </div>
         </div>
 
