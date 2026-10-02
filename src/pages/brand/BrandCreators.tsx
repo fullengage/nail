@@ -105,7 +105,7 @@ export const BrandCreators: React.FC = () => {
             onClick={() => setSelectedSpecialty('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               selectedSpecialty === 'all'
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -117,7 +117,7 @@ export const BrandCreators: React.FC = () => {
               onClick={() => setSelectedSpecialty(spec)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap capitalize transition-all ${
                 selectedSpecialty === spec
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >

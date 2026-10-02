@@ -8,7 +8,7 @@ export const supabaseService = {
       return { connected: false, message: 'Supabase não configurado no .env' };
     }
     try {
-      const { data, error } = await supabase.from('ncp_profiles').select('count', { count: 'exact' });
+      const { data, error } = await supabase.from('organizations').select('id');
       if (error) {
         return { connected: false, message: `Erro ao conectar: ${error.message}` };
       }
@@ -22,7 +22,7 @@ export const supabaseService = {
   async getCampaigns(): Promise<Campaign[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { data, error } = await supabase.from('ncp_campaigns').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
       if (error || !data) return null;
       return data as unknown as Campaign[];
     } catch {
@@ -34,7 +34,7 @@ export const supabaseService = {
   async getCreators(): Promise<CreatorProfile[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { data, error } = await supabase.from('ncp_creator_profiles').select('*');
+      const { data, error } = await supabase.from('creators').select('*');
       if (error || !data) return null;
       return data as unknown as CreatorProfile[];
     } catch {
@@ -46,7 +46,7 @@ export const supabaseService = {
   async getBrands(): Promise<BrandProfile[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { data, error } = await supabase.from('ncp_brand_profiles').select('*');
+      const { data, error } = await supabase.from('brands').select('*');
       if (error || !data) return null;
       return data as unknown as BrandProfile[];
     } catch {

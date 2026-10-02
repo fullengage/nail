@@ -18,7 +18,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
   const [whatsapp, setWhatsapp] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('SP');
-  const [selectedTechniques, setSelectedTechniques] = useState<string[]>(['Fibra de Vidro', 'Esmaltação em Gel']);
+  const [selectedTechniques, setSelectedTechniques] = useState<string[]>(['Live commerce', 'Vídeos UGC']);
   const [honeypot, setHoneypot] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -26,14 +26,14 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const availableTechniques = [
-    'Fibra de Vidro',
-    'Gel Moldado',
-    'Gel na Tip',
-    'Esmaltação em Gel',
-    'Nail Art Artística',
-    'Blindagem / Banho de Gel',
-    'Manicure Tradicional',
-    'Pedicure / Plástica dos Pés'
+    'Live commerce',
+    'Vídeos UGC',
+    'Unboxing & review',
+    'Tutorial / demonstração',
+    'Fotos de produto',
+    'Afiliado / TikTok Shop',
+    'Stories & Reels',
+    'Depoimento / antes e depois'
   ];
 
   const toggleTechnique = (tech: string) => {
@@ -50,7 +50,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
     setWhatsapp('');
     setCity('');
     setState('SP');
-    setSelectedTechniques(['Fibra de Vidro', 'Esmaltação em Gel']);
+    setSelectedTechniques(['Live commerce', 'Vídeos UGC']);
     setHoneypot('');
     setIsSuccess(false);
     setErrorMessage(null);
@@ -122,10 +122,10 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
               <span>Lista de Espera Prioritária</span>
             </div>
             <h2 className="text-xl font-extrabold font-display text-foreground">
-              Garanta sua Vaga como Nail Creator
+              Garanta sua vaga no Squad
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Até 45 creators serão selecionadas para o piloto com 3 marcas de cosméticos. Inscreva-se para a curadoria.
+              Creators de UGC e live commerce selecionados para as primeiras campanhas com marcas parceiras. Inscreva-se para a curadoria.
             </p>
           </div>
         </div>
@@ -175,7 +175,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
               />
               <Input
                 label="Instagram Profissional *"
-                placeholder="@seuperfildeunhas"
+                placeholder="@seuperfil"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
                 required
@@ -225,7 +225,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-2">
-                Técnicas que você realiza (selecione as principais):
+                Formatos que você produz (selecione os principais):
               </label>
               <div className="flex flex-wrap gap-2">
                 {availableTechniques.map((tech) => {
@@ -237,7 +237,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
                       onClick={() => toggleTechnique(tech)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
                         isSelected
-                          ? 'bg-primary text-white border-primary shadow-sm'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                           : 'bg-card text-muted-foreground border-border hover:border-primary/50'
                       }`}
                     >
@@ -250,7 +250,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
 
             <div className="p-3 bg-muted/50 rounded-xl border border-border flex items-center space-x-2 text-[11px] text-muted-foreground">
               <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Participação 100% gratuita para manicures e nail designers. Não cobramos taxa de inscrição.</span>
+              <span>Participação 100% gratuita para creators. Não cobramos taxa de inscrição.</span>
             </div>
 
             <div className="flex items-center justify-end space-x-3 pt-2">

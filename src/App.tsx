@@ -10,12 +10,27 @@ import { Footer } from './components/layout/Footer';
 
 // Pages
 import { LandingPage } from './pages/landing/LandingPage';
+import { SiteLayout, SITE_VIEWS, SiteActions } from './pages/site/SiteLayout';
+import { ArtigoSquadPage } from './pages/site/ArtigoSquadPage';
+import { SobrePage, ParaCreatorsPage, ParaMarcasPage, ContatoPage } from './pages/site/SitePages';
 import { AuthPage } from './pages/auth/AuthPage';
 import { ClientManualPage } from './pages/docs/ClientManualPage';
 import { TermsPage } from './pages/legal/TermsPage';
 import { PrivacyPage } from './pages/legal/PrivacyPage';
 
-// Creator Pages
+// Squadra Core Pages
+import { SquadraDashboard } from './pages/squadra/SquadraDashboard';
+import { SquadraCreators } from './pages/squadra/SquadraCreators';
+import { SquadraRetail } from './pages/squadra/SquadraRetail';
+import { SquadraCampaigns } from './pages/squadra/SquadraCampaigns';
+import { SquadraCampaignApply } from './pages/squadra/SquadraCampaignApply';
+import { SquadraAffiliates } from './pages/squadra/SquadraAffiliates';
+import { SquadraReports } from './pages/squadra/SquadraReports';
+import { SquadraBrands } from './pages/squadra/SquadraBrands';
+import { SquadraSettings } from './pages/squadra/SquadraSettings';
+import { SquadraResetPassword } from './pages/squadra/SquadraResetPassword';
+
+// Creator Legacy / Dedicated Pages
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { CreatorCampaigns } from './pages/creator/CreatorCampaigns';
 import { CreatorMyCampaigns } from './pages/creator/CreatorMyCampaigns';
@@ -24,7 +39,7 @@ import { CreatorEarnings } from './pages/creator/CreatorEarnings';
 import { CreatorAcademy } from './pages/creator/CreatorAcademy';
 import { CreatorProfilePage } from './pages/creator/CreatorProfile';
 
-// Brand Pages
+// Brand Legacy / Dedicated Pages
 import { BrandDashboard } from './pages/brand/BrandDashboard';
 import { BrandCampaigns } from './pages/brand/BrandCampaigns';
 import { BrandCreators } from './pages/brand/BrandCreators';
@@ -32,37 +47,50 @@ import { BrandApplications } from './pages/brand/BrandApplications';
 import { BrandContent } from './pages/brand/BrandContent';
 import { BrandProducts } from './pages/brand/BrandProducts';
 
-// Admin Pages
+// Admin Pages & Guard
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminModeration } from './pages/admin/AdminModeration';
 import { AdminFinance } from './pages/admin/AdminFinance';
-// Admin Guard
 import { AdminAuthGuard } from './components/admin/AdminAuthGuard';
 
 import { ShieldAlert } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
-const MainApp: React.FC = () => {
-  const { role, isAuthenticated } = useAuth();
-  const [currentView, setCurrentView] = useState<string>('landing');
+const VIEW_ALIASES: Record<string, string> = {
+  apply: 'public-apply', 'recuperar-senha': 'reset-password', terms: 'termos', privacy: 'privacidade',
+};
 
-  // Check URL query parameters or hash on initial load (e.g. ?view=manual or #manual or ?view=termos)
+function viewFromUrl(): string {
+  const raw = new URLSearchParams(window.location.search).get('view');
+  if (!raw) return window.location.hash === '#manual' && import.meta.env.VITE_DEMO_MODE === 'true' ? 'manual' : 'landing';
+  const view = VIEW_ALIASES[raw] || raw;
+  // o manual do cliente só existe no modo demo
+  return view === 'manual' && import.meta.env.VITE_DEMO_MODE !== 'true' ? 'landing' : view;
+}
+
+const MainApp: React.FC = () => {
+  const { role } = useAuth();
+  // Home = site institucional; o painel fica atrás de "Acessar painel"
+  const [currentView, setCurrentView] = useState<string>(() => viewFromUrl());
+
+  // Sincroniza a view com a URL (?view=...) e suporta voltar/avançar do navegador
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    if (viewParam === 'termos' || viewParam === 'terms') {
-      setCurrentView('termos');
-    } else if (viewParam === 'privacidade' || viewParam === 'privacy') {
-      setCurrentView('privacidade');
-    } else if (import.meta.env.VITE_DEMO_MODE === 'true' && (viewParam === 'manual' || window.location.hash === '#manual')) {
-      setCurrentView('manual');
+    if (viewFromUrl() !== currentView) {
+      window.history.pushState(null, '', currentView === 'landing' ? window.location.pathname : `?view=${currentView}`);
     }
+  }, [currentView]);
+  useEffect(() => {
+    const onPop = () => setCurrentView(viewFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   // Scroll to top on navigation
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView]);
+
+  const isSiteView = (SITE_VIEWS as readonly string[]).includes(currentView);
 
   const isPublicStandaloneView = 
     currentView === 'landing' || 
@@ -71,32 +99,40 @@ const MainApp: React.FC = () => {
     currentView === 'termos' || 
     currentView === 'terms' || 
     currentView === 'privacidade' || 
-    currentView === 'privacy';
+    currentView === 'privacy' ||
+    currentView === 'public-apply' ||
+    currentView === 'reset-password';
 
   const isDashboardView = !isPublicStandaloneView;
 
-
   // Permission Guard Function
   const checkPermission = (requiredRole: 'creator' | 'brand' | 'admin', component: React.ReactNode) => {
-    if (role !== requiredRole && role !== 'admin') {
+    const isMaster = role === 'admin_master' || role === 'admin';
+    const isBrand = role === 'brand_admin' || role === 'brand';
+    const isCreator = role === 'creator';
+
+    const hasAccess = 
+      isMaster || 
+      (requiredRole === 'creator' && isCreator) ||
+      (requiredRole === 'brand' && isBrand);
+
+    if (!hasAccess) {
       return (
         <div className="py-16 text-center space-y-4 max-w-md mx-auto">
           <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold font-display text-foreground">Acesso Restrito por Perfil</h2>
+          <h2 className="text-xl font-bold font-display text-foreground">Acesso Restrito por Nível</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Esta área é exclusiva para contas de <strong>{requiredRole === 'creator' ? 'Nail Creators' : requiredRole === 'brand' ? 'Marcas Parceiras' : 'Administradores'}</strong>. Seu perfil atual é <strong>{role.toUpperCase()}</strong>.
+            Esta área é exclusiva para contas de nível <strong>{requiredRole === 'creator' ? '3. UGC Influenciador' : requiredRole === 'brand' ? '2. Empresa (Contratante)' : '1. Administrador Geral'}</strong>. Seu perfil atual é <strong>{role.toUpperCase()}</strong>.
           </p>
           <div className="pt-2">
             <Button
               onClick={() => {
-                if (role === 'creator') setCurrentView('creator-dashboard');
-                else if (role === 'brand') setCurrentView('brand-dashboard');
-                else setCurrentView('admin-dashboard');
+                setCurrentView('dashboard');
               }}
             >
-              Voltar ao Meu Painel ({role})
+              Voltar ao Painel Geral
             </Button>
           </div>
         </div>
@@ -107,17 +143,33 @@ const MainApp: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
-      // Landing, Auth & Executive Client Manual
-      case 'landing':
-        return <LandingPage onNavigate={setCurrentView} />;
+      // 1. Squadra Core Suite
+      case 'dashboard':
+        return <SquadraDashboard onNavigate={setCurrentView} />;
+      case 'creators':
+        return <SquadraCreators onNavigate={setCurrentView} />;
+      case 'retail':
+        return <SquadraRetail />;
+      case 'campaigns':
+        return <SquadraCampaigns onNavigatePublicApply={() => setCurrentView('public-apply')} />;
+      case 'affiliates':
+        return <SquadraAffiliates />;
+      case 'reports':
+        return <SquadraReports />;
+      case 'brands':
+        return <SquadraBrands />;
+      case 'settings':
+        return <SquadraSettings />;
+
+      // 2. Public / Standalone Pages
+      case 'public-apply':
+        return <SquadraCampaignApply onNavigate={setCurrentView} />;
+      case 'reset-password':
+        return <SquadraResetPassword onNavigate={setCurrentView} />;
       case 'auth':
         return <AuthPage onNavigate={setCurrentView} />;
       case 'manual':
-        return import.meta.env.VITE_DEMO_MODE === 'true'
-          ? <ClientManualPage onNavigate={setCurrentView} />
-          : <LandingPage onNavigate={setCurrentView} />;
-
-      // Legal Pages
+        return <ClientManualPage onNavigate={setCurrentView} />;
       case 'termos':
       case 'terms':
         return <TermsPage onNavigate={setCurrentView} />;
@@ -125,7 +177,7 @@ const MainApp: React.FC = () => {
       case 'privacy':
         return <PrivacyPage onNavigate={setCurrentView} />;
 
-      // Creator Routes (Protected for Creator or Admin)
+      // 3. Creator Dedicated Views
       case 'creator-dashboard':
         return checkPermission('creator', <CreatorDashboard onNavigate={setCurrentView} />);
       case 'creator-campaigns':
@@ -141,15 +193,15 @@ const MainApp: React.FC = () => {
       case 'creator-profile':
         return checkPermission('creator', <CreatorProfilePage />);
 
-      // Brand Routes (Protected for Brand or Admin)
+      // 4. Brand Dedicated Views
       case 'brand-dashboard':
-        return checkPermission('brand', <BrandDashboard onNavigate={setCurrentView} />);
+        return <SquadraDashboard onNavigate={setCurrentView} />;
       case 'brand-campaigns':
         return checkPermission('brand', <BrandCampaigns onNavigate={setCurrentView} />);
       case 'brand-create-campaign':
         return checkPermission('brand', <BrandCampaigns onNavigate={setCurrentView} openCreateWizard={true} />);
       case 'brand-creators':
-        return checkPermission('brand', <BrandCreators />);
+        return <SquadraCreators onNavigate={setCurrentView} />;
       case 'brand-applications':
         return checkPermission('brand', <BrandApplications />);
       case 'brand-content':
@@ -157,9 +209,9 @@ const MainApp: React.FC = () => {
       case 'brand-products':
         return checkPermission('brand', <BrandProducts />);
 
-      // Admin Routes (Protected strictly with Admin Authentication Guard)
+      // 5. Admin Views
       case 'admin-dashboard':
-        return <AdminAuthGuard onNavigate={setCurrentView}><AdminDashboard onNavigate={setCurrentView} /></AdminAuthGuard>;
+        return <AdminAuthGuard onNavigate={setCurrentView}><SquadraDashboard onNavigate={setCurrentView} /></AdminAuthGuard>;
       case 'admin-moderation-creators':
       case 'admin-moderation-brands':
       case 'admin-moderation-campaigns':
@@ -170,9 +222,21 @@ const MainApp: React.FC = () => {
         return <AdminAuthGuard onNavigate={setCurrentView}><CreatorAcademy /></AdminAuthGuard>;
 
       default:
-        return <LandingPage onNavigate={setCurrentView} />;
+        return <SquadraDashboard onNavigate={setCurrentView} />;
     }
   };
+
+  if (isSiteView) {
+    const pages: Record<string, React.FC<{ actions: SiteActions }>> = {
+      landing: LandingPage, sobre: SobrePage, 'para-creators': ParaCreatorsPage, 'para-marcas': ParaMarcasPage, contato: ContatoPage, squad: ArtigoSquadPage,
+    };
+    const Page = pages[currentView];
+    return (
+      <SiteLayout currentView={currentView} onNavigate={setCurrentView}>
+        {(actions) => <Page actions={actions} />}
+      </SiteLayout>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">

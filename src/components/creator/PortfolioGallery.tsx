@@ -95,7 +95,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             onClick={() => setActiveFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeFilter === 'all'
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -107,7 +107,7 @@ export const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
               onClick={() => setActiveFilter(tech)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeFilter === tech
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >

@@ -1,6 +1,99 @@
-export type UserRole = 'creator' | 'brand' | 'admin' | 'brand_manager';
+export type UserRole = 
+  | 'admin_master' 
+  | 'brand_admin' 
+  | 'manager' 
+  | 'analyst' 
+  | 'creator' 
+  | 'brand' 
+  | 'admin' 
+  | 'brand_manager';
 
 export type UserStatus = 'pending' | 'active' | 'suspended';
+
+export type PipelineStage = 
+  | 'discovery'
+  | 'invited'
+  | 'applied'
+  | 'screening'
+  | 'squad_approved'
+  | 'briefing_sent'
+  | 'shipping'
+  | 'delivered'
+  | 'producing'
+  | 'submitted'
+  | 'reviewing'
+  | 'approved'
+  | 'published'
+  | 'completed';
+
+export interface ScoreWeights {
+  engagement: number;     // ex: 30
+  audience: number;       // ex: 20
+  nicheMatch: number;     // ex: 25
+  deliveryHistory: number;// ex: 15
+  quality: number;        // ex: 10
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
+  created_at: string;
+}
+
+export interface RetailPoint {
+  id: string;
+  organization_id?: string;
+  name: string;
+  trade_name?: string;
+  network?: string;
+  cnpj?: string;
+  type: 'cosmetics' | 'pharmacy' | 'salon' | 'perfumery' | 'distributor';
+  city: string;
+  state: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  manager_name?: string;
+  status: 'active' | 'lead' | 'inactive';
+  created_at: string;
+}
+
+export interface Shipment {
+  id: string;
+  campaign_id: string;
+  creator_id: string;
+  creator_name?: string;
+  creator_avatar?: string;
+  tracking_code: string;
+  carrier: 'Correios' | 'Melhor Envio' | 'Loggi' | 'Total Express';
+  status: 'pending' | 'shipped' | 'in_transit' | 'delivered';
+  address_street: string;
+  address_city: string;
+  address_state: string;
+  address_zip: string;
+  shipped_at?: string;
+  delivered_at?: string;
+  notes?: string;
+}
+
+export interface ContentReviewItem {
+  id: string;
+  content_id: string;
+  author_name: string;
+  author_role: string;
+  comment: string;
+  created_at: string;
+}
+
+export interface SourceCounts {
+  manicures: number;
+  tiktok: number;
+  instagram: number;
+  retail_points: number;
+  unique_creators: number;
+}
 
 export type CampaignType = 
   | 'product_seeding'
@@ -82,6 +175,12 @@ export interface CreatorProfile {
   portfolio_cover_url?: string;
   profile_completion: number;
   verification_status: 'verified' | 'pending' | 'unverified';
+  operational_score?: number;
+  engagement_rate?: number;
+  tags?: string[];
+  email?: string;
+  phone?: string;
+  media_kit_url?: string;
   is_featured?: boolean;
   featured_consent_at?: string;
   created_at: string;
@@ -197,6 +296,9 @@ export interface CampaignParticipant {
   creator?: CreatorProfile & { user?: Profile };
   campaign?: Campaign;
   status: ParticipantStatus;
+  stage?: PipelineStage;
+  operational_score?: number;
+  notes?: string;
   tracking_code?: string;
   product_sent_at?: string;
   created_at: string;
@@ -217,6 +319,7 @@ export interface ContentSubmission {
   submitted_at: string;
   approved_at?: string;
   metrics?: ContentMetrics;
+  reviews?: ContentReviewItem[];
 }
 
 export interface ContentMetrics {
@@ -240,6 +343,7 @@ export interface AffiliateLink {
   product_id: string;
   product?: Product;
   campaign?: Campaign;
+  creator?: CreatorProfile;
   code: string;
   url: string;
   commission_percentage: number;

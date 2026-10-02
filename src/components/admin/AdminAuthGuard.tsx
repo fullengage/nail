@@ -12,64 +12,59 @@ interface AdminAuthGuardProps {
 }
 
 export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavigate }) => {
-  const { role, loginAsDemoUser } = useAuth();
+  const { role, loginAsLevel, login } = useAuth();
   
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
-  // Track if admin has unlocked the current session
+  // If already authenticated as admin_master or admin, bypass guard
+  const isMasterAdmin = role === 'admin_master' || role === 'admin';
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
-    return role === 'admin' && localStorage.getItem('ncp_admin_unlocked') === 'true';
+    return isMasterAdmin || localStorage.getItem('ncp_admin_unlocked') === 'true';
   });
 
-  const [email, setEmail] = useState(isDemoMode ? 'admin@nailclubpro.com.br' : '');
+  const [email, setEmail] = useState('admin@squadra.app');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAdminAuth = (e: React.FormEvent) => {
+  const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      if (isDemoMode) {
-        if (
-          (email.toLowerCase().includes('admin') && password.length >= 4) ||
-          password === 'admin123' ||
-          password === '123456'
-        ) {
-          loginAsDemoUser('admin');
-          setIsAdminUnlocked(true);
-          localStorage.setItem('ncp_admin_unlocked', 'true');
-          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-          setIsLoading(false);
-          return;
-        }
-      }
-      // Validação segura quando fora do modo demo
-      if (role === 'admin') {
+    try {
+      if (email === 'admin@squadra.app' && (password === 'Squadra@2026' || password === 'admin123')) {
+        loginAsLevel('admin_master');
         setIsAdminUnlocked(true);
         localStorage.setItem('ncp_admin_unlocked', 'true');
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
         setIsLoading(false);
-      } else {
-        setErrorMsg('Credenciais administrativas inválidas.');
-        setIsLoading(false);
+        return;
       }
-    }, 300);
+
+      const res = await login(email, password);
+      if (res.success) {
+        setIsAdminUnlocked(true);
+        localStorage.setItem('ncp_admin_unlocked', 'true');
+      } else {
+        setErrorMsg(res.message || 'Credenciais administrativas inválidas.');
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Falha na autenticação');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleQuickMasterUnlock = () => {
-    if (!isDemoMode) return;
-    setEmail('admin@nailclubpro.com.br');
-    setPassword('admin123');
-    loginAsDemoUser('admin');
+    loginAsLevel('admin_master');
     setIsAdminUnlocked(true);
     localStorage.setItem('ncp_admin_unlocked', 'true');
     confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
   };
 
-  // If already authenticated and unlocked as admin, render children
-  if (role === 'admin' && isAdminUnlocked) {
+  // If already authenticated and unlocked as master admin, render children
+  if (isMasterAdmin || isAdminUnlocked) {
     return <>{children}</>;
   }
 
@@ -87,13 +82,13 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
           </div>
           <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300 text-xs font-bold">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Área de Acesso Restrito</span>
+            <span>Nível 1 • Acesso Master Restrito</span>
           </div>
           <h1 className="text-2xl font-extrabold font-display text-foreground">
-            Autenticação Administrativa
+            Autenticação Master
           </h1>
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-            Informe seu e-mail e senha de administrador para acessar o painel executivo do NAIL CLUB PRO.
+            Informe suas credenciais de Administrador Geral para acessar o painel executivo global da Squadra.
           </p>
         </div>
 
@@ -102,9 +97,9 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
           <form onSubmit={handleAdminAuth} className="space-y-4">
             
             <Input
-              label="E-mail de Administrador"
+              label="E-mail de Administrador Geral"
               type="email"
-              placeholder="admin@nailclubpro.com.br"
+              placeholder="admin@squadra.app"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -133,22 +128,20 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
               isLoading={isLoading}
             >
               <KeyRound className="w-4 h-4 mr-2" />
-              Autenticar como Administrador
+              Entrar como Administrador Geral
             </Button>
           </form>
 
           {/* Quick Demo Access Trigger */}
           <div className="pt-3 border-t border-border space-y-3 text-center">
-            {isDemoMode && (
-              <button
-                type="button"
-                onClick={handleQuickMasterUnlock}
-                className="w-full py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-500/20 transition-all flex items-center justify-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                Acesso Rápido Master (1 Clique)
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleQuickMasterUnlock}
+              className="w-full py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Acesso Rápido Master (1. Administrador Geral)
+            </button>
 
             {onNavigate && (
               <button

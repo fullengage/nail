@@ -9,14 +9,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none rounded-xl active:scale-[0.98]';
+    const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none rounded-full active:scale-[0.98]';
 
     const variants = {
-      primary: 'bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20 focus:ring-primary',
+      primary: 'bg-primary text-primary-foreground border-2 border-black hover:bg-black hover:text-[#DFE82A] focus:ring-black',
       secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus:ring-secondary',
-      outline: 'border border-border bg-transparent hover:bg-muted text-foreground focus:ring-primary',
+      outline: 'border-2 border-foreground bg-transparent hover:bg-muted text-foreground focus:ring-primary',
       ghost: 'bg-transparent hover:bg-muted text-foreground focus:ring-primary',
-      gold: 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 shadow-md shadow-amber-500/20 focus:ring-amber-500',
+      gold: 'bg-black text-white border-2 border-black hover:bg-primary hover:text-black focus:ring-black',
       danger: 'bg-red-500 text-white hover:bg-red-600 shadow-md shadow-red-500/20 focus:ring-red-500',
     };
 

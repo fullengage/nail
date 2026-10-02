@@ -10,7 +10,12 @@ import {
   CreatorPortfolioItem,
   AppNotification,
   CreatorProfile,
-  BrandProfile
+  BrandProfile,
+  RetailPoint,
+  Shipment,
+  SourceCounts,
+  ScoreWeights,
+  PipelineStage
 } from '../types/database';
 import {
   MOCK_CAMPAIGNS,
@@ -25,6 +30,17 @@ import {
   MOCK_CREATORS,
   MOCK_BRANDS,
 } from '../data/mockData';
+import {
+  SQUADRA_SOURCE_COUNTS,
+  DEFAULT_SCORE_WEIGHTS,
+  SQUADRA_BRANDS,
+  SQUADRA_CREATORS,
+  SQUADRA_RETAIL_POINTS,
+  SQUADRA_CAMPAIGNS,
+  SQUADRA_PARTICIPANTS,
+  SQUADRA_SHIPMENTS,
+  SQUADRA_SUBMISSIONS
+} from '../data/squadraData';
 import { supabaseService } from '../services/supabaseService';
 
 interface DataContextType {
@@ -39,6 +55,11 @@ interface DataContextType {
   notifications: AppNotification[];
   creators: CreatorProfile[];
   brands: BrandProfile[];
+  retailPoints: RetailPoint[];
+  shipments: Shipment[];
+  sourceCounts: SourceCounts;
+  scoreWeights: ScoreWeights;
+  selectedBrandId: string;
   
   // Actions for Creator Flow
   applyToCampaign: (campaignId: string, message: string) => boolean;
@@ -55,6 +76,17 @@ interface DataContextType {
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
   inviteCreatorToCampaign: (creatorId: string, campaignId: string) => void;
   
+  // Actions for Squadra Platform
+  setSelectedBrandId: (brandId: string) => void;
+  setScoreWeights: (weights: ScoreWeights) => void;
+  updateCreatorStage: (campaignId: string, creatorId: string, newStage: PipelineStage) => void;
+  addCreatorTags: (creatorIds: string[], tags: string[]) => void;
+  createSquadFromCreators: (campaignId: string, creatorIds: string[]) => void;
+  importCreatorsCsv: (newCreators: Partial<CreatorProfile>[]) => { added: number; updated: number; duplicates: number };
+  addRetailPoint: (retail: Omit<RetailPoint, 'id' | 'created_at'>) => void;
+  importRetailPointsCsv: (points: Partial<RetailPoint>[]) => number;
+  addReviewComment: (contentId: string, comment: string, authorName: string) => void;
+
   // Actions for Admin
   processAllPixPayouts: () => void;
   validateCreator: (creatorId: string) => void;
@@ -64,6 +96,12 @@ interface DataContextType {
   // Notifications
   markNotificationAsRead: (notificationId: string) => void;
   
+  // Brand Actions & Clean Mockups
+  addBrand: (brand: Omit<BrandProfile, 'id' | 'created_at'>) => void;
+  updateBrand: (id: string, updates: Partial<BrandProfile>) => void;
+  deleteBrand: (id: string) => void;
+  cleanMockData: () => void;
+
   // Reset Demo
   resetToDemoDefaults: () => void;
 }
@@ -73,81 +111,145 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(() => {
+    return localStorage.getItem('squadra_selected_brand') || 'brand-1';
+  });
+
+  const [scoreWeights, setScoreWeightsState] = useState<ScoreWeights>(() => {
+    const saved = localStorage.getItem('squadra_score_weights');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return DEFAULT_SCORE_WEIGHTS;
+  });
+
+  const [sourceCounts, setSourceCounts] = useState<SourceCounts>(() => {
+    const saved = localStorage.getItem('squadra_source_counts');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_SOURCE_COUNTS;
+  });
+
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
-    const saved = localStorage.getItem('ncp_campaigns');
-    if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_CAMPAIGNS : [];
+    const saved = localStorage.getItem('squadra_campaigns');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.length > 0 && !parsed[0].title?.includes('Gel Diamante') && !parsed[0].title?.includes('Micromotores')) {
+          return parsed;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_CAMPAIGNS;
+  });
+
+  const [creators, setCreators] = useState<CreatorProfile[]>(() => {
+    const saved = localStorage.getItem('squadra_creators_v2');
+    if (saved) {
+      try { 
+        const parsed = JSON.parse(saved);
+        if (parsed.length >= 100) return parsed;
+      } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_CREATORS;
+  });
+
+  const [retailPoints, setRetailPoints] = useState<RetailPoint[]>(() => {
+    const saved = localStorage.getItem('squadra_retail_points');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_RETAIL_POINTS;
+  });
+
+  const [shipments, setShipments] = useState<Shipment[]>(() => {
+    const saved = localStorage.getItem('squadra_shipments');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_SHIPMENTS;
   });
 
   const [applications, setApplications] = useState<CampaignApplication[]>(() => {
-    const saved = localStorage.getItem('ncp_applications');
-    if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_APPLICATIONS : [];
+    const saved = localStorage.getItem('squadra_applications');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return MOCK_APPLICATIONS;
   });
 
   const [participants, setParticipants] = useState<CampaignParticipant[]>(() => {
-    const saved = localStorage.getItem('ncp_participants');
-    if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_PARTICIPANTS : [];
+    const saved = localStorage.getItem('squadra_participants');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_PARTICIPANTS;
   });
 
   const [submissions, setSubmissions] = useState<ContentSubmission[]>(() => {
-    const saved = localStorage.getItem('ncp_submissions');
-    if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_SUBMISSIONS : [];
+    const saved = localStorage.getItem('squadra_submissions');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_SUBMISSIONS;
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ncp_products');
     if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_PRODUCTS : [];
+    return MOCK_PRODUCTS;
   });
 
   const [earnings, setEarnings] = useState<CreatorEarning[]>(() => {
     const saved = localStorage.getItem('ncp_earnings');
     if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_EARNINGS : [];
+    return MOCK_EARNINGS;
   });
 
   const [courses, setCourses] = useState<Course[]>(() => {
     const saved = localStorage.getItem('ncp_courses');
     if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_COURSES : [];
+    return MOCK_COURSES;
   });
 
   const [portfolio, setPortfolio] = useState<CreatorPortfolioItem[]>(() => {
     const saved = localStorage.getItem('ncp_portfolio');
     if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_PORTFOLIO : [];
+    return MOCK_PORTFOLIO;
   });
 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('ncp_notifications');
     if (saved) return JSON.parse(saved);
-    return isDemoMode ? MOCK_NOTIFICATIONS : [];
+    return MOCK_NOTIFICATIONS;
   });
 
-  const [creators, setCreators] = useState<CreatorProfile[]>(() => {
-    return isDemoMode ? MOCK_CREATORS : [];
-  });
   const [brands, setBrands] = useState<BrandProfile[]>(() => {
-    return isDemoMode ? MOCK_BRANDS : [];
+    const saved = localStorage.getItem('squadra_brands');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.length > 0 && !parsed[0].company_name?.includes('GlamGel') && !parsed[0].company_name?.includes('BellaVitta')) {
+          return parsed;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_BRANDS;
   });
 
-  // When not in demo mode, fetch real data from Supabase
+  // When Supabase is configured, sync in background
   useEffect(() => {
-    if (!isDemoMode) {
-      supabaseService.getCampaigns().then((data) => {
-        if (data && data.length > 0) setCampaigns(data);
-      });
-      supabaseService.getCreators().then((data) => {
-        if (data && data.length > 0) setCreators(data);
-      });
-      supabaseService.getBrands().then((data) => {
-        if (data && data.length > 0) setBrands(data);
-      });
-    }
-  }, [isDemoMode]);
+    supabaseService.getCampaigns().then((data) => {
+      if (data && data.length > 0) setCampaigns(data);
+    });
+    supabaseService.getCreators().then((data) => {
+      if (data && data.length >= 100) setCreators(data);
+    });
+    supabaseService.getBrands().then((data) => {
+      if (data && data.length > 0) setBrands(data);
+    });
+  }, []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -497,31 +599,285 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Squadra: Alterar Marca Ativa
+  const setSelectedBrandIdHandler = (brandId: string) => {
+    setSelectedBrandId(brandId);
+    localStorage.setItem('squadra_selected_brand', brandId);
+  };
+
+  // Squadra: Alterar Pesos da Pontuação Operacional
+  const setScoreWeights = (weights: ScoreWeights) => {
+    setScoreWeightsState(weights);
+    localStorage.setItem('squadra_score_weights', JSON.stringify(weights));
+  };
+
+  // Squadra: Movimentar Etapa do Pipeline (14 etapas)
+  const updateCreatorStage = (campaignId: string, creatorId: string, newStage: PipelineStage) => {
+    setParticipants((prev) =>
+      prev.map((p) => {
+        if (p.campaign_id === campaignId && p.creator_id === creatorId) {
+          const updated = {
+            ...p,
+            stage: newStage,
+            status: newStage === 'completed' ? 'completed' : newStage === 'approved' ? 'approved' : p.status,
+            updated_at: new Date().toISOString()
+          };
+          return updated;
+        }
+        return p;
+      })
+    );
+  };
+
+  // Squadra: Adicionar Tags em Massa a Creators
+  const addCreatorTags = (creatorIds: string[], tags: string[]) => {
+    setCreators((prev) =>
+      prev.map((c) => {
+        if (creatorIds.includes(c.id)) {
+          const currentTags = c.tags || [];
+          const combined = Array.from(new Set([...currentTags, ...tags]));
+          return { ...c, tags: combined };
+        }
+        return c;
+      })
+    );
+  };
+
+  // Squadra: Criar Squad a partir de Creators Selecionados
+  const createSquadFromCreators = (campaignId: string, creatorIds: string[]) => {
+    const newParticipants: CampaignParticipant[] = [];
+    creatorIds.forEach((cId) => {
+      const alreadyIn = participants.some((p) => p.campaign_id === campaignId && p.creator_id === cId);
+      if (!alreadyIn) {
+        const creatorObj = creators.find((c) => c.id === cId);
+        newParticipants.push({
+          id: `part-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          campaign_id: campaignId,
+          creator_id: cId,
+          creator: creatorObj,
+          stage: 'squad_approved',
+          status: 'selected',
+          operational_score: creatorObj?.operational_score || 85,
+          notes: 'Adicionado via seleção em massa no painel de Creators.',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    });
+
+    if (newParticipants.length > 0) {
+      setParticipants((prev) => [...newParticipants, ...prev]);
+      // Update occupied slots
+      setCampaigns((prev) =>
+        prev.map((c) =>
+          c.id === campaignId ? { ...c, occupied_slots: (c.occupied_slots || 0) + newParticipants.length } : c
+        )
+      );
+    }
+  };
+
+  // Squadra: Importar CSV de Creators com Deduplicação por telefone / e-mail / @
+  const importCreatorsCsv = (newItems: Partial<CreatorProfile>[]) => {
+    let added = 0;
+    let updated = 0;
+    let duplicates = 0;
+
+    setCreators((prev) => {
+      const existingHandles = new Set(prev.map((c) => (c.tiktok || '').toLowerCase().trim()));
+      const existingEmails = new Set(prev.map((c) => (c.email || '').toLowerCase().trim()));
+      const existingPhones = new Set(prev.map((c) => (c.phone || '').replace(/\D/g, '')));
+
+      const toAdd: CreatorProfile[] = [];
+
+      newItems.forEach((item, idx) => {
+        const handle = (item.tiktok || item.instagram || '').toLowerCase().trim();
+        const email = (item.email || '').toLowerCase().trim();
+        const phone = (item.phone || '').replace(/\D/g, '');
+
+        const isDup =
+          (handle && existingHandles.has(handle)) ||
+          (email && existingEmails.has(email)) ||
+          (phone && phone.length > 8 && existingPhones.has(phone));
+
+        if (isDup) {
+          duplicates++;
+        } else {
+          added++;
+          toAdd.push({
+            id: `creator-imp-${Date.now()}-${idx}`,
+            user_id: `user-imp-${idx}`,
+            professional_name: item.professional_name || item.tiktok || item.instagram || '',
+            bio: item.bio || '',
+            city: item.city || '',
+            state: item.state || '',
+            instagram: item.instagram || '',
+            tiktok: item.tiktok || '',
+            youtube: item.youtube || '',
+            instagram_followers: item.instagram_followers || 0,
+            tiktok_followers: item.tiktok_followers || 0,
+            youtube_followers: item.youtube_followers || 0,
+            years_experience: 0,
+            specialties: item.specialties || [],
+            techniques: item.techniques || [],
+            accepts_product_campaigns: true,
+            accepts_paid_campaigns: true,
+            accepts_affiliate_campaigns: true,
+            accepts_live_campaigns: false,
+            portfolio_cover_url: '',
+            profile_completion: 0,
+            verification_status: 'unverified',
+            operational_score: item.operational_score || 0,
+            engagement_rate: item.engagement_rate || 0,
+            tags: item.tags || ['Importado'],
+            email: item.email || '',
+            phone: item.phone || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+      });
+
+      return [...toAdd, ...prev];
+    });
+
+    return { added, updated, duplicates };
+  };
+
+  // Squadra: Adicionar e Importar PDVs (Retail Points)
+  const addRetailPoint = (retail: Omit<RetailPoint, 'id' | 'created_at'>) => {
+    const newPoint: RetailPoint = {
+      ...retail,
+      id: `retail-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    setRetailPoints((prev) => [newPoint, ...prev]);
+  };
+
+  const importRetailPointsCsv = (points: Partial<RetailPoint>[]) => {
+    const valid = points.map((p, idx) => ({
+      id: `retail-imp-${Date.now()}-${idx}`,
+      name: p.name || 'PDV Parceiro',
+      trade_name: p.trade_name || p.name || 'PDV',
+      network: p.network || 'Rede Independente',
+      cnpj: p.cnpj || '00.000.000/0001-00',
+      type: p.type || 'cosmetics',
+      city: p.city || 'São Paulo',
+      state: p.state || 'SP',
+      address: p.address || 'Endereço Comercial',
+      phone: p.phone || '',
+      email: p.email || '',
+      manager_name: p.manager_name || 'Gerente',
+      status: p.status || 'active',
+      created_at: new Date().toISOString()
+    }));
+    setRetailPoints((prev) => [...valid, ...prev]);
+    return valid.length;
+  };
+
+  // Squadra: Adicionar Comentário de Revisão
+  const addReviewComment = (contentId: string, comment: string, authorName: string) => {
+    setSubmissions((prev) =>
+      prev.map((sub) => {
+        if (sub.id === contentId) {
+          const newReview = {
+            id: `rev-${Date.now()}`,
+            content_id: contentId,
+            author_name: authorName,
+            author_role: 'brand_admin',
+            comment,
+            created_at: new Date().toISOString()
+          };
+          return {
+            ...sub,
+            reviews: [...(sub.reviews || []), newReview]
+          };
+        }
+        return sub;
+      })
+    );
+  };
+
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const resetToDemoDefaults = () => {
-    localStorage.removeItem('ncp_campaigns');
-    localStorage.removeItem('ncp_applications');
-    localStorage.removeItem('ncp_participants');
-    localStorage.removeItem('ncp_submissions');
-    localStorage.removeItem('ncp_products');
-    localStorage.removeItem('ncp_earnings');
-    localStorage.removeItem('ncp_portfolio');
-    localStorage.removeItem('ncp_notifications');
-    setCampaigns(isDemoMode ? MOCK_CAMPAIGNS : []);
-    setApplications(isDemoMode ? MOCK_APPLICATIONS : []);
-    setParticipants(isDemoMode ? MOCK_PARTICIPANTS : []);
-    setSubmissions(isDemoMode ? MOCK_SUBMISSIONS : []);
-    setProducts(isDemoMode ? MOCK_PRODUCTS : []);
-    setEarnings(isDemoMode ? MOCK_EARNINGS : []);
-    setPortfolio(isDemoMode ? MOCK_PORTFOLIO : []);
-    setNotifications(isDemoMode ? MOCK_NOTIFICATIONS : []);
-    setCreators(isDemoMode ? MOCK_CREATORS : []);
-    setBrands(isDemoMode ? MOCK_BRANDS : []);
+    localStorage.removeItem('squadra_campaigns');
+    localStorage.removeItem('squadra_creators_v2');
+    localStorage.removeItem('squadra_retail_points');
+    localStorage.removeItem('squadra_shipments');
+    localStorage.removeItem('squadra_participants');
+    localStorage.removeItem('squadra_submissions');
+    localStorage.removeItem('squadra_score_weights');
+    setCampaigns(SQUADRA_CAMPAIGNS);
+    setCreators(SQUADRA_CREATORS);
+    setRetailPoints(SQUADRA_RETAIL_POINTS);
+    setShipments(SQUADRA_SHIPMENTS);
+    setParticipants(SQUADRA_PARTICIPANTS);
+    setSubmissions(SQUADRA_SUBMISSIONS);
+    setScoreWeightsState(DEFAULT_SCORE_WEIGHTS);
+    setSourceCounts(SQUADRA_SOURCE_COUNTS);
   };
 
+  const addBrand = (newBrand: Omit<BrandProfile, 'id' | 'created_at'>) => {
+    const brand: BrandProfile = {
+      ...newBrand,
+      id: `brand-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    setBrands(prev => {
+      const next = [brand, ...prev];
+      localStorage.setItem('squadra_brands', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const updateBrand = (id: string, updates: Partial<BrandProfile>) => {
+    setBrands(prev => {
+      const next = prev.map(b => b.id === id ? { ...b, ...updates } : b);
+      localStorage.setItem('squadra_brands', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const deleteBrand = (id: string) => {
+    setBrands(prev => {
+      const next = prev.filter(b => b.id !== id);
+      localStorage.setItem('squadra_brands', JSON.stringify(next));
+      return next;
+    });
+    if (selectedBrandId === id) {
+      const remaining = brands.filter(b => b.id !== id);
+      if (remaining.length > 0) setSelectedBrandIdHandler(remaining[0].id);
+    }
+  };
+
+  const cleanMockData = () => {
+    localStorage.removeItem('squadra_brands');
+    localStorage.removeItem('squadra_campaigns');
+    localStorage.removeItem('squadra_creators_v2');
+    localStorage.removeItem('squadra_retail_points');
+    localStorage.removeItem('squadra_shipments');
+    localStorage.removeItem('squadra_participants');
+    localStorage.removeItem('squadra_submissions');
+    localStorage.removeItem('squadra_score_weights');
+    localStorage.removeItem('ncp_campaigns');
+    localStorage.removeItem('ncp_creators');
+    localStorage.removeItem('ncp_brands');
+    localStorage.removeItem('ncp_products');
+    localStorage.removeItem('ncp_portfolio');
+
+    setBrands(SQUADRA_BRANDS);
+    setSelectedBrandIdHandler(SQUADRA_BRANDS[0].id);
+    setCampaigns(SQUADRA_CAMPAIGNS);
+    setCreators(SQUADRA_CREATORS);
+    setRetailPoints(SQUADRA_RETAIL_POINTS);
+    setShipments(SQUADRA_SHIPMENTS);
+    setParticipants(SQUADRA_PARTICIPANTS);
+    setSubmissions(SQUADRA_SUBMISSIONS);
+    setScoreWeightsState(DEFAULT_SCORE_WEIGHTS);
+    setSourceCounts(SQUADRA_SOURCE_COUNTS);
+  };
 
   return (
     <DataContext.Provider
@@ -537,6 +893,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notifications,
         creators,
         brands,
+        retailPoints,
+        shipments,
+        sourceCounts,
+        scoreWeights,
+        selectedBrandId,
+        setSelectedBrandId: setSelectedBrandIdHandler,
+        setScoreWeights,
+        updateCreatorStage,
+        addCreatorTags,
+        createSquadFromCreators,
+        importCreatorsCsv,
+        addRetailPoint,
+        importRetailPointsCsv,
+        addReviewComment,
+        addBrand,
+        updateBrand,
+        deleteBrand,
+        cleanMockData,
         applyToCampaign,
         submitContent,
         addPortfolioItem,

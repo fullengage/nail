@@ -63,7 +63,7 @@ export const CreatorCampaigns: React.FC = () => {
               onClick={() => setSelectedType(type.id)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedType === type.id
-                  ? 'bg-primary text-white shadow-sm font-bold'
+                  ? 'bg-primary text-primary-foreground shadow-sm font-bold'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >

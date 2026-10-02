@@ -219,7 +219,7 @@ export const ClientManualPage: React.FC<ClientManualPageProps> = ({ onNavigate }
             },
           ].map((item) => (
             <div key={item.step} className="p-4 rounded-2xl bg-card border border-border flex items-start gap-4">
-              <span className="w-8 h-8 rounded-xl bg-primary text-white font-extrabold flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground font-extrabold flex items-center justify-center shrink-0">
                 {item.step}
               </span>
               <div className="space-y-1">

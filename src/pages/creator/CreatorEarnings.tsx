@@ -151,7 +151,7 @@ export const CreatorEarnings: React.FC = () => {
                     navigator.clipboard.writeText(aff.url);
                     alert('Link de afiliada copiado!');
                   }}
-                  className="px-2.5 py-1 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors flex items-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Copiar
                 </button>

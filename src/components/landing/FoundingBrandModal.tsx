@@ -18,8 +18,8 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
   const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [category, setCategory] = useState('Esmaltes & Cores');
-  const [salesChannel, setSalesChannel] = useState('Perfumarias e Lojas Físicas');
+  const [category, setCategory] = useState('Beleza & Cosméticos');
+  const [salesChannel, setSalesChannel] = useState('TikTok Shop / Live commerce');
   const [budgetTier, setBudgetTier] = useState('R$ 5.000 a R$ 15.000 / campanha');
   const [honeypot, setHoneypot] = useState('');
 
@@ -33,8 +33,8 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
     setRole('');
     setEmail('');
     setWhatsapp('');
-    setCategory('Esmaltes & Cores');
-    setSalesChannel('Perfumarias e Lojas Físicas');
+    setCategory('Beleza & Cosméticos');
+    setSalesChannel('TikTok Shop / Live commerce');
     setBudgetTier('R$ 5.000 a R$ 15.000 / campanha');
     setHoneypot('');
     setIsSuccess(false);
@@ -117,7 +117,7 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
               Candidate sua Marca para o Piloto
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Apenas 3 vagas exclusivas para marcas pioneiras de cosméticos testarem campanhas reais com creators especializadas.
+              Apenas 3 vagas para marcas pioneiras montarem seu squad de creators de UGC e live commerce.
             </p>
           </div>
         </div>
@@ -166,8 +166,8 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
                 required
               />
               <Input
-                label="Empresa / Marca de Cosméticos *"
-                placeholder="Ex: Esmaltes BellaVitta"
+                label="Empresa / Marca *"
+                placeholder="Ex: BellaVitta"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 required
@@ -216,11 +216,14 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
-                  <option value="Esmaltes & Cores">Esmaltes & Cores</option>
-                  <option value="Gel & Alongamento">Gel & Alongamento</option>
-                  <option value="Equipamentos & Cabines">Equipamentos & Cabines LED</option>
-                  <option value="Nail Art & Acessórios">Nail Art & Acessórios</option>
-                  <option value="Tratamento & Cutículas">Tratamento & Cutículas</option>
+                  <option value="Beleza & Cosméticos">Beleza & Cosméticos</option>
+                  <option value="Moda & Acessórios">Moda & Acessórios</option>
+                  <option value="Casa & Decoração">Casa & Decoração</option>
+                  <option value="Fitness & Suplementos">Fitness & Suplementos</option>
+                  <option value="Eletrônicos & Tech">Eletrônicos & Tech</option>
+                  <option value="Alimentos & Bebidas">Alimentos & Bebidas</option>
+                  <option value="Infantil & Pets">Infantil & Pets</option>
+                  <option value="Outros">Outros</option>
                 </select>
               </div>
             </div>
@@ -235,10 +238,11 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
                   onChange={(e) => setSalesChannel(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
-                  <option value="Perfumarias e Lojas Físicas">Perfumarias e Lojas Físicas</option>
+                  <option value="TikTok Shop / Live commerce">TikTok Shop / Live commerce</option>
                   <option value="E-commerce Próprio D2C">E-commerce Próprio D2C</option>
-                  <option value="Distribuidores Especializados">Distribuidores Especializados</option>
-                  <option value="Farmácias e Grandes Redes">Farmácias e Grandes Redes</option>
+                  <option value="Marketplaces (Shopee, Mercado Livre, Amazon)">Marketplaces (Shopee, Mercado Livre, Amazon)</option>
+                  <option value="Lojas Físicas / Varejo">Lojas Físicas / Varejo</option>
+                  <option value="Distribuidores / Atacado">Distribuidores / Atacado</option>
                 </select>
               </div>
 

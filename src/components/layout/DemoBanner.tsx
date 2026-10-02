@@ -74,7 +74,7 @@ export const DemoBanner: React.FC<DemoBannerProps> = ({ onNavigate }) => {
             onClick={() => handleRoleChange('creator')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
               role === 'creator'
-                ? 'bg-primary text-white shadow-sm ring-1 ring-white/20 font-bold'
+                ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-white/20 font-bold'
                 : 'bg-white/10 hover:bg-white/15 text-white/80'
             }`}
           >

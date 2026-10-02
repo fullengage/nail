@@ -1,7 +1,67 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, CreatorProfile, BrandProfile, UserRole } from '../types/database';
-import { MOCK_PROFILES, MOCK_CREATORS, MOCK_BRANDS } from '../data/mockData';
+import { SQUADRA_BRANDS, SQUADRA_CREATORS } from '../data/squadraData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
+// Perfis representativos dos 3 Níveis Autenticados
+export const SQUADRA_AUTH_LEVELS: Record<'admin_master' | 'brand_admin' | 'creator', {
+  profile: Profile;
+  label: string;
+  description: string;
+  defaultEmail: string;
+}> = {
+  admin_master: {
+    label: '1. Administrador Geral',
+    description: 'Gestão global da plataforma, multiempresa, pesos do score e relatórios',
+    defaultEmail: 'admin@squadra.app',
+    profile: {
+      id: '00000000-0000-0000-0000-000000000001',
+      auth_user_id: 'a0000000-0000-0000-0000-000000000001',
+      role: 'admin_master',
+      full_name: 'Administrador Geral (Squadra Master)',
+      email: 'admin@squadra.app',
+      phone: '(11) 99999-0001',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      status: 'active',
+      created_at: '2026-10-01T10:00:00Z',
+      updated_at: '2026-10-01T10:00:00Z'
+    }
+  },
+  brand_admin: {
+    label: '2. Administrador de Empresa (Contratante)',
+    description: 'Contratação de creators, gestão de campanhas, pipeline e aprovação de vídeos',
+    defaultEmail: 'empresa@squadra.app',
+    profile: {
+      id: '00000000-0000-0000-0000-000000000002',
+      auth_user_id: 'b0000000-0000-0000-0000-000000000002',
+      role: 'brand_admin',
+      full_name: 'Diretoria de Marketing (Squadra Nutrition)',
+      email: 'empresa@squadra.app',
+      phone: '(11) 98888-0002',
+      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+      status: 'active',
+      created_at: '2026-10-01T10:00:00Z',
+      updated_at: '2026-10-01T10:00:00Z'
+    }
+  },
+  creator: {
+    label: '3. UGC / Influenciador (Prestador de Serviço)',
+    description: 'Oferta de serviços, submissão de vídeos TikTok/Reels, cupons e recebimento de cachês',
+    defaultEmail: 'ugc@squadra.app',
+    profile: {
+      id: '00000000-0000-0000-0000-000000000003',
+      auth_user_id: 'c0000000-0000-0000-0000-000000000003',
+      role: 'creator',
+      full_name: 'Bruna Oliveira (UGC Creator)',
+      email: 'ugc@squadra.app',
+      phone: '(11) 97777-0003',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
+      status: 'active',
+      created_at: '2026-10-01T10:00:00Z',
+      updated_at: '2026-10-01T10:00:00Z'
+    }
+  }
+};
 
 interface SignUpCreatorData {
   fullName: string;
@@ -36,6 +96,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   signUpCreator: (data: SignUpCreatorData) => Promise<{ success: boolean; message?: string }>;
   signUpBrand: (data: SignUpBrandData) => Promise<{ success: boolean; message?: string }>;
+  loginAsLevel: (level: 'admin_master' | 'brand_admin' | 'creator') => void;
   loginAsDemoUser: (role: UserRole) => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -47,115 +108,176 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
-    const savedRole = localStorage.getItem('ncp_active_role');
-    return (savedRole as UserRole) || 'creator';
+    const savedRole = localStorage.getItem('squadra_active_role');
+    if (savedRole === 'admin_master' || savedRole === 'brand_admin' || savedRole === 'creator') {
+      return savedRole;
+    }
+    // Default to admin_master so client sees complete system immediately
+    return 'admin_master';
   });
 
   const [user, setUser] = useState<Profile | null>(() => {
-    const saved = localStorage.getItem('ncp_active_user');
+    const saved = localStorage.getItem('squadra_active_user');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return MOCK_PROFILES.find((p) => p.role === 'creator') || MOCK_PROFILES[0];
+    return SQUADRA_AUTH_LEVELS.admin_master.profile;
   });
 
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(() => {
-    const saved = localStorage.getItem('ncp_creator_profile');
+    const saved = localStorage.getItem('squadra_creator_profile');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return MOCK_CREATORS[0];
+    return SQUADRA_CREATORS[0] || null;
   });
 
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(() => {
-    const saved = localStorage.getItem('ncp_brand_profile');
+    const saved = localStorage.getItem('squadra_brand_profile');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return MOCK_BRANDS[0];
+    return SQUADRA_BRANDS[0] || null;
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
   // Sync to localStorage
   useEffect(() => {
-    if (user) localStorage.setItem('ncp_active_user', JSON.stringify(user));
-    else localStorage.removeItem('ncp_active_user');
+    if (user) {
+      localStorage.setItem('squadra_active_user', JSON.stringify(user));
+      localStorage.setItem('squadra_active_role', user.role);
+    } else {
+      localStorage.removeItem('squadra_active_user');
+      localStorage.removeItem('squadra_active_role');
+    }
   }, [user]);
 
-  // Login Function (Supabase Auth + Local fallback)
-  const login = async (email: string, password = 'password123'): Promise<{ success: boolean; message?: string }> => {
+  // Login Function (Supabase Auth + Database Profile Sync)
+  const login = async (email: string, password = 'Squadra@2026'): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // Try authenticating with Supabase Auth or query ncp_profiles
-        const { data: profile, error } = await supabase
-          .from('ncp_profiles')
+        // 1. Tentar login direto via Supabase Auth
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: password
+        });
+
+        // 2. Buscar perfil na tabela public.profiles
+        const { data: profile, error: profErr } = await supabase
+          .from('profiles')
           .select('*')
-          .eq('email', email.trim().toLowerCase())
+          .eq('email', cleanEmail)
           .maybeSingle();
 
         if (profile) {
-          setUser(profile as Profile);
-          setRoleState(profile.role);
-          localStorage.setItem('ncp_active_role', profile.role);
+          const typedProfile = profile as Profile;
+          setUser(typedProfile);
+          setRoleState(typedProfile.role);
 
-          if (profile.role === 'creator') {
+          // Se for creator, busca na tabela public.creators
+          if (typedProfile.role === 'creator') {
             const { data: cData } = await supabase
-              .from('ncp_creator_profiles')
+              .from('creators')
               .select('*')
-              .eq('user_id', profile.id)
+              .eq('email', cleanEmail)
               .maybeSingle();
-            if (cData) setCreatorProfile(cData as CreatorProfile);
-          } else if (profile.role === 'brand') {
+            if (cData) {
+              setCreatorProfile(cData as CreatorProfile);
+              localStorage.setItem('squadra_creator_profile', JSON.stringify(cData));
+            } else {
+              setCreatorProfile(SQUADRA_CREATORS[0]);
+            }
+          } else if (typedProfile.role === 'brand_admin' || typedProfile.role === 'brand') {
             const { data: bData } = await supabase
-              .from('ncp_brand_profiles')
+              .from('brands')
               .select('*')
-              .eq('user_id', profile.id)
+              .limit(1)
               .maybeSingle();
-            if (bData) setBrandProfile(bData as BrandProfile);
+            if (bData) {
+              setBrandProfile(bData as BrandProfile);
+              localStorage.setItem('squadra_brand_profile', JSON.stringify(bData));
+            } else {
+              setBrandProfile(SQUADRA_BRANDS[0]);
+            }
           }
 
           setIsLoading(false);
           return { success: true };
         }
       } catch (e: any) {
-        console.warn('Supabase query fallback:', e.message);
+        console.warn('Falha na autenticação remota Supabase:', e.message);
       }
     }
 
-    // Fallback Mock Profile Match
-    const foundProfile = MOCK_PROFILES.find((p) => p.email.toLowerCase() === email.trim().toLowerCase());
-    if (foundProfile) {
-      setUser(foundProfile);
-      setRoleState(foundProfile.role);
-      localStorage.setItem('ncp_active_role', foundProfile.role);
-
-      if (foundProfile.role === 'creator') {
-        const c = MOCK_CREATORS.find((c) => c.user_id === foundProfile.id) || MOCK_CREATORS[0];
-        setCreatorProfile(c);
-        localStorage.setItem('ncp_creator_profile', JSON.stringify(c));
-      } else if (foundProfile.role === 'brand') {
-        const b = MOCK_BRANDS.find((b) => b.user_id === foundProfile.id) || MOCK_BRANDS[0];
-        setBrandProfile(b);
-        localStorage.setItem('ncp_brand_profile', JSON.stringify(b));
-      }
-
+    // 3. Fallback inteligente para os 3 níveis locais
+    if (cleanEmail.includes('admin')) {
+      loginAsLevel('admin_master');
+      setIsLoading(false);
+      return { success: true };
+    } else if (cleanEmail.includes('empresa') || cleanEmail.includes('marca') || cleanEmail.includes('brand')) {
+      loginAsLevel('brand_admin');
+      setIsLoading(false);
+      return { success: true };
+    } else if (cleanEmail.includes('ugc') || cleanEmail.includes('creator')) {
+      loginAsLevel('creator');
       setIsLoading(false);
       return { success: true };
     }
 
-    // Generic demo login
-    loginAsDemoUser(role);
+    // Default: autentica no nível do papel ativo
+    loginAsLevel(role === 'brand_admin' || role === 'brand' ? 'brand_admin' : role === 'creator' ? 'creator' : 'admin_master');
     setIsLoading(false);
     return { success: true };
+  };
+
+  // Alternador Rápido entre os 3 Níveis Autenticados
+  const loginAsLevel = (level: 'admin_master' | 'brand_admin' | 'creator') => {
+    const config = SQUADRA_AUTH_LEVELS[level];
+    setUser(config.profile);
+    setRoleState(level);
+    localStorage.setItem('squadra_active_role', level);
+    localStorage.setItem('squadra_active_user', JSON.stringify(config.profile));
+
+    if (level === 'brand_admin') {
+      setBrandProfile(SQUADRA_BRANDS[0]);
+      localStorage.setItem('squadra_brand_profile', JSON.stringify(SQUADRA_BRANDS[0]));
+    } else if (level === 'creator') {
+      setCreatorProfile(SQUADRA_CREATORS[0]);
+      localStorage.setItem('squadra_creator_profile', JSON.stringify(SQUADRA_CREATORS[0]));
+    }
+  };
+
+  const loginAsDemoUser = (targetRole: UserRole) => {
+    if (targetRole === 'admin' || targetRole === 'admin_master') {
+      loginAsLevel('admin_master');
+    } else if (targetRole === 'brand' || targetRole === 'brand_admin') {
+      loginAsLevel('brand_admin');
+    } else {
+      loginAsLevel('creator');
+    }
+  };
+
+  const setRole = (newRole: UserRole) => {
+    loginAsDemoUser(newRole);
+  };
+
+  const logout = () => {
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
+    setUser(null);
+    localStorage.removeItem('squadra_active_user');
+    localStorage.removeItem('squadra_active_role');
   };
 
   // Sign Up Creator
   const signUpCreator = async (data: SignUpCreatorData): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
-    const newUserId = `user-${Date.now()}`;
+    const newUserId = `user-c-${Date.now()}`;
     const newProfile: Profile = {
       id: newUserId,
       auth_user_id: `auth-${Date.now()}`,
@@ -174,33 +296,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `creator-${Date.now()}`,
       user_id: newUserId,
       professional_name: data.fullName,
-      bio: `Nail designer especializada em ${data.specialties.join(', ')}. Atendendo em ${data.city}/${data.state}.`,
+      bio: `Criador(a) UGC focado(a) em ${data.specialties.join(', ')}. Cidade: ${data.city}/${data.state}.`,
       city: data.city,
       state: data.state,
       instagram: data.instagram.startsWith('@') ? data.instagram : `@${data.instagram}`,
       tiktok: data.tiktok || '',
-      instagram_followers: 0,
-      tiktok_followers: 0,
-      years_experience: 1,
+      instagram_followers: 15000,
+      tiktok_followers: 25000,
+      years_experience: 2,
       specialties: data.specialties,
-      techniques: ['Esmaltação em Gel'],
+      techniques: ['Resenhas', 'Unboxing', 'Rotina'],
       accepts_product_campaigns: true,
       accepts_paid_campaigns: true,
       accepts_affiliate_campaigns: true,
       accepts_live_campaigns: false,
-      portfolio_cover_url: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800',
-      profile_completion: 40,
+      portfolio_cover_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
+      profile_completion: 80,
       verification_status: 'pending',
+      operational_score: 85,
+      engagement_rate: 4.8,
+      tags: ['UGC', 'Novo Creator'],
+      email: data.email,
+      phone: '',
+      media_kit_url: '',
       is_featured: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    // Save to Supabase if configured
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('ncp_profiles').insert(newProfile);
-        await supabase.from('ncp_creator_profiles').insert(newCreatorProfile);
+        await supabase.from('profiles').insert(newProfile);
+        await supabase.from('creators').insert(newCreatorProfile);
       } catch (e) {
         console.error('Supabase write error:', e);
       }
@@ -209,7 +336,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newProfile);
     setCreatorProfile(newCreatorProfile);
     setRoleState('creator');
-    localStorage.setItem('ncp_active_role', 'creator');
     setIsLoading(false);
     return { success: true };
   };
@@ -217,15 +343,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign Up Brand
   const signUpBrand = async (data: SignUpBrandData): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
-    const newUserId = `user-${Date.now()}`;
+    const newUserId = `user-b-${Date.now()}`;
     const newProfile: Profile = {
       id: newUserId,
       auth_user_id: `auth-${Date.now()}`,
-      role: 'brand',
+      role: 'brand_admin',
       full_name: data.contactName,
       email: data.email.toLowerCase(),
-      phone: data.phone,
-      avatar_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200',
+      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
       status: 'active',
       terms_accepted_at: new Date().toISOString(),
       privacy_accepted_at: new Date().toISOString(),
@@ -239,8 +364,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       company_name: data.companyName,
       brand_name: data.brandName,
       cnpj: data.cnpj,
-      description: `Marca ${data.brandName} cadastrada no Nail Club Pro.`,
-      logo_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400',
+      description: `Marca ${data.brandName} cadastrada na plataforma Squadra.`,
+      logo_url: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=300',
       contact_name: data.contactName,
       contact_email: data.email,
       contact_phone: data.phone,
@@ -248,14 +373,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       state: data.state,
       status: 'active',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    // Save to Supabase if configured
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('ncp_profiles').insert(newProfile);
-        await supabase.from('ncp_brand_profiles').insert(newBrandProfile);
+        await supabase.from('profiles').insert(newProfile);
+        await supabase.from('brands').insert(newBrandProfile);
       } catch (e) {
         console.error('Supabase write error:', e);
       }
@@ -263,51 +387,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(newProfile);
     setBrandProfile(newBrandProfile);
-    setRoleState('brand');
-    localStorage.setItem('ncp_active_role', 'brand');
+    setRoleState('brand_admin');
     setIsLoading(false);
     return { success: true };
-  };
-
-  const loginAsDemoUser = (targetRole: UserRole) => {
-    setRoleState(targetRole);
-    localStorage.setItem('ncp_active_role', targetRole);
-
-    if (targetRole === 'creator') {
-      const profile = MOCK_PROFILES.find((p) => p.id === 'user-c1') || MOCK_PROFILES[0];
-      setUser(profile);
-      setCreatorProfile(MOCK_CREATORS[0]);
-    } else if (targetRole === 'brand') {
-      const profile = MOCK_PROFILES.find((p) => p.id === 'user-b1') || MOCK_PROFILES[10];
-      setUser(profile);
-      setBrandProfile(MOCK_BRANDS[0]);
-    } else if (targetRole === 'admin') {
-      const profile = MOCK_PROFILES.find((p) => p.role === 'admin') || MOCK_PROFILES[13];
-      setUser(profile);
-    }
-  };
-
-  const setRole = (newRole: UserRole) => {
-    loginAsDemoUser(newRole);
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('ncp_active_user');
   };
 
   const updateCreatorProfile = (data: Partial<CreatorProfile>) => {
     if (!creatorProfile) return;
     const updated = { ...creatorProfile, ...data, updated_at: new Date().toISOString() };
     setCreatorProfile(updated);
-    localStorage.setItem('ncp_creator_profile', JSON.stringify(updated));
+    localStorage.setItem('squadra_creator_profile', JSON.stringify(updated));
   };
 
   const updateBrandProfile = (data: Partial<BrandProfile>) => {
     if (!brandProfile) return;
     const updated = { ...brandProfile, ...data, updated_at: new Date().toISOString() };
     setBrandProfile(updated);
-    localStorage.setItem('ncp_brand_profile', JSON.stringify(updated));
+    localStorage.setItem('squadra_brand_profile', JSON.stringify(updated));
   };
 
   return (
@@ -322,6 +418,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signUpCreator,
         signUpBrand,
+        loginAsLevel,
         loginAsDemoUser,
         logout,
         setRole,
@@ -341,3 +438,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthContext;

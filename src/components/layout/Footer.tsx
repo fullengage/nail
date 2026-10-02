@@ -12,7 +12,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         
         {/* Brand */}
         <div className="flex items-center space-x-3">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-sm">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-black shadow-sm">
             <Crown className="w-4 h-4" />
           </div>
           <div>

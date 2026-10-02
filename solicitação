@@ -1,0 +1,826 @@
+# PROMPT — REVISÃO E EVOLUÇÃO DA PLATAFORMA UGC
+
+Quero que você analise profundamente a plataforma atual, tanto o código quanto a experiência do usuário, e verifique se ela realmente está atendendo ao modelo de negócio que queremos construir.
+
+Não quero apenas melhorias visuais ou troca de textos.
+
+Quero que você pense como:
+
+- Product Manager
+- UX/UI Designer
+- Especialista em marketplaces
+- Especialista em UGC e Creator Economy
+- Especialista em e-commerce e afiliados
+- Arquiteto de software
+
+## VISÃO DO PRODUTO
+
+Estamos construindo uma plataforma que deve funcionar como uma espécie de:
+
+**“Hotmart de produtos físicos + UGC + Creator Commerce.”**
+
+A plataforma conecta:
+
+**EMPRESAS / MARCAS**
+que possuem produtos e precisam de creators para divulgar, produzir conteúdo, fazer lives, vender e gerar resultados.
+
+com
+
+**UGCs / CREATORS / INFLUENCIADORES**
+que procuram bons produtos, boas campanhas e boas comissões para produzir conteúdo e vender.
+
+O grande objetivo é eliminar o processo atual onde o creator precisa ficar procurando produtos, entrando em contato com empresas, negociando comissão, procurando material de divulgação e tentando descobrir sozinho como vender.
+
+Aqui ele deve encontrar tudo pronto.
+
+---
+
+# 1. EXPERIÊNCIA DO CREATOR / UGC
+
+O creator precisa entrar na plataforma e rapidamente encontrar oportunidades interessantes.
+
+A experiência deve ser semelhante a entrar em um marketplace de oportunidades.
+
+Ele deve conseguir visualizar:
+
+- Produtos disponíveis
+- Empresas
+- Campanhas abertas
+- Comissão por venda
+- Valor do produto
+- Comissão estimada em reais
+- Possibilidade de receber produto/amostra
+- Tipo de campanha
+- Nicho
+- Público-alvo
+- Quantidade de creators que a empresa procura
+- Requisitos mínimos
+- Prazo da campanha
+- Formato de conteúdo solicitado
+- TikTok
+- Instagram
+- Reels
+- Stories
+- Vídeos UGC
+- Live Commerce
+- TikTok Shop
+- Conteúdo para anúncios
+- Conteúdo orgânico
+
+Quero que o creator consiga filtrar oportunidades por:
+
+- categoria
+- nicho
+- comissão
+- valor do produto
+- tipo de campanha
+- plataforma
+- quantidade de seguidores
+- localização
+- possibilidade de receber produto
+- campanhas abertas
+- campanhas urgentes
+
+---
+
+# 2. PÁGINA DA OPORTUNIDADE
+
+Ao clicar em uma campanha ou produto, o creator deve encontrar absolutamente tudo que precisa para decidir se quer participar.
+
+Criar uma página semelhante a uma página de oferta da Hotmart.
+
+Exibir:
+
+### Produto
+
+Nome
+
+Descrição
+
+Fotos
+
+Vídeos
+
+Preço
+
+Site oficial
+
+Benefícios
+
+Diferenciais
+
+Público-alvo
+
+Principais dores que resolve
+
+---
+
+### Comissão
+
+Mostrar claramente:
+
+Preço do produto
+
+Percentual de comissão
+
+Valor estimado recebido por venda
+
+Exemplo:
+
+Produto: R$ 199
+
+Comissão: 18%
+
+Creator recebe: R$ 35,82 por venda
+
+Se vender 10:
+
+R$ 358,20
+
+Se vender 50:
+
+R$ 1.791
+
+Se vender 100:
+
+R$ 3.582
+
+Isso ajuda o creator a visualizar o potencial da oportunidade.
+
+---
+
+# 3. KIT DE VENDA DO CREATOR
+
+Essa é uma parte MUITO IMPORTANTE.
+
+Não queremos simplesmente listar produtos.
+
+Queremos entregar ao creator tudo que ele precisa para começar a produzir conteúdo e vender.
+
+Cada produto/campanha deve possuir um:
+
+# CREATOR KIT
+
+Dentro dele:
+
+- descrição do produto
+- benefícios
+- diferenciais
+- público-alvo
+- principais dores
+- argumentos de venda
+- objeções comuns
+- respostas para objeções
+- FAQs
+- imagens
+- vídeos
+- logotipo
+- identidade visual
+- depoimentos autorizados
+- materiais da marca
+- links
+- cupons
+- CTA recomendado
+
+---
+
+# 4. ROTEIROS PARA CONTEÚDO
+
+A empresa poderá cadastrar roteiros.
+
+Mas também quero utilizar IA para ajudar o creator.
+
+Exemplo:
+
+Botão:
+
+**“Gerar roteiro com IA”**
+
+Escolher:
+
+TikTok
+
+Reels
+
+Stories
+
+UGC
+
+Live
+
+Anúncio
+
+Review
+
+Unboxing
+
+Comparativo
+
+Problema/Solução
+
+A IA poderá utilizar todas as informações da campanha para criar o conteúdo.
+
+---
+
+# 5. LIVE COMMERCE
+
+Queremos dar bastante importância para creators que fazem live.
+
+Ao entrar em uma campanha, deverá existir uma área:
+
+# LIVE KIT
+
+Com:
+
+- roteiro da live
+- principais argumentos
+- demonstração do produto
+- benefícios
+- perguntas frequentes
+- respostas para objeções
+- ofertas
+- cupons
+- CTA
+- sequência recomendada da apresentação
+
+O objetivo é que o creator possa literalmente abrir essa área antes da live e ter um guia completo para vender o produto.
+
+---
+
+# 6. ÁREA DA EMPRESA
+
+A empresa precisa conseguir criar seu perfil.
+
+Dados:
+
+- Nome
+- Logo
+- descrição
+- site
+- redes sociais
+- nicho
+- segmento
+- informações da empresa
+
+Depois ela deve conseguir cadastrar:
+
+# PRODUTOS
+
+Nome
+
+Descrição
+
+Preço
+
+Fotos
+
+Vídeos
+
+Estoque
+
+Categoria
+
+Público-alvo
+
+Benefícios
+
+Diferenciais
+
+Site
+
+Landing page
+
+---
+
+# 7. CRIAÇÃO DE CAMPANHA
+
+A empresa deve conseguir transformar um produto em uma campanha.
+
+Exemplo:
+
+**Criar campanha**
+
+Produto:
+
+Ybira Foods
+
+Objetivo:
+
+Encontrar 100 creators.
+
+Comissão:
+
+18%
+
+Quantidade de creators:
+
+100
+
+Tipo:
+
+Afiliado
+
+Plataformas:
+
+TikTok  
+Instagram  
+TikTok Shop
+
+Perfil desejado:
+
+Mulheres
+
+40+
+
+Fitness
+
+Saúde
+
+Bem-estar
+
+Nutrição
+
+A empresa também define:
+
+Quantidade mínima de seguidores
+
+Localização
+
+Nicho
+
+Tipo de conteúdo
+
+Prazo
+
+Quantidade de conteúdos
+
+Se envia produto
+
+Se exige aprovação prévia
+
+Se o conteúdo poderá ser utilizado em anúncios.
+
+---
+
+# 8. MATCHING ENTRE EMPRESA E CREATOR
+
+Criar um sistema inteligente de matching.
+
+A plataforma deve recomendar creators para empresas.
+
+E recomendar campanhas para creators.
+
+Exemplo:
+
+**92% de compatibilidade com esta campanha**
+
+Analisar:
+
+- nicho
+- audiência
+- seguidores
+- engajamento
+- localização
+- plataforma
+- histórico
+- tipo de conteúdo
+- vendas anteriores
+
+---
+
+# 9. MARKETPLACE DE CAMPANHAS
+
+A home do creator deve funcionar como um marketplace.
+
+Exemplo:
+
+## Campanhas em destaque
+
+## Maiores comissões
+
+## Produtos que estão vendendo
+
+## Novas campanhas
+
+## Live Commerce
+
+## TikTok Shop
+
+## Produtos enviados gratuitamente
+
+## Campanhas recomendadas para você
+
+## Campanhas terminando em breve
+
+---
+
+# 10. SISTEMA DE CANDIDATURA
+
+O creator poderá clicar:
+
+**QUERO PARTICIPAR**
+
+A empresa recebe o perfil.
+
+Pode:
+
+Aprovar
+
+Recusar
+
+Solicitar informações
+
+Enviar produto
+
+Conversar com creator.
+
+Depois da aprovação:
+
+Status:
+
+Aprovado
+
+Produto enviado
+
+Produto recebido
+
+Conteúdo em produção
+
+Conteúdo enviado
+
+Conteúdo aprovado
+
+Campanha ativa
+
+Finalizada.
+
+---
+
+# 11. CRM DE CREATORS PARA EMPRESAS
+
+A empresa deve possuir uma área parecida com CRM.
+
+Exemplo:
+
+Creators:
+
+Prospectados
+
+Candidatos
+
+Em análise
+
+Aprovados
+
+Produto enviado
+
+Produzindo conteúdo
+
+Conteúdo recebido
+
+Ativos
+
+Top performers
+
+Inativos.
+
+Preferencialmente utilizar:
+
+Kanban + lista.
+
+---
+
+# 12. PERFIL DO CREATOR
+
+Cada creator terá um perfil profissional.
+
+Informações:
+
+Foto
+
+Nome
+
+Bio
+
+TikTok
+
+Instagram
+
+YouTube
+
+Seguidores
+
+Engajamento
+
+Nichos
+
+Cidade
+
+Estado
+
+Faixa etária da audiência
+
+Gênero predominante
+
+Portfólio
+
+Vídeos
+
+UGCs produzidos
+
+Campanhas realizadas
+
+Avaliações
+
+Produtos vendidos
+
+Conversões
+
+Faturamento gerado.
+
+Criar algo semelhante a um:
+
+**LinkedIn + portfólio + perfil de afiliado do creator.**
+
+---
+
+# 13. RANKING E REPUTAÇÃO
+
+Criar reputação dos creators.
+
+Mas evitar somente olhar seguidores.
+
+Considerar:
+
+Engajamento
+
+Qualidade de conteúdo
+
+Cumprimento de prazo
+
+Conversão
+
+Vendas
+
+Avaliação das empresas
+
+Campanhas concluídas.
+
+---
+
+# 14. DASHBOARD DO CREATOR
+
+Mostrar:
+
+Campanhas ativas
+
+Candidaturas
+
+Produtos recebidos
+
+Conteúdos pendentes
+
+Vendas
+
+Comissões
+
+Cliques
+
+Conversões
+
+Produtos mais vendidos
+
+Campanhas recomendadas.
+
+---
+
+# 15. DASHBOARD DA EMPRESA
+
+Mostrar:
+
+Campanhas ativas
+
+Creators inscritos
+
+Creators aprovados
+
+Conteúdos produzidos
+
+Creators ativos
+
+Vendas
+
+Conversões
+
+ROI
+
+Creator que mais vende
+
+Conteúdo que mais converte
+
+Custo por creator
+
+Custo por venda.
+
+---
+
+# 16. SISTEMA DE AFILIADOS
+
+Cada creator poderá possuir:
+
+Link exclusivo
+
+Cupom exclusivo
+
+Código de afiliado.
+
+Precisamos conseguir registrar:
+
+Cliques
+
+Vendas
+
+Conversões
+
+Comissões.
+
+---
+
+# 17. IA COMO DIFERENCIAL
+
+A IA deverá ajudar os dois lados.
+
+## Para empresas
+
+IA pode ajudar a:
+
+Criar campanha
+
+Criar briefing
+
+Definir público
+
+Criar descrição
+
+Criar Creator Kit
+
+Criar roteiros
+
+Criar argumentos de venda
+
+Selecionar creators.
+
+## Para creators
+
+IA pode:
+
+Analisar campanha
+
+Criar roteiro
+
+Criar script de live
+
+Criar legenda
+
+Criar hooks
+
+Criar CTA
+
+Criar argumentos
+
+Criar ideias de vídeos.
+
+---
+
+# 18. EXPERIÊNCIA DO USUÁRIO
+
+Quero que você analise a plataforma atual verificando:
+
+Existe clareza sobre o que a plataforma faz?
+
+Um creator entende imediatamente como ganhar dinheiro?
+
+Uma empresa entende imediatamente como encontrar creators?
+
+Existem funcionalidades duplicadas?
+
+Existem telas desnecessárias?
+
+Existem páginas confusas?
+
+Existem campos que deveriam ser removidos?
+
+Existem campos importantes faltando?
+
+A navegação está lógica?
+
+O dashboard está mostrando informações realmente importantes?
+
+---
+
+# 19. NÃO QUEBRE O QUE JÁ EXISTE
+
+Antes de alterar qualquer coisa:
+
+1. Analise toda a estrutura existente.
+2. Analise banco de dados.
+3. Analise autenticação.
+4. Analise dashboards.
+5. Analise rotas.
+6. Analise componentes.
+7. Analise integrações.
+
+Não remova funcionalidades existentes que possam ser úteis.
+
+Prefira:
+
+melhorar
+
+reorganizar
+
+evoluir
+
+integrar.
+
+---
+
+# 20. PRIMEIRO FAÇA UMA AUDITORIA
+
+Antes de começar grandes alterações, quero um relatório:
+
+## O QUE JÁ EXISTE
+
+Liste todas as funcionalidades atuais.
+
+## O QUE ESTÁ BOM
+
+O que já atende ao modelo.
+
+## O QUE ESTÁ FALTANDO
+
+Funcionalidades necessárias.
+
+## O QUE ESTÁ CONFUSO
+
+Problemas de UX ou arquitetura.
+
+## O QUE DEVE SER MELHORADO PRIMEIRO
+
+Classifique em:
+
+P0 — essencial
+
+P1 — importante
+
+P2 — melhoria futura.
+
+---
+
+# 21. DEPOIS IMPLEMENTE
+
+Depois da auditoria, comece pelas funcionalidades P0.
+
+Prioridade absoluta:
+
+1. Marketplace de campanhas
+2. Cadastro completo de produto
+3. Cadastro de campanha
+4. Página completa da oportunidade
+5. Creator Kit
+6. Sistema de candidatura
+7. Perfil do creator
+8. Área da empresa
+9. Dashboard creator
+10. Dashboard empresa
+11. CRM/Kanban de creators
+12. Matching entre creator e campanha.
+
+---
+
+# VISÃO FINAL
+
+Não quero construir apenas um banco de influenciadores.
+
+Não quero construir apenas um sistema para contratar UGC.
+
+Quero construir um:
+
+# CREATOR COMMERCE MARKETPLACE
+
+Uma plataforma onde empresas colocam seus produtos e campanhas e creators encontram oportunidades para:
+
+**CRIAR + DIVULGAR + VENDER + GANHAR COMISSÃO.**
+
+A comparação conceitual seria:
+
+**Hotmart + Marketplace de UGC + CRM de creators + Creator Commerce.**
+
+A diferença é que o foco principal são:
+
+**PRODUTOS FÍSICOS + CREATORS + CONTEÚDO + LIVE COMMERCE + VENDAS.**
+
+Ao analisar cada tela ou funcionalidade da plataforma, faça sempre esta pergunta:
+
+> “Isso ajuda uma empresa a encontrar creators e vender mais, ou ajuda um creator a encontrar bons produtos e ganhar dinheiro?”
+
+Se não ajudar nenhum dos dois lados, questione se essa funcionalidade realmente precisa existir.

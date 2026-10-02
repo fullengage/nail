@@ -172,7 +172,7 @@ export const RegisterCreatorModal: React.FC<RegisterCreatorModalProps> = ({
                     onClick={() => toggleSpecialty(spec)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-medium border capitalize transition-all ${
                       isSelected
-                        ? 'bg-primary text-white font-bold border-primary'
+                        ? 'bg-primary text-primary-foreground font-bold border-primary'
                         : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground'
                     }`}
                   >
