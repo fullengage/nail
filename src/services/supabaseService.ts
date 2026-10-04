@@ -222,6 +222,18 @@ export const supabaseService = {
     return !error;
   },
 
+  async deleteCampaign(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      await supabase.from('campaign_creators').delete().eq('campaign_id', id);
+      await supabase.from('campaign_applications').delete().eq('campaign_id', id);
+      const { error } = await supabase.from('campaigns').delete().eq('id', id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   // ---------- Squad (public.campaign_creators) ----------
   // A tabela ainda não tem coluna de cachê: ele vai codificado em notes como "cache=150;" (ver migração 20261004_leads_e_cache).
   async getParticipants(): Promise<CampaignParticipant[] | null> {

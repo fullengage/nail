@@ -316,11 +316,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // When Supabase is configured, sync in background
   useEffect(() => {
     supabaseService.getCampaigns().then((data) => {
-      if (data && data.length > 0) {
+      if (Array.isArray(data)) {
         setCampaigns(data);
+        localStorage.setItem('squadra_campaigns', JSON.stringify(data));
         // com campanhas reais, o squad também vem do banco (public.campaign_creators)
         supabaseService.getParticipants().then((parts) => {
-          if (parts) setParticipants(parts);
+          if (parts) {
+            setParticipants(parts);
+            localStorage.setItem('squadra_participants', JSON.stringify(parts));
+          } else if (data.length === 0) {
+            setParticipants([]);
+            localStorage.setItem('squadra_participants', JSON.stringify([]));
+          }
         });
       }
     });
@@ -529,6 +536,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteCampaign = (campaignId: string) => {
+    supabaseService.deleteCampaign(campaignId).catch(() => {});
     setCampaigns((prev) => {
       const next = prev.filter((c) => c.id !== campaignId);
       localStorage.setItem('squadra_campaigns', JSON.stringify(next));
