@@ -73,6 +73,7 @@ interface DataContextType {
   
   // Actions for Brand Flow
   createCampaign: (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => Promise<string>;
+  deleteCampaign: (campaignId: string) => void;
   approveApplication: (applicationId: string) => void;
   rejectApplication: (applicationId: string) => void;
   approveContentSubmission: (submissionId: string) => void;
@@ -195,44 +196,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0 && !parsed[0].title?.includes('Gel Diamante') && !parsed[0].title?.includes('Micromotores')) {
-          return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const realCampaigns = parsed.filter((c: any) =>
+            !c.id?.startsWith('camp-squadra-') &&
+            !c.id?.startsWith('camp-') &&
+            !c.title?.includes('Gel Diamante') &&
+            !c.title?.includes('Micromotores') &&
+            !c.title?.includes('Nutrição Avançada') &&
+            !c.title?.includes('Longevidade Ativa') &&
+            !c.title?.includes('Rotina Saudável') &&
+            !c.title?.includes('Imunidade Diária') &&
+            !c.title?.includes('Maratona Live Commerce') &&
+            !c.title?.includes('Black Friday 2026')
+          );
+          localStorage.setItem('squadra_campaigns', JSON.stringify(realCampaigns));
+          return realCampaigns;
         }
       } catch (e) { /* ignore */ }
     }
-    return SQUADRA_CAMPAIGNS;
+    localStorage.setItem('squadra_campaigns', JSON.stringify([]));
+    return [];
   });
 
   const [shipments, setShipments] = useState<Shipment[]>(() => {
     const saved = localStorage.getItem('squadra_shipments');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((s: Shipment) => !s.campaign_id?.startsWith('camp-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return SQUADRA_SHIPMENTS;
+    return [];
   });
 
   const [applications, setApplications] = useState<CampaignApplication[]>(() => {
     const saved = localStorage.getItem('squadra_applications');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((a: CampaignApplication) => !a.campaign_id?.startsWith('camp-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return MOCK_APPLICATIONS;
+    return [];
   });
 
   const [participants, setParticipants] = useState<CampaignParticipant[]>(() => {
     const saved = localStorage.getItem('squadra_participants');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((p: CampaignParticipant) => !p.campaign_id?.startsWith('camp-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return SQUADRA_PARTICIPANTS;
+    return [];
   });
 
   const [submissions, setSubmissions] = useState<ContentSubmission[]>(() => {
     const saved = localStorage.getItem('squadra_submissions');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((sub: ContentSubmission) => !sub.campaign_id?.startsWith('camp-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return SQUADRA_SUBMISSIONS;
+    return [];
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
@@ -485,8 +520,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newCamp: Campaign = saved
       ? { ...campData, ...saved }
       : { ...campData, id: `cp-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-    setCampaigns((prev) => [newCamp, ...prev]);
+    setCampaigns((prev) => {
+      const next = [newCamp, ...prev];
+      localStorage.setItem('squadra_campaigns', JSON.stringify(next));
+      return next;
+    });
     return newCamp.id;
+  };
+
+  const deleteCampaign = (campaignId: string) => {
+    setCampaigns((prev) => {
+      const next = prev.filter((c) => c.id !== campaignId);
+      localStorage.setItem('squadra_campaigns', JSON.stringify(next));
+      return next;
+    });
+    setParticipants((prev) => {
+      const next = prev.filter((p) => p.campaign_id !== campaignId);
+      localStorage.setItem('squadra_participants', JSON.stringify(next));
+      return next;
+    });
+    setShipments((prev) => {
+      const next = prev.filter((s) => s.campaign_id !== campaignId);
+      localStorage.setItem('squadra_shipments', JSON.stringify(next));
+      return next;
+    });
+    setSubmissions((prev) => {
+      const next = prev.filter((sub) => sub.campaign_id !== campaignId);
+      localStorage.setItem('squadra_submissions', JSON.stringify(next));
+      return next;
+    });
   };
 
   // Demo Action 4: Brand Approves Application
@@ -1033,12 +1095,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setBrands(SQUADRA_BRANDS);
     setSelectedBrandIdHandler(SQUADRA_BRANDS[0].id);
-    setCampaigns(SQUADRA_CAMPAIGNS);
+    setCampaigns([]);
     setCreators(SQUADRA_CREATORS);
     setRetailPoints(SQUADRA_RETAIL_POINTS);
-    setShipments(SQUADRA_SHIPMENTS);
-    setParticipants(SQUADRA_PARTICIPANTS);
-    setSubmissions(SQUADRA_SUBMISSIONS);
+    setShipments([]);
+    setParticipants([]);
+    setSubmissions([]);
     setScoreWeightsState(DEFAULT_SCORE_WEIGHTS);
   };
 
@@ -1095,6 +1157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         markLessonComplete,
         requestPixWithdrawal,
         createCampaign,
+        deleteCampaign,
         approveApplication,
         rejectApplication,
         approveContentSubmission,

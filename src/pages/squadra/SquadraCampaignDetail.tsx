@@ -23,7 +23,8 @@ import {
   Award,
   ChevronRight,
   Filter,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -57,7 +58,8 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
     submissions,
     updateCreatorStage,
     advanceSquadStage,
-    addReviewComment
+    addReviewComment,
+    deleteCampaign
   } = useData();
 
   const campaign = campaigns.find(c => c.id === campaignId) || campaigns[0];
@@ -70,18 +72,32 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
 
   // Participantes desta campanha
   const campParticipants = useMemo(() => {
+    if (!campaign) return [];
     return participants.filter(p => p.campaign_id === campaign.id);
-  }, [participants, campaign.id]);
+  }, [participants, campaign?.id]);
 
   // Envios desta campanha
   const campShipments = useMemo(() => {
+    if (!campaign) return [];
     return shipments.filter(s => s.campaign_id === campaign.id);
-  }, [shipments, campaign.id]);
+  }, [shipments, campaign?.id]);
 
   // Conteúdos desta campanha
   const campSubmissions = useMemo(() => {
+    if (!campaign) return [];
     return submissions.filter(s => s.campaign_id === campaign.id);
-  }, [submissions, campaign.id]);
+  }, [submissions, campaign?.id]);
+
+  if (!campaign) {
+    return (
+      <div className="p-12 text-center rounded-2xl bg-card border border-border max-w-md mx-auto my-12 space-y-4">
+        <p className="text-sm font-semibold text-foreground">Campanha não encontrada ou excluída.</p>
+        <Button onClick={onBack} className="bg-primary text-black font-bold">
+          Voltar para Campanhas
+        </Button>
+      </div>
+    );
+  }
 
   // Comentário de revisão
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -139,6 +155,19 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
               <ExternalLink className="w-3.5 h-3.5 text-primary" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Tem certeza que deseja excluir permanentemente a campanha "${campaign.title}"?`)) {
+                deleteCampaign(campaign.id);
+                onBack();
+              }
+            }}
+            className="px-3.5 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Excluir</span>
+          </button>
         </div>
       </div>
 

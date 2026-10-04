@@ -12,7 +12,8 @@ import {
   ArrowRight,
   CheckCircle2,
   X,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -65,7 +66,7 @@ interface SquadraCampaignsProps {
 }
 
 export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePublicApply }) => {
-  const { campaigns, createCampaign } = useData();
+  const { campaigns, createCampaign, deleteCampaign } = useData();
 
   // Campanha selecionada para detalhe (/campaigns/:id)
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {
@@ -277,86 +278,128 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
         </button>
       </div>
 
-      {/* 3. Grid de Cards de Campanhas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCampaigns.map((camp) => (
-          <div
-            key={camp.id}
-            onClick={() => setSelectedCampaignId(camp.id)}
-            className="p-5 rounded-2xl bg-card border border-border hover:border-primary/40 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-4"
-          >
-            <div className="space-y-3">
-              
-              <div className="relative rounded-xl overflow-hidden aspect-video bg-muted border border-border">
-                <img
-                  src={camp.cover_url}
-                  alt={camp.title}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                />
-                <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase shadow-sm ${
-                  camp.status === 'open'
-                    ? 'bg-emerald-500 text-white'
-                    : camp.status === 'in_progress'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}>
-                  {camp.status === 'open' ? 'Aberta' : camp.status === 'in_progress' ? 'Em Andamento' : camp.status}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                  {camp.campaign_type.toUpperCase()}
-                </span>
-                <h3 className="text-base font-bold font-display text-foreground group-hover:text-primary transition-colors line-clamp-1 mt-0.5">
-                  {camp.title}
-                </h3>
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                  {camp.description}
-                </p>
-              </div>
-
-            </div>
-
-            <div className="space-y-3 pt-3 border-t border-border/60">
-              
-              {/* Barra de Ocupação do Squad */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-muted-foreground flex items-center">
-                    <Users className="w-3.5 h-3.5 mr-1 text-primary" /> Vagas no Squad
-                  </span>
-                  <span className="text-foreground">
-                    {camp.occupied_slots || 0} / {camp.creator_slots}
-                  </span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-primary h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, ((camp.occupied_slots || 0) / camp.creator_slots) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Orçamento e Ação */}
-              <div className="flex items-center justify-between text-xs pt-1">
-                <div>
-                  <span className="text-[10px] text-muted-foreground block">Orçamento</span>
-                  <span className="font-bold text-foreground">
-                    R$ {camp.budget.toLocaleString('pt-BR')}
-                  </span>
-                </div>
-
-                <span className="text-primary font-bold text-xs group-hover:translate-x-1 transition-transform flex items-center">
-                  <span>Abrir Squad</span>
-                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                </span>
-              </div>
-
-            </div>
+      {/* 3. Grid de Cards de Campanhas ou Empty State */}
+      {filteredCampaigns.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl bg-card border border-dashed border-border flex flex-col items-center justify-center max-w-lg mx-auto my-8 space-y-4 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center">
+            <Briefcase className="w-7 h-7" />
           </div>
-        ))}
-      </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold font-display text-foreground">
+              {statusFilter === 'all'
+                ? 'Nenhuma campanha criada ainda'
+                : `Nenhuma campanha com status "${statusFilter === 'open' ? 'Aberta' : statusFilter === 'in_progress' ? 'Em Produção' : statusFilter === 'completed' ? 'Concluída' : 'Rascunho'}"`}
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              {statusFilter === 'all'
+                ? 'Sua conta está limpa e pronta para começar. Crie sua primeira campanha para recrutar creators qualificados e gerenciar squads.'
+                : 'Alterne o filtro de status acima ou crie uma nova campanha.'}
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              setWizardData(emptyWizard());
+              setWizardStep(1);
+              setIsWizardOpen(true);
+            }}
+            className="mt-2 bg-primary text-black font-bold border-2 border-black rounded-full px-5 py-2 hover:bg-primary/90 shadow-md flex items-center space-x-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Criar Minha Primeira Campanha</span>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCampaigns.map((camp) => (
+            <div
+              key={camp.id}
+              onClick={() => setSelectedCampaignId(camp.id)}
+              className="p-5 rounded-2xl bg-card border border-border hover:border-primary/40 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-muted border border-border">
+                  <img
+                    src={camp.cover_url}
+                    alt={camp.title}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                  />
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Deseja excluir a campanha "${camp.title}"?`)) {
+                          deleteCampaign(camp.id);
+                        }
+                      }}
+                      title="Excluir campanha"
+                      className="p-1.5 rounded-lg bg-black/60 hover:bg-red-600 text-white backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase shadow-sm ${
+                    camp.status === 'open'
+                      ? 'bg-emerald-500 text-white'
+                      : camp.status === 'in_progress'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground'
+                  }`}>
+                    {camp.status === 'open' ? 'Aberta' : camp.status === 'in_progress' ? 'Em Andamento' : camp.status}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {camp.campaign_type.toUpperCase()}
+                  </span>
+                  <h3 className="text-base font-bold font-display text-foreground group-hover:text-primary transition-colors line-clamp-1 mt-0.5">
+                    {camp.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                    {camp.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-3 border-t border-border/60">
+                {/* Barra de Ocupação do Squad */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-muted-foreground flex items-center">
+                      <Users className="w-3.5 h-3.5 mr-1 text-primary" /> Vagas no Squad
+                    </span>
+                    <span className="text-foreground">
+                      {camp.occupied_slots || 0} / {camp.creator_slots}
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, ((camp.occupied_slots || 0) / camp.creator_slots) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Orçamento e Ação */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Orçamento</span>
+                    <span className="font-bold text-foreground">
+                      R$ {camp.budget.toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+
+                  <span className="text-primary font-bold text-xs group-hover:translate-x-1 transition-transform flex items-center">
+                    <span>Abrir Squad</span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 4. Assistente de criação: 3 passos (objetivo → squad e valores → briefing simples) */}
       {isWizardOpen && (
