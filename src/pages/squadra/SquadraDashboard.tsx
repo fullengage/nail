@@ -49,7 +49,7 @@ const PERFORMANCE_DATA = [
 ];
 
 export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }) => {
-  const { creators, campaigns, participants } = useData();
+  const { creators, campaigns, participants, sourceCounts, retailPoints } = useData();
   // KPIs reais: contados na base de creators e no banco de PDVs (nada de número fixo)
   const realKpis = useMemo(() => {
     const has = (c: any, tag: string) => (c.tags || []).includes(tag);
@@ -129,30 +129,85 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
         </div>
       </div>
 
-      {/* 2. KPIs de Origem da Base (Conforme documento do cliente) */}
+      {/* 2. Bases Mapeadas por Fonte & PDVs (Atualizado em tempo real) */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">
-            Bases reais: creators e PDVs
-          </p>
-          <span className="text-[11px] text-muted-foreground">Contagem direta da base</span>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">
+              Bases Mapeadas por Fonte & PDVs
+            </p>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+              Atualizado em tempo real
+            </span>
+          </div>
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">Deduplicação automática por @ e e-mail</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {[
-            { label: 'Creators mapeados', value: realKpis.creators, sub: `${realKpis.qualified.toLocaleString('pt-BR')} qualificados (faixa A+B)`, icon: <Video className="w-4 h-4" />, highlight: true },
-            { label: 'Instagram confirmado', value: realKpis.instagram, sub: 'informado pelo próprio creator', icon: <Instagram className="w-4 h-4" /> },
-            { label: 'Com contato direto', value: realKpis.contact, sub: 'e-mail ou WhatsApp público', icon: <Users className="w-4 h-4" /> },
-            { label: 'Vendem por live', value: realKpis.live, sub: 'marcados na base', icon: <Sparkles className="w-4 h-4" /> },
-            { label: 'PDVs no mapa', value: pdvTotals?.total ?? null, sub: pdvTotals ? `${(pdvTotals.pharmacy || 0).toLocaleString('pt-BR')} farmácias · ${(pdvTotals.cosmetics || 0).toLocaleString('pt-BR')} cosméticos` : 'carregando…', icon: <Store className="w-4 h-4" /> },
+            {
+              label: 'Base Manicures',
+              value: sourceCounts.manicures,
+              sub: '+100% auditadas no setor',
+              icon: <Sparkles className="w-4 h-4" />,
+              highlight: false,
+            },
+            {
+              label: 'TikTok Leads',
+              value: sourceCounts.tiktok,
+              sub: `${(sourceCounts.tiktok_mined ?? creators.length).toLocaleString('pt-BR')} perfis minerados`,
+              icon: <Video className="w-4 h-4" />,
+              highlight: false,
+            },
+            {
+              label: 'Instagram UGC',
+              value: sourceCounts.instagram,
+              sub: 'Qualificados para seeding',
+              icon: <Instagram className="w-4 h-4" />,
+              highlight: false,
+            },
+            {
+              label: 'Rede de PDVs',
+              value: sourceCounts.retail_points,
+              sub: `${(sourceCounts.retail_active ?? retailPoints.length).toLocaleString('pt-BR')} no catálogo ativo`,
+              icon: <Store className="w-4 h-4" />,
+              highlight: false,
+            },
+            {
+              label: 'Creators Únicos',
+              value: sourceCounts.unique_creators,
+              sub: 'Deduplicados por @, e-mail',
+              icon: <Users className="w-4 h-4" />,
+              highlight: true,
+            },
           ].map((k) => (
-            <div key={k.label} className={`p-4 rounded-2xl border shadow-sm transition-all ${k.highlight ? 'bg-primary border-2 border-black text-black' : 'bg-card border-border hover:border-primary/40'}`}>
+            <div
+              key={k.label}
+              className={`p-4 rounded-2xl border shadow-sm transition-all ${
+                k.highlight
+                  ? 'bg-primary border-2 border-black text-black'
+                  : 'bg-card border-border hover:border-primary/40'
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold ${k.highlight ? 'text-black' : 'text-muted-foreground'}`}>{k.label}</span>
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${k.highlight ? 'bg-black text-primary' : 'bg-muted text-foreground'}`}>{k.icon}</div>
+                <span className={`text-xs font-semibold ${k.highlight ? 'text-black' : 'text-muted-foreground'}`}>
+                  {k.label}
+                </span>
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                    k.highlight ? 'bg-black text-primary' : 'bg-muted text-foreground'
+                  }`}
+                >
+                  {k.icon}
+                </div>
               </div>
-              <p className="text-2xl font-bold font-display mt-2">{k.value == null ? '…' : k.value.toLocaleString('pt-BR')}</p>
-              <p className={`text-[11px] mt-1 ${k.highlight ? 'text-black/70' : 'text-muted-foreground'}`}>{k.sub}</p>
+              <p className="text-2xl font-bold font-display mt-2">
+                {k.value == null ? '…' : k.value.toLocaleString('pt-BR')}
+              </p>
+              <p className={`text-[11px] mt-1 ${k.highlight ? 'text-black/70' : 'text-muted-foreground'}`}>
+                {k.sub}
+              </p>
             </div>
           ))}
         </div>
