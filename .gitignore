@@ -25,3 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 data/enrich-cache.json
+data/receita/
+data/ig-cache.json
+data/ig-descoberta.json
+data/creators_instagram_novos.csv

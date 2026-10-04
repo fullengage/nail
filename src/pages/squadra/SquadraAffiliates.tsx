@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { SQUADRA_AFFILIATES } from '../../data/squadraData';
 import { AffiliateLink } from '../../types/database';
 import { TikTokLink, tiktokUrl } from '../../components/ui/TikTokLink';
@@ -21,7 +22,16 @@ import { Button } from '../../components/ui/Button';
 const affTiktok = (aff: AffiliateLink) => tiktokUrl(aff.creator?.tiktok);
 
 export const SquadraAffiliates: React.FC = () => {
-  const [affiliatesList, setAffiliatesList] = useState(SQUADRA_AFFILIATES);
+  const { creators } = useData();
+  const { role } = useAuth();
+  // Exportar dados de afiliados em CSV é restrito ao Admin Geral
+  const canExportCsv = role === 'admin_master' || role === 'admin';
+  const [rawAffiliates, setAffiliatesList] = useState(SQUADRA_AFFILIATES);
+  // mesmo creator da tela de Creators (dados atuais), ligado pelo @ do TikTok
+  const affiliatesList = useMemo(() => {
+    const byHandle = new Map(creators.map((c) => [(c.tiktok || '').toLowerCase(), c]));
+    return rawAffiliates.map((a) => ({ ...a, creator: byHandle.get((a.creator?.tiktok || '').toLowerCase()) || a.creator }));
+  }, [rawAffiliates, creators]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const handleCopy = (code: string) => {
@@ -51,12 +61,14 @@ export const SquadraAffiliates: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Button variant="secondary" className="flex items-center space-x-1.5">
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar Vendas CSV</span>
-          </Button>
-        </div>
+        {canExportCsv && (
+          <div className="flex items-center space-x-2">
+            <Button variant="secondary" className="flex items-center space-x-1.5">
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar Vendas CSV</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* 2. KPIs Globais de Afiliados */}

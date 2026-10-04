@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, Mail, AtSign } from 'lucide-react';
 import { LIME, INK, HEAVY, SERIF, PILL, WRAP, Marquee, SiteActions } from './SiteLayout';
+import { NavLink } from '../../components/common/NavLink';
 
 type PageProps = { actions: SiteActions };
 
@@ -130,7 +131,7 @@ export const ParaCreatorsPage: React.FC<PageProps> = ({ actions }) => (
       title={<>seu talento <em className="italic underline decoration-[6px] underline-offset-[10px]">vale</em> <Box>dinheiro</Box></>}
       text="Você não precisa de milhões de seguidores. Se você segura a audiência numa live e mostra o produto de verdade, as marcas querem você."
     >
-      <button onClick={actions.openCreator} className={btnWhite + ' text-lg'}>Entrar na lista de espera</button>
+      <button onClick={actions.openCreator} className={btnWhite + ' text-lg'}>Quero Entrar no Squad</button>
     </PageHero>
     <section className={`${WRAP} py-16 lg:py-24`}>
       <h2 className={`${SERIF} text-4xl sm:text-5xl mb-12`}>
@@ -150,7 +151,7 @@ export const ParaCreatorsPage: React.FC<PageProps> = ({ actions }) => (
     <DarkSteps
       title={<>Como <em>funciona?</em></>}
       steps={[
-        ['Inscreva-se', 'Preencha seus dados na lista de espera prioritária.'],
+        ['Inscreva-se', 'Cadastre seu perfil e portfólio no squad de creators.'],
         ['Curadoria', 'Avaliamos suas lives, seus vídeos e o engajamento da sua audiência.'],
         ['Campanhas', 'Seja convidado para campanhas compatíveis com o seu nicho.'],
         ['Produção', 'Crie vídeos e fotos seguindo o briefing da marca.'],
@@ -179,7 +180,7 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
       text="Monte um squad de creators que vendem ao vivo e produzem UGC. Envie produtos, aprove conteúdos e acompanhe as vendas de cada live em um só painel."
     >
       <button onClick={actions.openBrand} className={btnDark + ' text-lg'}>Candidate sua marca (3 vagas)</button>
-      <button onClick={() => actions.onNavigate('auth')} className={btnWhite + ' text-lg'}>Acessar painel</button>
+      <NavLink view="auth" onNavigate={actions.onNavigate} className={btnWhite + ' text-lg'}>Acessar painel</NavLink>
     </PageHero>
     <Marquee className="bg-black text-white" items={['Live commerce', 'TikTok Shop', 'UGC com direito de uso', 'Product seeding', 'Afiliados']} />
     <section className={`${WRAP} py-16 lg:py-24`}>
@@ -213,11 +214,11 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
       }
     />
     <section className={`${WRAP} pt-16 lg:pt-24`}>
-      <button onClick={() => actions.onNavigate('squad')} className="group w-full text-left border-2 border-black p-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-[#DFE82A] transition-colors">
+      <NavLink view="squad" onNavigate={actions.onNavigate} className="group w-full text-left border-2 border-black p-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-[#DFE82A] transition-colors">
         <p className="md:col-span-2 text-[11px] font-bold uppercase tracking-wide">Academy</p>
         <h3 className={`${SERIF} md:col-span-8 text-3xl leading-tight`}>Pare de contratar creators. <em>Monte um squad.</em></h3>
         <span className={`${PILL} md:col-span-2 justify-center bg-black text-white text-sm`}>Ler <ArrowRight className="w-4 h-4" /></span>
-      </button>
+      </NavLink>
     </section>
     <FAQ
       items={[
@@ -239,8 +240,8 @@ export const ContatoPage: React.FC<PageProps> = ({ actions }) => (
     />
     <section className={`${WRAP} py-16 lg:py-24 grid grid-cols-1 md:grid-cols-2 gap-6`}>
       {[
-        ['Sou creator', 'Entre na lista de espera e seja avisada das primeiras campanhas.', actions.openCreator, 'Entrar na lista'],
-        ['Sou marca', 'Candidate sua marca ao programa piloto de marcas fundadoras.', actions.openBrand, 'Candidatar marca'],
+        ['Sou creator', 'Cadastre-se no squad e receba propostas de campanhas com cachê via PIX.', actions.openCreator, 'Cadastrar como Creator'],
+        ['Sou marca', 'Monte seu squad de creators e acelere suas vendas com UGC e lives.', actions.openBrand, 'Cadastrar Marca'],
       ].map(([t, d, fn, cta]) => (
         <div key={t as string} className="border-2 border-black p-8 flex flex-col justify-between gap-6 hover:bg-[#DFE82A] transition-colors">
           <div>

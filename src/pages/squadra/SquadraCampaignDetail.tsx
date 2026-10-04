@@ -56,6 +56,7 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
     shipments,
     submissions,
     updateCreatorStage,
+    advanceSquadStage,
     addReviewComment
   } = useData();
 
@@ -69,17 +70,17 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
 
   // Participantes desta campanha
   const campParticipants = useMemo(() => {
-    return participants.filter(p => p.campaign_id === campaign.id || p.campaign_id === 'camp-1');
+    return participants.filter(p => p.campaign_id === campaign.id);
   }, [participants, campaign.id]);
 
   // Envios desta campanha
   const campShipments = useMemo(() => {
-    return shipments.filter(s => s.campaign_id === campaign.id || s.campaign_id === 'camp-1');
+    return shipments.filter(s => s.campaign_id === campaign.id);
   }, [shipments, campaign.id]);
 
   // Conteúdos desta campanha
   const campSubmissions = useMemo(() => {
-    return submissions.filter(s => s.campaign_id === campaign.id || s.campaign_id === 'camp-1');
+    return submissions.filter(s => s.campaign_id === campaign.id);
   }, [submissions, campaign.id]);
 
   // Comentário de revisão
@@ -285,6 +286,74 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
       {/* ABA 2: SQUAD & PIPELINE DE 14 ETAPAS */}
       {activeTab === 'squad' && (
         <div className="space-y-4 animate-in fade-in">
+
+          {/* Resumo do squad + próximo passo (avança o grupo inteiro de uma vez) */}
+          {(() => {
+            const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+            const total = campParticipants.reduce((acc, p) => acc + (p.fee ?? campaign.commission_value ?? 0), 0);
+            const paid = campParticipants.filter((p) => p.stage === 'completed').reduce((acc, p) => acc + (p.fee ?? campaign.commission_value ?? 0), 0);
+            const order = PIPELINE_STAGES.map((st) => st.id as string);
+            const pending = campParticipants.filter((p) => p.stage !== 'completed');
+            const current = order.find((id) => pending.some((p) => p.stage === id));
+            const NEXT: Record<string, [string, string]> = {
+              discovery: ['squad_approved', 'Aprovar no squad'],
+              invited: ['squad_approved', 'Aprovar no squad'],
+              applied: ['squad_approved', 'Aprovar no squad'],
+              screening: ['squad_approved', 'Aprovar no squad'],
+              squad_approved: ['briefing_sent', 'Enviar briefing'],
+              briefing_sent: ['shipping', 'Registrar envio do produto'],
+              shipping: ['delivered', 'Confirmar entrega do produto'],
+              delivered: ['producing', 'Liberar produção do conteúdo'],
+              producing: ['submitted', 'Marcar conteúdos recebidos'],
+              submitted: ['reviewing', 'Iniciar revisão'],
+              reviewing: ['approved', 'Aprovar conteúdos'],
+              approved: ['published', 'Marcar como publicado / live feita'],
+              published: ['completed', 'Concluir e pagar cachês'],
+            };
+            const next = current ? NEXT[current] : undefined;
+            const atStage = current ? pending.filter((p) => p.stage === current).length : 0;
+            const label = PIPELINE_STAGES.find((st) => st.id === current)?.label;
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="p-4 rounded-xl bg-card border border-border">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Creators no squad</p>
+                  <p className="text-xl font-extrabold mt-1">{campParticipants.length} <span className="text-xs font-semibold text-muted-foreground">/ {campaign.creator_slots} vagas</span></p>
+                </div>
+                <div className="p-4 rounded-xl bg-card border border-border">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Investimento em cachês</p>
+                  <p className="text-xl font-extrabold mt-1">{brl(total)}</p>
+                  <p className="text-[11px] text-muted-foreground">orçamento {brl(campaign.budget || 0)}{total > (campaign.budget || 0) ? ' · acima do orçamento' : ''}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-card border border-border">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Já pago</p>
+                  <p className="text-xl font-extrabold mt-1">{brl(paid)}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {(() => {
+                      const ok = campParticipants.filter((p) => ['approved', 'published', 'completed'].includes(p.stage || '')).length;
+                      return ok ? `${ok} conteúdos aprovados · ${brl(total / ok)} por conteúdo` : 'nenhum conteúdo aprovado ainda';
+                    })()}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-primary border-2 border-black flex flex-col justify-between gap-2">
+                  {campParticipants.length === 0 ? (
+                    <p className="text-xs font-bold text-black">Squad vazio. Vá em Creators, selecione e clique em "Criar Squad".</p>
+                  ) : next ? (
+                    <>
+                      <p className="text-[10px] uppercase font-bold text-black/70">Próximo passo · {atStage} em "{label}"</p>
+                      <button
+                        onClick={() => advanceSquadStage(campaign.id, current as any, next[0] as any)}
+                        className="rounded-full bg-black text-white text-xs font-bold px-4 py-2 hover:bg-white hover:text-black transition-colors"
+                      >
+                        {next[1]} ({atStage})
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs font-bold text-black">Campanha concluída: todos os creators pagos.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           
           <div className="flex items-center justify-between">
             <div>

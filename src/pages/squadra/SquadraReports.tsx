@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   FileText,
   Download,
@@ -15,6 +16,9 @@ import { Button } from '../../components/ui/Button';
 
 export const SquadraReports: React.FC = () => {
   const { campaigns, creators } = useData();
+  const { role } = useAuth();
+  // Exportar relatório em CSV é restrito ao Admin Geral (evita exportação massiva por empresas)
+  const canExportCsv = role === 'admin_master' || role === 'admin';
 
   const [filterCampaign, setFilterCampaign] = useState('all');
   const [filterPlatform, setFilterPlatform] = useState('all');
@@ -29,6 +33,7 @@ export const SquadraReports: React.FC = () => {
   };
 
   const handleExportReportCsv = () => {
+    if (!canExportCsv) return;
     const headers = ['Relatório', 'Período', 'Plataforma', 'Nicho', 'Região', 'Total_Creators_Avaliados', 'Views_Totais', 'Engajamento_Medio', 'GMV_Total_R$'];
     const row = [
       '"Consolidado de Performance UGC Squadra"',
@@ -75,10 +80,12 @@ export const SquadraReports: React.FC = () => {
           </p>
         </div>
 
-        <Button onClick={handleExportReportCsv} className="flex items-center space-x-1.5 shadow-md shadow-primary/20">
-          <Download className="w-3.5 h-3.5" />
-          <span>Exportar Relatório CSV</span>
-        </Button>
+        {canExportCsv && (
+          <Button onClick={handleExportReportCsv} className="flex items-center space-x-1.5 shadow-md shadow-primary/20">
+            <Download className="w-3.5 h-3.5" />
+            <span>Exportar Relatório CSV</span>
+          </Button>
+        )}
       </div>
 
       {/* 2. Filtros Cruzados */}

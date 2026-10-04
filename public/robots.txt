@@ -1,8 +1,22 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
+Allow: /sobre
+Allow: /para-creators
+Allow: /para-marcas
+Allow: /squad
+Allow: /contato
+Allow: /termos
+Allow: /privacidade
+
+# Áreas restritas / autenticadas
 Disallow: /admin
-Disallow: /admin-*
+Disallow: /admin/
+Disallow: /painel
+Disallow: /painel/
+Disallow: /creator/
+Disallow: /marca/
+Disallow: /recuperar-senha
 Disallow: /api/
 
-Sitemap: https://nailclubpro.com.br/sitemap.xml
+Sitemap: https://www.squadugc.com.br/sitemap.xml

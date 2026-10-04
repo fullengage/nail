@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   Campaign,
   CampaignApplication,
@@ -43,6 +43,9 @@ import {
 } from '../data/squadraData';
 import { supabaseService } from '../services/supabaseService';
 
+// ids reais do banco são uuid; ids locais (demo/offline) não vão para o Supabase
+const isUuid = (v?: string) => !!v && /^[0-9a-f-]{36}$/i.test(v);
+
 interface DataContextType {
   campaigns: Campaign[];
   applications: CampaignApplication[];
@@ -69,7 +72,7 @@ interface DataContextType {
   requestPixWithdrawal: (creatorId: string, pixKey: string) => void;
   
   // Actions for Brand Flow
-  createCampaign: (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => void;
+  createCampaign: (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => Promise<string>;
   approveApplication: (applicationId: string) => void;
   rejectApplication: (applicationId: string) => void;
   approveContentSubmission: (submissionId: string) => void;
@@ -81,10 +84,14 @@ interface DataContextType {
   setScoreWeights: (weights: ScoreWeights) => void;
   updateCreatorStage: (campaignId: string, creatorId: string, newStage: PipelineStage) => void;
   addCreatorTags: (creatorIds: string[], tags: string[]) => void;
-  createSquadFromCreators: (campaignId: string, creatorIds: string[]) => void;
+  createSquadFromCreators: (campaignId: string, creatorIds: string[], fee?: number) => { added: number; duplicates: number; noSlot: number };
+  advanceSquadStage: (campaignId: string, fromStage: PipelineStage, toStage: PipelineStage) => number;
   importCreatorsCsv: (newCreators: Partial<CreatorProfile>[]) => { added: number; updated: number; duplicates: number };
   addRetailPoint: (retail: Omit<RetailPoint, 'id' | 'created_at'>) => void;
+  deleteRetailPoint: (id: string) => void;
   importRetailPointsCsv: (points: Partial<RetailPoint>[]) => number;
+  addCreator: (creator: Partial<CreatorProfile>) => void;
+  deleteCreator: (id: string) => void;
   addReviewComment: (contentId: string, comment: string, authorName: string) => void;
 
   // Actions for Admin
@@ -123,27 +130,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_SCORE_WEIGHTS;
   });
 
-  const [sourceCounts, setSourceCounts] = useState<SourceCounts>(() => {
-    const saved = localStorage.getItem('squadra_source_counts');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-    }
-    return SQUADRA_SOURCE_COUNTS;
-  });
-
-  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
-    const saved = localStorage.getItem('squadra_campaigns');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0 && !parsed[0].title?.includes('Gel Diamante') && !parsed[0].title?.includes('Micromotores')) {
-          return parsed;
-        }
-      } catch (e) { /* ignore */ }
-    }
-    return SQUADRA_CAMPAIGNS;
-  });
-
   const [creators, setCreators] = useState<CreatorProfile[]>(() => {
     const saved = localStorage.getItem('squadra_creators_v2');
     if (saved) {
@@ -161,6 +147,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try { return JSON.parse(saved); } catch (e) { /* ignore */ }
     }
     return SQUADRA_RETAIL_POINTS;
+  });
+
+  // Contadores dinâmicos calculados em tempo real com base no estado real de creators e PDVs
+  const sourceCounts = useMemo<SourceCounts>(() => {
+    const baselineManicures = 17000;
+    const baselineCreators = 808;
+    const baselineTiktokLeads = 799;
+    const baselineInstagramUgc = 560;
+    const baselineRetailActive = 1000;
+    const baselineRetailTotal = 8059;
+
+    const totalCreators = creators.length;
+    const creatorsWithTiktok = creators.filter((c) => !!c.tiktok && c.tiktok.trim() !== '').length;
+    const creatorsWithInsta = creators.filter((c) => !!c.instagram && c.instagram.trim() !== '').length;
+
+    // Delta em relação aos 808 da base inicial
+    const tiktokDelta = creatorsWithTiktok - baselineCreators;
+    const instaDelta = creatorsWithInsta - 169;
+
+    const tiktok = Math.max(0, baselineTiktokLeads + tiktokDelta);
+    const instagram = Math.max(0, baselineInstagramUgc + (instaDelta > 0 ? instaDelta : Math.min(0, totalCreators - baselineCreators)));
+
+    // PDVs em tempo real (base inicial = 200 itens que representam 1000 no catálogo ativo)
+    const retailDelta = retailPoints.length - 200;
+    const retail_active = Math.max(0, baselineRetailActive + retailDelta);
+    const retail_points = Math.max(0, baselineRetailTotal + retailDelta);
+
+    // Creators Únicos: 17.000 manicures + tiktok + instagram + novos cadastros únicos
+    // No baseline: 17.000 + 799 + 560 = 18.359
+    const uniqueDelta = totalCreators - baselineCreators;
+    const unique_creators = Math.max(0, baselineManicures + baselineTiktokLeads + baselineInstagramUgc + uniqueDelta);
+
+    return {
+      manicures: baselineManicures,
+      tiktok,
+      instagram,
+      retail_points,
+      unique_creators,
+      tiktok_mined: totalCreators,
+      retail_active
+    };
+  }, [creators, retailPoints]);
+
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
+    const saved = localStorage.getItem('squadra_campaigns');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.length > 0 && !parsed[0].title?.includes('Gel Diamante') && !parsed[0].title?.includes('Micromotores')) {
+          return parsed;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_CAMPAIGNS;
   });
 
   const [shipments, setShipments] = useState<Shipment[]>(() => {
@@ -241,10 +281,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // When Supabase is configured, sync in background
   useEffect(() => {
     supabaseService.getCampaigns().then((data) => {
-      if (data && data.length > 0) setCampaigns(data);
+      if (data && data.length > 0) {
+        setCampaigns(data);
+        // com campanhas reais, o squad também vem do banco (public.campaign_creators)
+        supabaseService.getParticipants().then((parts) => {
+          if (parts) setParticipants(parts);
+        });
+      }
     });
     supabaseService.getCreators().then((data) => {
       if (data && data.length >= 100) setCreators(data);
+    });
+    // PDVs reais do banco substituem os de demonstração assim que existir pelo menos um
+    supabaseService.getRetailPoints().then((data) => {
+      if (data && data.length > 0) setRetailPoints(data);
     });
     supabaseService.getBrands().then((data) => {
       if (data && data.length > 0) setBrands(data);
@@ -253,19 +303,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('ncp_campaigns', JSON.stringify(campaigns));
+    localStorage.setItem('squadra_campaigns', JSON.stringify(campaigns));
   }, [campaigns]);
 
   useEffect(() => {
-    localStorage.setItem('ncp_applications', JSON.stringify(applications));
+    localStorage.setItem('squadra_applications', JSON.stringify(applications));
   }, [applications]);
 
   useEffect(() => {
-    localStorage.setItem('ncp_participants', JSON.stringify(participants));
+    localStorage.setItem('squadra_participants', JSON.stringify(participants));
   }, [participants]);
 
   useEffect(() => {
-    localStorage.setItem('ncp_submissions', JSON.stringify(submissions));
+    localStorage.setItem('squadra_submissions', JSON.stringify(submissions));
   }, [submissions]);
 
   useEffect(() => {
@@ -283,6 +333,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem('ncp_notifications', JSON.stringify(notifications));
   }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('squadra_creators_v2', JSON.stringify(creators));
+  }, [creators]);
+
+  useEffect(() => {
+    localStorage.setItem('squadra_retail_points', JSON.stringify(retailPoints));
+  }, [retailPoints]);
 
   // Demo Action 1: Creator Applies to Campaign
   const applyToCampaign = (campaignId: string, message: string) => {
@@ -421,15 +479,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Demo Action 3: Brand Creates Campaign
-  const createCampaign = (campData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
-    const newCamp: Campaign = {
-      ...campData,
-      id: `cp-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+  // Grava no Supabase (public.campaigns) e usa o id do banco; sem conexão, fica local
+  const createCampaign = async (campData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
+    const saved = await supabaseService.createCampaign(campData);
+    const newCamp: Campaign = saved
+      ? { ...campData, ...saved }
+      : { ...campData, id: `cp-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     setCampaigns((prev) => [newCamp, ...prev]);
-    supabaseService.createCampaign(newCamp);
+    return newCamp.id;
   };
 
   // Demo Action 4: Brand Approves Application
@@ -613,6 +670,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Squadra: Movimentar Etapa do Pipeline (14 etapas)
   const updateCreatorStage = (campaignId: string, creatorId: string, newStage: PipelineStage) => {
+    if (isUuid(campaignId) && isUuid(creatorId)) {
+      supabaseService.updateParticipantStage(campaignId, { creatorId }, newStage, newStage === 'completed' ? 'completed' : newStage === 'approved' ? 'approved' : undefined);
+    }
     setParticipants((prev) =>
       prev.map((p) => {
         if (p.campaign_id === campaignId && p.creator_id === creatorId) {
@@ -644,12 +704,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Squadra: Criar Squad a partir de Creators Selecionados
-  const createSquadFromCreators = (campaignId: string, creatorIds: string[]) => {
+  const createSquadFromCreators = (campaignId: string, creatorIds: string[], fee?: number) => {
     const newParticipants: CampaignParticipant[] = [];
+    const camp = campaigns.find((c) => c.id === campaignId);
+    // respeita as vagas da campanha: não deixa o squad passar do limite
+    let freeSlots = camp ? Math.max(0, (camp.creator_slots || 0) - (camp.occupied_slots || 0)) : Infinity;
+    let duplicates = 0;
+    let noSlot = 0;
     creatorIds.forEach((cId) => {
-      const alreadyIn = participants.some((p) => p.campaign_id === campaignId && p.creator_id === cId);
-      if (!alreadyIn) {
-        const creatorObj = creators.find((c) => c.id === cId);
+      const creatorObj = creators.find((c) => c.id === cId);
+      const handle = (creatorObj?.tiktok || '').toLowerCase();
+      // evita duplicar quem já está no squad mesmo se o id mudou (local x Supabase)
+      const alreadyIn = participants.some(
+        (p) => p.campaign_id === campaignId && (p.creator_id === cId || (!!handle && (p.creator?.tiktok || '').toLowerCase() === handle))
+      );
+      if (alreadyIn) {
+        duplicates++;
+      } else if (freeSlots <= 0) {
+        noSlot++;
+      } else {
+        freeSlots--;
         newParticipants.push({
           id: `part-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           campaign_id: campaignId,
@@ -657,7 +731,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           creator: creatorObj,
           stage: 'squad_approved',
           status: 'selected',
-          operational_score: creatorObj?.operational_score || 85,
+          operational_score: creatorObj?.operational_score ?? 0,
+          fee: fee ?? camp?.commission_value ?? 0,
           notes: 'Adicionado via seleção em massa no painel de Creators.',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -667,6 +742,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (newParticipants.length > 0) {
       setParticipants((prev) => [...newParticipants, ...prev]);
+      if (isUuid(campaignId)) {
+        const toSave = newParticipants.filter((p) => isUuid(p.creator_id));
+        supabaseService.addParticipants(toSave).then((saved) => {
+          if (!saved) return;
+          // troca os ids locais pelos do banco
+          const idMap = new Map(toSave.map((p, i) => [p.id, saved[i]?.id || p.id]));
+          setParticipants((prev) => prev.map((p) => (idMap.has(p.id) ? { ...p, id: idMap.get(p.id)! } : p)));
+        });
+        supabaseService.updateCampaign(campaignId, { occupied_slots: (camp?.occupied_slots || 0) + newParticipants.length });
+      }
       // Update occupied slots
       setCampaigns((prev) =>
         prev.map((c) =>
@@ -674,6 +759,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )
       );
     }
+    return { added: newParticipants.length, duplicates, noSlot };
+  };
+
+  // Avança em lote todos os creators de uma etapa para a próxima (ex.: enviar briefing para o squad inteiro)
+  const advanceSquadStage = (campaignId: string, fromStage: PipelineStage, toStage: PipelineStage) => {
+    if (isUuid(campaignId)) {
+      supabaseService.updateParticipantStage(campaignId, { fromStage }, toStage, toStage === 'completed' ? 'completed' : toStage === 'approved' ? 'approved' : undefined);
+    }
+    const count = participants.filter((p) => p.campaign_id === campaignId && p.stage === fromStage).length;
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.campaign_id === campaignId && p.stage === fromStage
+          ? { ...p, stage: toStage, status: toStage === 'completed' ? 'completed' : toStage === 'approved' ? 'approved' : p.status, updated_at: new Date().toISOString() }
+          : p
+      )
+    );
+    return count;
   };
 
   // Squadra: Importar CSV de Creators com Deduplicação por telefone / e-mail / @
@@ -744,6 +846,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Squadra: Adicionar e Importar PDVs (Retail Points)
+  // PDVs ficam salvos no Supabase; o id local é trocado pelo do banco quando a gravação volta
+  const persistRetail = (local: RetailPoint[]) => {
+    supabaseService.saveRetailPoints(local.map(({ id: _id, created_at: _c, ...rest }) => rest)).then((saved) => {
+      if (!saved) return;
+      const ids = new Set(local.map((p) => p.id));
+      setRetailPoints((prev) => [...saved, ...prev.filter((p) => !ids.has(p.id))]);
+    });
+  };
+
   const addRetailPoint = (retail: Omit<RetailPoint, 'id' | 'created_at'>) => {
     const newPoint: RetailPoint = {
       ...retail,
@@ -751,27 +862,81 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString()
     };
     setRetailPoints((prev) => [newPoint, ...prev]);
+    persistRetail([newPoint]);
   };
 
   const importRetailPointsCsv = (points: Partial<RetailPoint>[]) => {
-    const valid = points.map((p, idx) => ({
-      id: `retail-imp-${Date.now()}-${idx}`,
-      name: p.name || 'PDV Parceiro',
-      trade_name: p.trade_name || p.name || 'PDV',
-      network: p.network || 'Rede Independente',
-      cnpj: p.cnpj || '00.000.000/0001-00',
-      type: p.type || 'cosmetics',
-      city: p.city || 'São Paulo',
-      state: p.state || 'SP',
-      address: p.address || 'Endereço Comercial',
-      phone: p.phone || '',
-      email: p.email || '',
-      manager_name: p.manager_name || 'Gerente',
-      status: p.status || 'active',
-      created_at: new Date().toISOString()
-    }));
+    // só o que veio no arquivo (ou da Receita via BrasilAPI); nada de valor padrão inventado.
+    // Deduplica por CNPJ contra a base atual.
+    const known = new Set(retailPoints.map((r) => (r.cnpj || '').replace(/\D/g, '')).filter(Boolean));
+    const valid: RetailPoint[] = [];
+    points.forEach((p, idx) => {
+      const key = (p.cnpj || '').replace(/\D/g, '');
+      if (!p.name || (key && known.has(key))) return;
+      if (key) known.add(key);
+      valid.push({
+        id: `retail-imp-${Date.now()}-${idx}`,
+        name: p.name,
+        trade_name: p.trade_name || p.name,
+        network: p.network || p.name,
+        cnpj: p.cnpj || '',
+        type: p.type || 'cosmetics',
+        city: p.city || '',
+        state: p.state || '',
+        address: p.address || '',
+        phone: p.phone || '',
+        email: p.email || '',
+        manager_name: p.manager_name || '',
+        status: p.status || 'active',
+        created_at: new Date().toISOString()
+      });
+    });
     setRetailPoints((prev) => [...valid, ...prev]);
+    persistRetail(valid);
     return valid.length;
+  };
+
+  const deleteRetailPoint = (id: string) => {
+    setRetailPoints((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const addCreator = (newCreator: Partial<CreatorProfile>) => {
+    const creator: CreatorProfile = {
+      id: `creator-${Date.now()}`,
+      user_id: '',
+      professional_name: newCreator.professional_name || newCreator.tiktok || 'Novo Creator',
+      bio: newCreator.bio || '',
+      city: newCreator.city || '',
+      state: newCreator.state || '',
+      instagram: newCreator.instagram || '',
+      tiktok: newCreator.tiktok || '',
+      youtube: newCreator.youtube || '',
+      instagram_followers: Number(newCreator.instagram_followers || 0),
+      tiktok_followers: Number(newCreator.tiktok_followers || 0),
+      youtube_followers: Number(newCreator.youtube_followers || 0),
+      years_experience: 0,
+      specialties: newCreator.specialties && newCreator.specialties.length > 0 ? newCreator.specialties : ['Geral'],
+      techniques: newCreator.techniques || [],
+      accepts_product_campaigns: true,
+      accepts_paid_campaigns: true,
+      accepts_affiliate_campaigns: true,
+      accepts_live_campaigns: false,
+      portfolio_cover_url: newCreator.portfolio_cover_url || '',
+      profile_completion: 100,
+      verification_status: 'verified',
+      operational_score: Number(newCreator.operational_score || 85),
+      engagement_rate: Number(newCreator.engagement_rate || 4.2),
+      tags: newCreator.tags || ['Novo'],
+      email: newCreator.email || '',
+      phone: newCreator.phone || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    setCreators((prev) => [creator, ...prev]);
+  };
+
+  const deleteCreator = (id: string) => {
+    setCreators((prev) => prev.filter((c) => c.id !== id));
   };
 
   // Squadra: Adicionar Comentário de Revisão
@@ -816,7 +981,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setParticipants(SQUADRA_PARTICIPANTS);
     setSubmissions(SQUADRA_SUBMISSIONS);
     setScoreWeightsState(DEFAULT_SCORE_WEIGHTS);
-    setSourceCounts(SQUADRA_SOURCE_COUNTS);
   };
 
   const addBrand = (newBrand: Omit<BrandProfile, 'id' | 'created_at'>) => {
@@ -876,15 +1040,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setParticipants(SQUADRA_PARTICIPANTS);
     setSubmissions(SQUADRA_SUBMISSIONS);
     setScoreWeightsState(DEFAULT_SCORE_WEIGHTS);
-    setSourceCounts(SQUADRA_SOURCE_COUNTS);
   };
+
+  // Fonte única: participantes de campanha sempre apontam para o creator ATUAL (mesmos valores da tela de Creators).
+  // Liga por id e, se o id mudou (dados locais x Supabase), pelo @ do TikTok.
+  const liveParticipants = useMemo(() => {
+    const byId = new Map(creators.map((c) => [c.id, c]));
+    const byHandle = new Map(creators.map((c) => [(c.tiktok || '').toLowerCase(), c]));
+    return participants.map((p) => {
+      const c = byId.get(p.creator_id) || byHandle.get((p.creator?.tiktok || '').toLowerCase());
+      return c ? { ...p, creator: c, operational_score: c.operational_score } : p;
+    });
+  }, [participants, creators]);
 
   return (
     <DataContext.Provider
       value={{
         campaigns,
         applications,
-        participants,
+        participants: liveParticipants,
         submissions,
         products,
         earnings,
@@ -903,9 +1077,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateCreatorStage,
         addCreatorTags,
         createSquadFromCreators,
+        advanceSquadStage,
         importCreatorsCsv,
         addRetailPoint,
+        deleteRetailPoint,
         importRetailPointsCsv,
+        addCreator,
+        deleteCreator,
         addReviewComment,
         addBrand,
         updateBrand,

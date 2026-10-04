@@ -12,6 +12,7 @@ import { Footer } from './components/layout/Footer';
 import { LandingPage } from './pages/landing/LandingPage';
 import { SiteLayout, SITE_VIEWS, SiteActions } from './pages/site/SiteLayout';
 import { ArtigoSquadPage } from './pages/site/ArtigoSquadPage';
+import { PlanosPage } from './pages/site/PlanosPage';
 import { SobrePage, ParaCreatorsPage, ParaMarcasPage, ContatoPage } from './pages/site/SitePages';
 import { AuthPage } from './pages/auth/AuthPage';
 import { ClientManualPage } from './pages/docs/ClientManualPage';
@@ -54,16 +55,12 @@ import { AdminFinance } from './pages/admin/AdminFinance';
 import { AdminAuthGuard } from './components/admin/AdminAuthGuard';
 
 import { ShieldAlert } from 'lucide-react';
+import { getViewPath, parseUrlToView } from './lib/routes';
+import { applySEO } from './lib/seo';
 import { Button } from './components/ui/Button';
 
-const VIEW_ALIASES: Record<string, string> = {
-  apply: 'public-apply', 'recuperar-senha': 'reset-password', terms: 'termos', privacy: 'privacidade',
-};
-
 function viewFromUrl(): string {
-  const raw = new URLSearchParams(window.location.search).get('view');
-  if (!raw) return window.location.hash === '#manual' && import.meta.env.VITE_DEMO_MODE === 'true' ? 'manual' : 'landing';
-  const view = VIEW_ALIASES[raw] || raw;
+  const { view } = parseUrlToView(window.location.pathname, window.location.search, window.location.hash);
   // o manual do cliente só existe no modo demo
   return view === 'manual' && import.meta.env.VITE_DEMO_MODE !== 'true' ? 'landing' : view;
 }
@@ -73,11 +70,15 @@ const MainApp: React.FC = () => {
   // Home = site institucional; o painel fica atrás de "Acessar painel"
   const [currentView, setCurrentView] = useState<string>(() => viewFromUrl());
 
-  // Sincroniza a view com a URL (?view=...) e suporta voltar/avançar do navegador
+  // URL amigável (/para-creators, /painel/creators…) sincronizada com a view + <head> de SEO
   useEffect(() => {
-    if (viewFromUrl() !== currentView) {
-      window.history.pushState(null, '', currentView === 'landing' ? window.location.pathname : `?view=${currentView}`);
+    const target = getViewPath(currentView);
+    if (window.location.pathname !== target || window.location.search) {
+      // ?view= antigo é substituído (sem criar entrada no histórico); navegação normal faz push
+      const legacy = new URLSearchParams(window.location.search).has('view');
+      window.history[legacy ? 'replaceState' : 'pushState'](null, '', target + window.location.hash);
     }
+    applySEO(currentView);
   }, [currentView]);
   useEffect(() => {
     const onPop = () => setCurrentView(viewFromUrl());
@@ -228,7 +229,7 @@ const MainApp: React.FC = () => {
 
   if (isSiteView) {
     const pages: Record<string, React.FC<{ actions: SiteActions }>> = {
-      landing: LandingPage, sobre: SobrePage, 'para-creators': ParaCreatorsPage, 'para-marcas': ParaMarcasPage, contato: ContatoPage, squad: ArtigoSquadPage,
+      landing: LandingPage, sobre: SobrePage, 'para-creators': ParaCreatorsPage, 'para-marcas': ParaMarcasPage, contato: ContatoPage, squad: ArtigoSquadPage, planos: PlanosPage,
     };
     const Page = pages[currentView];
     return (

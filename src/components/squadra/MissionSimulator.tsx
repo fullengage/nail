@@ -54,7 +54,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
         textColor: 'text-zinc-400',
         description: 'Creators iniciantes focados em volume de vídeos, unboxing e primeiros reviews de produto.',
         minFollowers: '1k a 10k seguidores',
-        estimatedViews: creatorCount * 12000,
+        range: [1000, 10000],
       };
     } else if (investmentPerVideo <= 200) {
       return {
@@ -64,7 +64,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
         textColor: 'text-blue-400',
         description: 'Creators consolidados com boa oratória, iluminação adequada, storytelling e retenção comprovada.',
         minFollowers: '10k a 50k seguidores',
-        estimatedViews: creatorCount * 35000,
+        range: [10000, 50000],
       };
     } else if (investmentPerVideo <= 400) {
       return {
@@ -74,7 +74,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
         textColor: 'text-amber-400',
         description: 'Criadores de alta conversão, autoridade no nicho, especialistas em hooks e vídeos para anúncios pagos (Ad-ready).',
         minFollowers: '50k a 200k seguidores',
-        estimatedViews: creatorCount * 95000,
+        range: [50000, 200000],
       };
     } else {
       return {
@@ -84,15 +84,17 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
         textColor: 'text-emerald-400',
         description: 'Influenciadores e UGCs de alto impacto, especialistas em Live Commerce de vendas, presença de palco e autoridade nacional.',
         minFollowers: '200k+ seguidores',
-        estimatedViews: creatorCount * 280000,
+        range: [200000, Infinity],
       };
     }
   }, [investmentPerVideo, creatorCount]);
 
   // Contagem de creators elegíveis na base real
+  // creators REAIS da base dentro da faixa de seguidores do rank escolhido
   const eligibleCreatorsCount = useMemo(() => {
-    return creators.length;
-  }, [creators]);
+    const [min, max] = rankMeta.range;
+    return creators.filter((c) => (c.tiktok_followers || 0) >= min && (c.tiktok_followers || 0) < max).length;
+  }, [creators, rankMeta]);
 
   const handleAction = () => {
     if (onApplyBudget) {
@@ -118,7 +120,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
       <div className="relative z-10 text-center max-w-xl mx-auto space-y-2 mb-8">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] font-bold text-zinc-300">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span>Curadoria Ativa Squadra • Modelo de Assinatura & Missão</span>
+          <span>Squad UGC • Missão pontual ou squad mensal</span>
         </div>
         
         <h2 className="text-3xl sm:text-4xl font-extrabold font-display tracking-tight text-white">
@@ -310,7 +312,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
             </div>
             {billingCycle === 'monthly' && (
               <span className="text-[10px] text-zinc-500 block pl-1">
-                Inclui curadoria, substituição de creator e suporte de entrega.
+                Valor em cachês. Cada cachê só é liberado após a sua aprovação.
               </span>
             )}
           </div>
@@ -324,7 +326,7 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
               <ArrowRight className="w-4 h-4 stroke-[3]" />
             </Button>
             <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-400" /> Curadoria ativa + garantia de entrega
+              <ShieldCheck className="w-3 h-3 text-emerald-400" /> Pagamento só após aprovação
             </span>
           </div>
 
@@ -347,20 +349,20 @@ export const MissionSimulator: React.FC<MissionSimulatorProps> = ({
         <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
           <div className="flex items-center gap-2 text-xs font-bold text-white mb-1">
             <Video className="w-4 h-4 text-primary" />
-            <span>{creatorCount} Vídeos Garantidos</span>
+            <span>Paga só o que aprovar</span>
           </div>
           <p className="text-[11px] text-zinc-400 leading-tight">
-            Acompanhamento logístico de envio de amostras até a aprovação final do conteúdo.
+            O cachê de cada creator só é liberado depois que você aprova o conteúdo entregue.
           </p>
         </div>
 
         <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
           <div className="flex items-center gap-2 text-xs font-bold text-white mb-1">
             <TrendingUp className="w-4 h-4 text-blue-400" />
-            <span>~{rankMeta.estimatedViews.toLocaleString('pt-BR')} Views</span>
+            <span>{eligibleCreatorsCount.toLocaleString('pt-BR')} creators nessa faixa</span>
           </div>
           <p className="text-[11px] text-zinc-400 leading-tight">
-            Alcance projetado somando a audiência curada dos {creatorCount} criadores contratados.
+            Perfis reais da nossa base com {rankMeta.minFollowers} no TikTok, prontos para curadoria.
           </p>
         </div>
       </div>

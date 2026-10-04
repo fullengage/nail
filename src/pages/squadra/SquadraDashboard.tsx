@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { supabaseService } from '../../services/supabaseService';
 import { TikTokLink } from '../../components/ui/TikTokLink';
 import { useData } from '../../context/DataContext';
 import {
@@ -48,7 +49,42 @@ const PERFORMANCE_DATA = [
 ];
 
 export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }) => {
-  const { sourceCounts, creators, campaigns, retailPoints } = useData();
+  const { creators, campaigns, participants } = useData();
+  // KPIs reais: contados na base de creators e no banco de PDVs (nada de número fixo)
+  const realKpis = useMemo(() => {
+    const has = (c: any, tag: string) => (c.tags || []).includes(tag);
+    return {
+      creators: creators.length,
+      qualified: creators.filter((c) => has(c, 'A - Prioritário') || has(c, 'B - Qualificado')).length,
+      instagram: creators.filter((c) => !!c.instagram).length,
+      contact: creators.filter((c) => !!c.email || !!c.phone).length,
+      live: creators.filter((c) => c.accepts_live_campaigns || has(c, 'Vendas por live')).length,
+    };
+  }, [creators]);
+  // funil e investimento a partir dos squads reais
+  const funnel = useMemo(() => {
+    const after = (st: string | undefined, list: string[]) => list.includes(st || '');
+    const SHIPPED = ['shipping', 'delivered', 'producing', 'submitted', 'reviewing', 'approved', 'published', 'completed'];
+    const APPROVED = ['approved', 'published', 'completed'];
+    const IN_SQUAD = ['squad_approved', 'briefing_sent', ...SHIPPED];
+    const fee = (p: any) => p.fee ?? campaigns.find((c) => c.id === p.campaign_id)?.commission_value ?? 0;
+    const sq = participants.filter((p) => after(p.stage, IN_SQUAD));
+    return {
+      base: realKpis.creators,
+      qualified: realKpis.qualified,
+      inSquad: new Set(sq.map((p) => p.creator_id)).size,
+      shipped: participants.filter((p) => after(p.stage, SHIPPED)).length,
+      approved: participants.filter((p) => after(p.stage, APPROVED)).length,
+      completed: participants.filter((p) => p.stage === 'completed').length,
+      openCampaigns: campaigns.filter((c) => c.status === 'open' || c.status === 'in_progress').length,
+      investment: sq.reduce((acc, p) => acc + fee(p), 0),
+      paid: participants.filter((p) => p.stage === 'completed').reduce((acc, p) => acc + fee(p), 0),
+    };
+  }, [participants, campaigns, realKpis]);
+  const [pdvTotals, setPdvTotals] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    supabaseService.countRetailByType().then(setPdvTotals);
+  }, []);
 
   // Top creators ordenados por pontuação operacional
   const topCreators = [...creators]
@@ -97,97 +133,28 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">
-            Bases Mapeadas por Fonte & PDVs
+            Bases reais: creators e PDVs
           </p>
-          <span className="text-[11px] text-muted-foreground">Atualizado em tempo real</span>
+          <span className="text-[11px] text-muted-foreground">Contagem direta da base</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          
-          {/* Manicures */}
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/40 transition-all group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Base Manicures</span>
-              <div className="w-7 h-7 rounded-lg bg-pink-500/10 text-pink-600 flex items-center justify-center">
-                <Users className="w-4 h-4" />
+          {[
+            { label: 'Creators mapeados', value: realKpis.creators, sub: `${realKpis.qualified.toLocaleString('pt-BR')} qualificados (faixa A+B)`, icon: <Video className="w-4 h-4" />, highlight: true },
+            { label: 'Instagram confirmado', value: realKpis.instagram, sub: 'informado pelo próprio creator', icon: <Instagram className="w-4 h-4" /> },
+            { label: 'Com contato direto', value: realKpis.contact, sub: 'e-mail ou WhatsApp público', icon: <Users className="w-4 h-4" /> },
+            { label: 'Vendem por live', value: realKpis.live, sub: 'marcados na base', icon: <Sparkles className="w-4 h-4" /> },
+            { label: 'PDVs no mapa', value: pdvTotals?.total ?? null, sub: pdvTotals ? `${(pdvTotals.pharmacy || 0).toLocaleString('pt-BR')} farmácias · ${(pdvTotals.cosmetics || 0).toLocaleString('pt-BR')} cosméticos` : 'carregando…', icon: <Store className="w-4 h-4" /> },
+          ].map((k) => (
+            <div key={k.label} className={`p-4 rounded-2xl border shadow-sm transition-all ${k.highlight ? 'bg-primary border-2 border-black text-black' : 'bg-card border-border hover:border-primary/40'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-semibold ${k.highlight ? 'text-black' : 'text-muted-foreground'}`}>{k.label}</span>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${k.highlight ? 'bg-black text-primary' : 'bg-muted text-foreground'}`}>{k.icon}</div>
               </div>
+              <p className="text-2xl font-bold font-display mt-2">{k.value == null ? '…' : k.value.toLocaleString('pt-BR')}</p>
+              <p className={`text-[11px] mt-1 ${k.highlight ? 'text-black/70' : 'text-muted-foreground'}`}>{k.sub}</p>
             </div>
-            <p className="text-2xl font-bold font-display text-foreground mt-2">
-              {sourceCounts.manicures.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center space-x-1">
-              <span className="text-emerald-600 font-semibold">+100%</span>
-              <span>auditadas no setor</span>
-            </p>
-          </div>
-
-          {/* TikTok */}
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/40 transition-all group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">TikTok Leads</span>
-              <div className="w-7 h-7 rounded-lg bg-slate-900 text-white dark:bg-white dark:text-black flex items-center justify-center">
-                <Video className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold font-display text-foreground mt-2">
-              {sourceCounts.tiktok.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center space-x-1">
-              <span className="text-emerald-600 font-semibold">808</span>
-              <span>perfis minerados</span>
-            </p>
-          </div>
-
-          {/* Instagram */}
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/40 transition-all group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Instagram UGC</span>
-              <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                <Instagram className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold font-display text-foreground mt-2">
-              {sourceCounts.instagram.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center space-x-1">
-              <span className="text-emerald-600 font-semibold">Qualificados</span>
-              <span>para seeding</span>
-            </p>
-          </div>
-
-          {/* PDVs */}
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-sm hover:border-primary/40 transition-all group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Rede de PDVs</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                <Store className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold font-display text-foreground mt-2">
-              {sourceCounts.retail_points.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center space-x-1">
-              <span className="text-primary font-semibold">{retailPoints.length}</span>
-              <span>no catálogo ativo</span>
-            </p>
-          </div>
-
-          {/* Creators Únicos - DESTAQUE */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-card border-2 border-primary/40 shadow-sm col-span-2 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-primary">Creators Únicos</span>
-              <div className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-sm shadow-primary/30">
-                <Sparkles className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold font-display text-foreground mt-2">
-              {sourceCounts.unique_creators.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Deduplicados por @, e-mail e fone
-            </p>
-          </div>
-
+          ))}
         </div>
       </div>
 
@@ -200,161 +167,68 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
         />
       </div>
 
-      {/* 3. Métricas Globais de Impacto & Gráficos */}
+      {/* 3. Resultados de campanha: só números reais (views/vendas entram quando houver conteúdo publicado) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Gráfico 1: Views Acumuladas */}
         <div className="lg:col-span-2 p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Alcance Orgânico</p>
-              <h3 className="text-lg font-bold font-display text-foreground flex items-center space-x-2 mt-0.5">
-                <span>Evolução de Views UGC (30 Dias)</span>
-                <span className="text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-1" /> +34.8%
-                </span>
-              </h3>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold font-display text-primary">2.84M</p>
-              <p className="text-[11px] text-muted-foreground">views registradas</p>
-            </div>
-          </div>
-
-          <div className="h-64 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={PERFORMANCE_DATA}>
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#DFE82A" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="#DFE82A" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}
-                  formatter={(val: any) => [`${val.toLocaleString('pt-BR')} views`, 'Alcance']}
-                />
-                <Area type="monotone" dataKey="views" stroke="#111111" strokeWidth={2.5} fillOpacity={1} fill="url(#colorViews)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Gráfico 2: Vendas & GMV */}
-        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Conversão Comercial</p>
-              <h3 className="text-lg font-bold font-display text-foreground mt-0.5">GMV Gerado</h3>
-            </div>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-3xl font-bold font-display text-foreground">R$ 258.450</p>
-            <p className="text-xs text-muted-foreground">Vendas atribuídas via cupons e links de afiliados</p>
-          </div>
-
-          <div className="h-44 w-full pt-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={PERFORMANCE_DATA}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    fontSize: '11px'
-                  }}
-                  formatter={(val: any) => [`R$ ${val.toLocaleString('pt-BR')}`, 'GMV']}
-                />
-                <Bar dataKey="gmv" fill="#DFE82A" stroke="#111111" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Comissões pagas aos creators</span>
-            <span className="font-bold text-foreground">R$ 31.014 (12%)</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Funil de Campanha (Pipeline de Conversão) */}
-      <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Funil de Ativação</p>
-            <h3 className="text-lg font-bold font-display text-foreground mt-0.5">
-              Da Prospecção à Conversão Final
-            </h3>
+            <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Campanhas</p>
+            <h3 className="text-lg font-bold font-display text-foreground mt-0.5">Investimento e squads</h3>
           </div>
-          <button
-            onClick={() => onNavigate('campaigns')}
-            className="text-xs font-bold text-primary hover:underline flex items-center"
-          >
-            <span>Ver Pipeline Detalhado</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              ['Campanhas abertas', funnel.openCampaigns.toLocaleString('pt-BR')],
+              ['Creators em squads', funnel.inSquad.toLocaleString('pt-BR')],
+              ['Investimento em cachês', funnel.investment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })],
+              ['Já pago', funnel.paid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })],
+            ].map(([l, v]) => (
+              <div key={l} className="p-3 rounded-xl bg-muted/40 border border-border">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">{l}</p>
+                <p className="text-xl font-extrabold mt-1">{v}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-2">
+          <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Alcance e vendas</p>
+          <h3 className="text-lg font-bold font-display text-foreground">Views, GMV e comissões</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Aparecem aqui assim que os primeiros conteúdos forem publicados e as vendas por cupom ou link de afiliado começarem a ser registradas.
+            Nada de número estimado.
+          </p>
+          <button onClick={() => onNavigate('campaigns')} className="text-xs font-bold text-primary hover:underline flex items-center pt-1">
+            <span>Ir para campanhas</span>
             <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
           </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 pt-2">
-          
-          <div className="p-3 rounded-xl bg-muted/40 border border-border text-center space-y-1">
-            <span className="text-[11px] font-bold text-muted-foreground">1. Descoberta</span>
-            <p className="text-lg font-extrabold text-foreground">18.359</p>
-            <span className="text-[10px] text-muted-foreground block">Base global</span>
+      {/* 4. Funil real: da base mapeada ao creator pago */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Funil de ativação</p>
+            <h3 className="text-lg font-bold font-display text-foreground mt-0.5">Da base mapeada ao creator pago</h3>
           </div>
-
-          <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">2. Inscrições</span>
-            <p className="text-lg font-extrabold text-blue-700 dark:text-blue-300">1.240</p>
-            <span className="text-[10px] text-muted-foreground block">Taxa: 6.7%</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">3. Triagem</span>
-            <p className="text-lg font-extrabold text-amber-700 dark:text-amber-300">480</p>
-            <span className="text-[10px] text-muted-foreground block">Score &gt; 70</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-primary">4. No Squad</span>
-            <p className="text-lg font-extrabold text-primary">180</p>
-            <span className="text-[10px] text-muted-foreground block">Selecionados</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-orange-500/5 border border-orange-500/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">5. Envios</span>
-            <p className="text-lg font-extrabold text-orange-700 dark:text-orange-300">165</p>
-            <span className="text-[10px] text-muted-foreground block">Com rastreio</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">6. Aprovados</span>
-            <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300">148</p>
-            <span className="text-[10px] text-muted-foreground block">UGCs no ar</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-pink-500/5 border border-pink-500/20 text-center space-y-1">
-            <span className="text-[11px] font-bold text-pink-600 dark:text-pink-400">7. Pedidos</span>
-            <p className="text-lg font-extrabold text-pink-700 dark:text-pink-300">3.420</p>
-            <span className="text-[10px] text-muted-foreground block">Conversões</span>
-          </div>
-
+          <button onClick={() => onNavigate('campaigns')} className="text-xs font-bold text-primary hover:underline flex items-center">
+            <span>Ver pipeline detalhado</span>
+            <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
+          {[
+            ['1. Base mapeada', funnel.base, 'creators no TikTok'],
+            ['2. Qualificados', funnel.qualified, 'faixa A + B'],
+            ['3. No squad', funnel.inSquad, 'aprovados em campanha'],
+            ['4. Produto enviado', funnel.shipped, 'envio em diante'],
+            ['5. Conteúdo aprovado', funnel.approved, 'aprovado/publicado'],
+            ['6. Concluído e pago', funnel.completed, 'cachê liberado'],
+          ].map(([l, v, sub]) => (
+            <div key={l as string} className="p-3 rounded-xl bg-muted/40 border border-border text-center space-y-1">
+              <span className="text-[11px] font-bold text-muted-foreground">{l}</span>
+              <p className="text-lg font-extrabold text-foreground">{(v as number).toLocaleString('pt-BR')}</p>
+              <span className="text-[10px] text-muted-foreground block">{sub}</span>
+            </div>
+          ))}
         </div>
       </div>
 

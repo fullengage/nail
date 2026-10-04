@@ -1,5 +1,6 @@
 import React from 'react';
-import { Crown, Heart, Sparkles, Shield } from 'lucide-react';
+import { Crown, Heart } from 'lucide-react';
+import { NavLink } from '../common/NavLink';
 
 interface FooterProps {
   onNavigate?: (view: string) => void;
@@ -16,30 +17,29 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <Crown className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-sm text-foreground tracking-tight">NAIL CLUB PRO</span>
-            <p className="text-[11px] text-muted-foreground">Plataforma de Creator Commerce para o Mercado de Unhas</p>
+            <span className="font-bold text-sm text-foreground tracking-tight">SQUADRA UGC</span>
+            <p className="text-[11px] text-muted-foreground">Plataforma de Creator Commerce e Live Shopping</p>
           </div>
         </div>
 
         {/* Links */}
         <div className="flex flex-wrap items-center justify-center gap-5 text-xs font-medium">
-          <a href="#como-funciona-manicure" className="hover:text-primary transition-colors">Para Manicures</a>
-          <a href="#como-funciona-marcas" className="hover:text-primary transition-colors">Para Marcas</a>
-          <a href="#campanhas" className="hover:text-primary transition-colors">Campanhas</a>
-          <a href="#academy" className="hover:text-primary transition-colors">Nail Academy</a>
+          <NavLink view="para-creators" onNavigate={onNavigate} className="hover:text-primary transition-colors">
+            Para Creators
+          </NavLink>
+          <NavLink view="para-marcas" onNavigate={onNavigate} className="hover:text-primary transition-colors">
+            Para Marcas
+          </NavLink>
+          <NavLink view="squad" onNavigate={onNavigate} className="hover:text-primary transition-colors">
+            Academy
+          </NavLink>
           <span className="text-border">|</span>
-          <button
-            onClick={() => onNavigate?.('termos')}
-            className="hover:text-primary transition-colors"
-          >
+          <NavLink view="termos" onNavigate={onNavigate} className="hover:text-primary transition-colors">
             Termos de Uso
-          </button>
-          <button
-            onClick={() => onNavigate?.('privacidade')}
-            className="hover:text-primary transition-colors"
-          >
+          </NavLink>
+          <NavLink view="privacidade" onNavigate={onNavigate} className="hover:text-primary transition-colors">
             Privacidade & LGPD
-          </button>
+          </NavLink>
         </div>
 
         {/* Copyright */}

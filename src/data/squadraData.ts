@@ -160,22 +160,21 @@ const CITIES = [
 export const SQUADRA_RETAIL_POINTS: RetailPoint[] = Array.from({ length: 200 }).map((_, i) => {
   const net = NETWORKS[i % NETWORKS.length];
   const loc = CITIES[i % CITIES.length];
-  const cnpjNum = String(10000000000000 + i * 3791).slice(0, 14);
-  const cnpjFormatted = `${cnpjNum.slice(0, 2)}.${cnpjNum.slice(2, 5)}.${cnpjNum.slice(5, 8)}/${cnpjNum.slice(8, 12)}-${cnpjNum.slice(12, 14)}`;
 
   return {
     id: `retail-${i + 1}`,
     name: `${net.name} - Filial ${loc.city}`,
     trade_name: net.name,
     network: net.name,
-    cnpj: cnpjFormatted,
+    // ponytail: sem CNPJ/endereço/contato inventados — base real de PDVs entra por importação CSV
+    cnpj: '',
     type: net.type,
     city: loc.city,
     state: loc.state,
-    address: `Av. Brasil, ${100 + i * 15} - Centro`,
-    phone: `(${11 + (i % 80)}) 9${8000 + i}-${1000 + i}`,
-    email: `contato.${loc.city.toLowerCase().replace(/\s+/g, '')}@${net.name.toLowerCase().replace(/\s+/g, '')}.com.br`,
-    manager_name: `Gerente ${i + 1}`,
+    address: '',
+    phone: '',
+    email: '',
+    manager_name: '',
     status: i % 15 === 0 ? 'lead' : 'active',
     created_at: new Date(Date.now() - i * 120000000).toISOString()
   };
@@ -351,7 +350,7 @@ export const SQUADRA_PARTICIPANTS: CampaignParticipant[] = SQUADRA_CREATORS.slic
     creator: c,
     status: stageObj.id === 'completed' ? 'completed' : stageObj.id === 'approved' ? 'approved' : 'selected',
     stage: stageObj.id as any,
-    operational_score: c.operational_score || 85,
+    operational_score: c.operational_score ?? 0,
     notes: `Creator qualificada em ${new Date().toLocaleDateString('pt-BR')}. Taxa de engajamento de ${c.engagement_rate}%.`,
     tracking_code: `BR${98234100 + idx}SP`,
     product_sent_at: ['shipping', 'delivered', 'producing', 'submitted', 'reviewing', 'approved', 'published', 'completed'].includes(stageObj.id)

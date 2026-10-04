@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { FoundingBrandModal } from '../../components/landing/FoundingBrandModal';
 import { CreatorWaitlistModal } from '../../components/landing/CreatorWaitlistModal';
+import { NavLink } from '../../components/common/NavLink';
 
 // Vocabulário visual do site institucional (inspirado em theugcclub.com)
 export const LIME = 'bg-[#DFE82A]';
@@ -11,7 +12,7 @@ export const SERIF = 'font-serif';
 export const PILL = 'inline-flex items-center gap-2 rounded-full border-2 border-black px-6 py-2.5 font-semibold transition-colors';
 export const WRAP = 'max-w-6xl mx-auto px-4 sm:px-8';
 
-export const SITE_VIEWS = ['landing', 'sobre', 'para-creators', 'para-marcas', 'contato', 'squad'] as const;
+export const SITE_VIEWS = ['landing', 'sobre', 'para-creators', 'para-marcas', 'contato', 'squad', 'planos'] as const;
 
 export const Marquee: React.FC<{ items: string[]; className: string }> = ({ items, className }) => (
   <div className={`overflow-hidden whitespace-nowrap py-2 ${className}`} aria-hidden="true">
@@ -34,6 +35,7 @@ export interface SiteActions {
 const NAV: [string, string][] = [
   ['para-creators', 'Para creators'],
   ['para-marcas', 'Para marcas'],
+  ['planos', 'Planos'],
   ['squad', 'Academy'],
   ['sobre', 'Sobre'],
   ['contato', 'Contato'],
@@ -61,18 +63,27 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ currentView, onNavigate,
 
       <header className="sticky top-0 z-40 bg-[#FBFAF9]/95 backdrop-blur border-b border-black/10">
         <div className="flex h-16 items-center justify-between px-4 sm:px-8 lg:px-14">
-          <button onClick={() => go('landing')} className={`${HEAVY} text-2xl`} aria-label="Início">
+          <NavLink view="landing" onNavigate={go} className={`${HEAVY} text-2xl`} aria-label="Início">
             <span className={`${LIME} px-1.5`}>squad</span> ugc
-          </button>
+          </NavLink>
           <nav className="hidden md:flex items-center gap-7 text-[11px] font-bold uppercase tracking-wide">
             {NAV.map(([v, t]) => (
-              <button key={v} onClick={() => go(v)} className={`uppercase hover:underline underline-offset-4 ${currentView === v ? 'underline' : ''}`}>
+              <NavLink
+                key={v}
+                view={v}
+                onNavigate={go}
+                className={`uppercase hover:underline underline-offset-4 ${currentView === v ? 'underline' : ''}`}
+              >
                 {t}
-              </button>
+              </NavLink>
             ))}
-            <button onClick={() => go('auth')} className={`${PILL} px-4 py-1.5 bg-black text-white hover:bg-[#DFE82A] hover:text-black`}>
+            <NavLink
+              view="auth"
+              onNavigate={go}
+              className={`${PILL} px-4 py-1.5 bg-black text-white hover:bg-[#DFE82A] hover:text-black`}
+            >
               Acessar painel
-            </button>
+            </NavLink>
           </nav>
           <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
             {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -81,9 +92,13 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ currentView, onNavigate,
         {menuOpen && (
           <nav className="md:hidden flex flex-col gap-4 px-4 pb-6 text-sm font-bold uppercase">
             {NAV.map(([v, t]) => (
-              <button key={v} onClick={() => go(v)} className="text-left uppercase">{t}</button>
+              <NavLink key={v} view={v} onNavigate={go} className="text-left uppercase">
+                {t}
+              </NavLink>
             ))}
-            <button onClick={() => go('auth')} className={`${PILL} justify-center bg-black text-white`}>Acessar painel</button>
+            <NavLink view="auth" onNavigate={go} className={`${PILL} justify-center bg-black text-white`}>
+              Acessar painel
+            </NavLink>
           </nav>
         )}
       </header>
@@ -104,13 +119,21 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ currentView, onNavigate,
           </div>
           <div className="space-y-2 text-[11px] font-bold uppercase tracking-wide">
             {NAV.map(([v, t]) => (
-              <button key={v} onClick={() => go(v)} className="block uppercase hover:text-[#DFE82A]">{t}</button>
+              <NavLink key={v} view={v} onNavigate={go} className="block uppercase hover:text-[#DFE82A]">
+                {t}
+              </NavLink>
             ))}
           </div>
           <div className="space-y-2 text-[11px] font-bold uppercase tracking-wide">
-            <button onClick={() => go('termos')} className="block uppercase hover:text-[#DFE82A]">Termos de uso</button>
-            <button onClick={() => go('privacidade')} className="block uppercase hover:text-[#DFE82A]">Privacidade & LGPD</button>
-            <button onClick={() => go('auth')} className="block uppercase hover:text-[#DFE82A]">Acessar painel</button>
+            <NavLink view="termos" onNavigate={go} className="block uppercase hover:text-[#DFE82A]">
+              Termos de uso
+            </NavLink>
+            <NavLink view="privacidade" onNavigate={go} className="block uppercase hover:text-[#DFE82A]">
+              Privacidade & LGPD
+            </NavLink>
+            <NavLink view="auth" onNavigate={go} className="block uppercase hover:text-[#DFE82A]">
+              Acessar painel
+            </NavLink>
           </div>
         </div>
         <div className={`${WRAP} py-5 border-t border-white/15 text-[10px] font-bold uppercase tracking-wide text-white/60`}>

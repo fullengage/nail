@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { LIME, INK, HEAVY, SERIF, PILL, WRAP, Marquee, SiteActions } from './SiteLayout';
+import { NavLink } from '../../components/common/NavLink';
 
 // Artigo "Academy para marcas": por que montar um squad próprio de creators.
 // Texto autoral da Squad UGC (pauta inspirada no tema "comunidades de creators").
@@ -194,9 +195,9 @@ export const ArtigoSquadPage: React.FC<{ actions: SiteActions }> = ({ actions })
           <button onClick={actions.openBrand} className={`${PILL} bg-black text-white hover:bg-white hover:text-black`}>
             Montar meu squad <ArrowRight className="w-4 h-4" />
           </button>
-          <button onClick={() => actions.onNavigate('para-marcas')} className={`${PILL} bg-white hover:bg-black hover:text-[#DFE82A]`}>
+          <NavLink view="para-marcas" onNavigate={actions.onNavigate} className={`${PILL} bg-white hover:bg-black hover:text-[#DFE82A]`}>
             Ver soluções para marcas
-          </button>
+          </NavLink>
         </div>
       </div>
     </section>

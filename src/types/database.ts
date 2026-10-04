@@ -93,6 +93,8 @@ export interface SourceCounts {
   instagram: number;
   retail_points: number;
   unique_creators: number;
+  tiktok_mined?: number;
+  retail_active?: number;
 }
 
 export type CampaignType = 
@@ -298,6 +300,8 @@ export interface CampaignParticipant {
   status: ParticipantStatus;
   stage?: PipelineStage;
   operational_score?: number;
+  /** cachê combinado com este creator nesta campanha (R$) */
+  fee?: number;
   notes?: string;
   tracking_code?: string;
   product_sent_at?: string;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { Campaign } from '../../types/database';
+import { Campaign, CampaignType } from '../../types/database';
 import { SquadraCampaignDetail } from './SquadraCampaignDetail';
 import {
   Briefcase,
@@ -18,6 +18,48 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { MissionSimulator } from '../../components/squadra/MissionSimulator';
 
+// Tipos de campanha em linguagem simples, com entregas e perfil sugeridos
+const CAMPAIGN_TYPES: Record<CampaignType, { label: string; hint: string; deliverables: string; requirements: string; fee: number }> = {
+  live_commerce: {
+    label: 'Live de vendas',
+    hint: 'Creators vendem seu produto ao vivo (TikTok Shop / Instagram).',
+    deliverables: '1 live de no mínimo 1h com o produto no carrinho e cupom exclusivo, + 3 cortes da live para anúncio.',
+    requirements: 'Creators que já fazem live e têm audiência no nicho do produto.',
+    fee: 300,
+  },
+  ugc: {
+    label: 'Vídeos UGC',
+    hint: 'Vídeos curtos (Reels/TikTok) para postar e usar em anúncios.',
+    deliverables: '2 vídeos verticais de 30 a 60s mostrando o produto em uso.',
+    requirements: 'Boa iluminação, áudio limpo e conteúdo no nicho do produto.',
+    fee: 150,
+  },
+  product_seeding: {
+    label: 'Envio de produto (seeding)',
+    hint: 'Você envia o produto; o creator testa e posta mostrando o uso.',
+    deliverables: '1 post ou sequência de stories com o produto em uso.',
+    requirements: 'Creators do nicho com audiência engajada.',
+    fee: 0,
+  },
+  affiliate: {
+    label: 'Afiliados',
+    hint: 'O creator ganha comissão por venda com link ou cupom próprio.',
+    deliverables: 'Divulgação durante o período com link ou cupom rastreado.',
+    requirements: 'Creators com histórico de vendas ou audiência que compra.',
+    fee: 0,
+  },
+  paid_content: {
+    label: 'Publicidade paga',
+    hint: 'Post patrocinado no perfil do creator, com roteiro aprovado.',
+    deliverables: '1 Reels/TikTok publicado no perfil + 3 stories com link.',
+    requirements: 'Perfil com audiência alinhada ao público da marca.',
+    fee: 500,
+  },
+};
+
+const RIGHTS_OPTIONS = ['Sem uso em anúncios', '3 meses', '6 meses', '12 meses'];
+const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
 interface SquadraCampaignsProps {
   onNavigatePublicApply?: (slug: string) => void;
 }
@@ -26,7 +68,12 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
   const { campaigns, createCampaign } = useData();
 
   // Campanha selecionada para detalhe (/campaigns/:id)
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {
+    // vindo de "Criar Squad" na tela de Creators: abre a campanha direto
+    const id = sessionStorage.getItem('squadra_open_campaign');
+    if (id) sessionStorage.removeItem('squadra_open_campaign');
+    return id;
+  });
 
   // Filtro de status
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'in_progress' | 'completed' | 'draft'>('all');
@@ -34,41 +81,92 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
   // Wizard de criação em etapas
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
-  const [wizardData, setWizardData] = useState({
+  const emptyWizard = () => ({
     title: '',
     slug: '',
     description: '',
     objective: '',
-    campaign_type: 'ugc' as const,
-    cover_url: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800',
-    creator_slots: 20,
-    budget: 30000,
+    campaign_type: 'live_commerce' as CampaignType,
+    cover_url: '',
+    creator_slots: 10,
+    budget: 0,
     commission_type: 'fixed' as const,
-    commission_value: 400,
-    requirements_text: 'Mínimo 5.000 seguidores no TikTok ou Instagram. Boa iluminação e foco em rotina ou beleza.',
-    deliverables_text: '1x Vídeo no TikTok ou Reels + 3x Stories com link rastreado e cupom.',
+    commission_value: CAMPAIGN_TYPES.live_commerce.fee,
+    requirements_text: CAMPAIGN_TYPES.live_commerce.requirements,
+    deliverables_text: CAMPAIGN_TYPES.live_commerce.deliverables,
     start_date: new Date().toISOString().split('T')[0],
     end_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    application_deadline: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0]
+    application_deadline: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+    // briefing simples (máx. 3 instruções) + marcação + direito de uso
+    hashtag: '',
+    coupon: '',
+    usage_rights: '6 meses',
   });
+  const [wizardData, setWizardData] = useState(emptyWizard);
+  // orçamento = vagas × cachê: sempre consistente, nada digitado à parte
+  const wizardBudget = (wizardData.creator_slots || 0) * (wizardData.commission_value || 0);
 
   const filteredCampaigns = campaigns.filter(c => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
     return true;
   });
 
-  const handleFinishWizard = (e: React.FormEvent) => {
+  // validação por passo: só avança com o essencial preenchido
+  const stepError = (step: number): string | null => {
+    if (step === 1) {
+      if (wizardData.title.trim().length < 3) return 'Dê um nome à campanha.';
+      if (wizardData.objective.trim().length < 3) return 'Escreva um objetivo que dê para medir (ex.: vender 300 kits em 30 dias).';
+    }
+    if (step === 2) {
+      if (!wizardData.creator_slots || wizardData.creator_slots < 1) return 'Informe quantos creators você quer no squad.';
+      if (wizardData.commission_value < 0) return 'O cachê não pode ser negativo.';
+      if (wizardData.end_date < wizardData.start_date) return 'A data de fim precisa ser depois do início.';
+    }
+    if (step === 3 && wizardData.description.trim().length < 10) return 'Escreva o que o creator deve mostrar ou falar.';
+    return null;
+  };
+  const [wizardTried, setWizardTried] = useState(false);
+  const goNext = () => {
+    setWizardTried(true);
+    if (!stepError(wizardStep)) {
+      setWizardTried(false);
+      setWizardStep(st => st + 1);
+    }
+  };
+
+  const closeWizard = () => {
+    setIsWizardOpen(false);
+    setWizardStep(1);
+    setWizardTried(false);
+    setWizardData(emptyWizard());
+  };
+
+  const [publishing, setPublishing] = useState(false);
+  const handleFinishWizard = async (e: React.FormEvent) => {
     e.preventDefault();
-    createCampaign({
-      ...wizardData,
+    setWizardTried(true);
+    if (stepError(3) || publishing) return;
+    setPublishing(true);
+    const { hashtag, coupon, usage_rights, ...camp } = wizardData;
+    const marcacao = [hashtag && `Hashtag: ${hashtag.startsWith('#') ? hashtag : '#' + hashtag}`, coupon && `Cupom: ${coupon.toUpperCase()}`].filter(Boolean).join(' · ');
+    const id = await createCampaign({
+      ...camp,
+      // briefing em até 3 instruções, como recomendam os guias de UGC
+      deliverables_text: [camp.deliverables_text, marcacao, `Direito de uso em anúncios: ${usage_rights}`].filter(Boolean).join('\n'),
+      budget: wizardBudget,
       brand_id: 'brand-1',
-      slug: wizardData.slug || wizardData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      slug: camp.slug || camp.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       status: 'open',
       occupied_slots: 0
     });
-    setIsWizardOpen(false);
-    setWizardStep(1);
+    setPublishing(false);
+    closeWizard();
+    // abre a campanha recém-criada: o próximo passo (montar o squad) aparece lá
+    setSelectedCampaignId(id);
   };
+
+  // Toggle do simulador de missões (hooks antes de qualquer return)
+  const [showSimulator, setShowSimulator] = useState(false);
 
   // Se houver uma campanha selecionada, renderiza o detalhe com as 5 abas
   if (selectedCampaignId) {
@@ -81,9 +179,6 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
     );
   }
 
-  // Toggle do simulador de missões
-  const [showSimulator, setShowSimulator] = useState(true);
-
   const handleApplySimulator = (params: {
     pricePerVideo: number;
     creatorCount: number;
@@ -94,9 +189,7 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
       ...prev,
       commission_value: params.pricePerVideo,
       creator_slots: params.creatorCount,
-      budget: params.totalBudget,
-      title: `Squad UGC ${params.recommendedRank.split('•')[0].trim()} (${params.creatorCount} Creators)`,
-      requirements_text: `Curadoria Squadra: Seleção exclusiva de criadores com ${params.recommendedRank}. Mínimo 10.000 seguidores e engajamento acima de 3%.`
+      title: prev.title || `Squad ${params.recommendedRank.split('•')[0].trim()} (${params.creatorCount} creators)`,
     }));
     setIsWizardOpen(true);
     setWizardStep(1);
@@ -123,7 +216,7 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
             className="text-xs font-bold border-zinc-700 hover:bg-muted"
           >
             <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-            {showSimulator ? 'Ocultar Simulador' : 'Simulador de Missões'}
+            {showSimulator ? 'Fechar simulador de preço' : 'Simular preço'}
           </Button>
 
           <Button onClick={() => setIsWizardOpen(true)} className="flex items-center space-x-1.5 shadow-md shadow-primary/20">
@@ -265,222 +358,184 @@ export const SquadraCampaigns: React.FC<SquadraCampaignsProps> = ({ onNavigatePu
         ))}
       </div>
 
-      {/* 4. Wizard de Criação em Etapas */}
+      {/* 4. Assistente de criação: 3 passos (objetivo → squad e valores → briefing simples) */}
       {isWizardOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            
+
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Criação em Etapas</span>
-                <h3 className="font-bold font-display text-foreground text-lg">Nova Campanha UGC</h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Passo {wizardStep} de 3</span>
+                <h3 className="font-bold font-display text-foreground text-lg">
+                  {wizardStep === 1 ? 'O que você quer conseguir?' : wizardStep === 2 ? 'Quantos creators e quanto pagar' : 'Briefing em 3 instruções'}
+                </h3>
               </div>
-              <button onClick={() => setIsWizardOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={closeWizard} className="text-muted-foreground hover:text-foreground" aria-label="Fechar">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Stepper Visual */}
-            <div className="flex items-center justify-between text-xs font-bold border-b border-border pb-3">
-              <span className={wizardStep === 1 ? 'text-primary' : 'text-muted-foreground'}>1. Dados Básicos</span>
-              <span>→</span>
-              <span className={wizardStep === 2 ? 'text-primary' : 'text-muted-foreground'}>2. Briefing</span>
-              <span>→</span>
-              <span className={wizardStep === 3 ? 'text-primary' : 'text-muted-foreground'}>3. Squad & Vagas</span>
-              <span>→</span>
-              <span className={wizardStep === 4 ? 'text-primary' : 'text-muted-foreground'}>4. Revisão</span>
+            <div className="flex gap-1.5">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className={`h-1.5 flex-1 rounded-full ${n <= wizardStep ? 'bg-primary' : 'bg-muted'}`} />
+              ))}
             </div>
 
             <form onSubmit={handleFinishWizard} className="space-y-4 text-xs">
-              
-              {/* ETAPA 1: Dados Básicos */}
+
+              {/* PASSO 1: tipo + nome + objetivo mensurável */}
               {wizardStep === 1 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(Object.keys(CAMPAIGN_TYPES) as CampaignType[]).map((t) => {
+                      const info = CAMPAIGN_TYPES[t];
+                      const on = wizardData.campaign_type === t;
+                      return (
+                        <button
+                          type="button"
+                          key={t}
+                          onClick={() => setWizardData({ ...wizardData, campaign_type: t, deliverables_text: info.deliverables, requirements_text: info.requirements, commission_value: info.fee })}
+                          className={`text-left p-3 rounded-xl border-2 transition-colors ${on ? 'border-black bg-primary' : 'border-border hover:border-foreground'}`}
+                        >
+                          <p className="font-bold text-sm text-foreground">{info.label}</p>
+                          <p className={`mt-0.5 ${on ? 'text-black/70' : 'text-muted-foreground'}`}>{info.hint}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div className="space-y-1">
-                    <label className="font-semibold text-foreground">Título da Campanha *</label>
+                    <label className="font-semibold text-foreground">Nome da campanha</label>
                     <input
                       type="text"
-                      required
                       value={wizardData.title}
                       onChange={(e) => setWizardData({ ...wizardData, title: e.target.value })}
-                      placeholder="Ex: Lançamento Gel Diamante"
+                      placeholder="Ex.: Lançamento Kit Verão nas lives"
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
-
                   <div className="space-y-1">
-                    <label className="font-semibold text-foreground">Objetivo Principal *</label>
+                    <label className="font-semibold text-foreground">Objetivo (com número, para dar para medir)</label>
                     <input
                       type="text"
-                      required
                       value={wizardData.objective}
                       onChange={(e) => setWizardData({ ...wizardData, objective: e.target.value })}
-                      placeholder="Ex: Gerar 50 vídeos de UGC e 500 conversões"
+                      placeholder="Ex.: vender 300 kits em 30 dias / receber 40 vídeos para anúncio"
                       className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Tipo de Campanha</label>
-                      <select
-                        value={wizardData.campaign_type}
-                        onChange={(e) => setWizardData({ ...wizardData, campaign_type: e.target.value as any })}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                      >
-                        <option value="ugc">UGC (Reels & TikTok)</option>
-                        <option value="product_seeding">Product Seeding</option>
-                        <option value="paid_content">Paid Content</option>
-                        <option value="live_commerce">Live Commerce</option>
-                        <option value="affiliate">Afiliados & Vendas</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Orçamento Estimado (R$)</label>
-                      <input
-                        type="number"
-                        value={wizardData.budget}
-                        onChange={(e) => setWizardData({ ...wizardData, budget: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                      />
-                    </div>
                   </div>
                 </div>
               )}
 
-              {/* ETAPA 2: Briefing */}
+              {/* PASSO 2: vagas, cachê, prazo — orçamento calculado */}
               {wizardStep === 2 && (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-foreground">Descrição do Briefing *</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={wizardData.description}
-                      onChange={(e) => setWizardData({ ...wizardData, description: e.target.value })}
-                      placeholder="Instruções completas para os creators..."
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-semibold text-foreground">Entregáveis Obrigatórios</label>
-                    <textarea
-                      rows={2}
-                      value={wizardData.deliverables_text}
-                      onChange={(e) => setWizardData({ ...wizardData, deliverables_text: e.target.value })}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-semibold text-foreground">Requisitos de Creator</label>
-                    <textarea
-                      rows={2}
-                      value={wizardData.requirements_text}
-                      onChange={(e) => setWizardData({ ...wizardData, requirements_text: e.target.value })}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* ETAPA 3: Squad & Vagas */}
-              {wizardStep === 3 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Número de Vagas no Squad</label>
+                      <label className="font-semibold text-foreground">Creators no squad</label>
                       <input
                         type="number"
+                        min={1}
                         value={wizardData.creator_slots}
                         onChange={(e) => setWizardData({ ...wizardData, creator_slots: Number(e.target.value) })}
                         className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Cachê Fixo por Creator (R$)</label>
+                      <label className="font-semibold text-foreground">Cachê por creator (R$)</label>
                       <input
                         type="number"
+                        min={0}
+                        step={10}
                         value={wizardData.commission_value}
                         onChange={(e) => setWizardData({ ...wizardData, commission_value: Number(e.target.value) })}
                         className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
                       />
+                      <p className="text-[10px] text-muted-foreground">0 = só envio de produto ou comissão</p>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Início da Campanha</label>
-                      <input
-                        type="date"
-                        value={wizardData.start_date}
-                        onChange={(e) => setWizardData({ ...wizardData, start_date: e.target.value })}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                      />
+                      <label className="font-semibold text-foreground">Começa em</label>
+                      <input type="date" value={wizardData.start_date} onChange={(e) => setWizardData({ ...wizardData, start_date: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground" />
                     </div>
                     <div className="space-y-1">
-                      <label className="font-semibold text-foreground">Fim da Campanha</label>
-                      <input
-                        type="date"
-                        value={wizardData.end_date}
-                        onChange={(e) => setWizardData({ ...wizardData, end_date: e.target.value })}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
-                      />
+                      <label className="font-semibold text-foreground">Termina em</label>
+                      <input type="date" value={wizardData.end_date} onChange={(e) => setWizardData({ ...wizardData, end_date: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground" />
                     </div>
                   </div>
+                  <div className="p-4 rounded-xl bg-primary border-2 border-black text-black">
+                    <p className="text-[10px] uppercase font-bold">Orçamento em cachês</p>
+                    <p className="text-2xl font-extrabold">{brl(wizardBudget)}</p>
+                    <p>{wizardData.creator_slots || 0} creators × {brl(wizardData.commission_value)}. O cachê só é liberado depois que você aprova o conteúdo.</p>
+                  </div>
+                  <button type="button" onClick={() => setShowSimulator(true)} className="underline text-muted-foreground hover:text-foreground">
+                    Não sabe quanto pagar? Use o simulador de preço
+                  </button>
                 </div>
               )}
 
-              {/* ETAPA 4: Revisão */}
-              {wizardStep === 4 && (
-                <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Título:</span>
-                    <span className="font-bold text-foreground">{wizardData.title}</span>
+              {/* PASSO 3: briefing em 3 instruções + direito de uso + revisão */}
+              {wizardStep === 3 && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">1. O que criar (mostrar ou falar)</label>
+                    <textarea
+                      rows={3}
+                      value={wizardData.description}
+                      onChange={(e) => setWizardData({ ...wizardData, description: e.target.value })}
+                      placeholder="Ex.: mostrar o produto em uso, falar dos 3 benefícios e chamar para o cupom no carrinho."
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
+                    />
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tipo:</span>
-                    <span className="font-bold text-foreground">{wizardData.campaign_type.toUpperCase()}</span>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">2. Como marcar a marca</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={wizardData.hashtag} onChange={(e) => setWizardData({ ...wizardData, hashtag: e.target.value.replace(/\s+/g, '') })} placeholder="#hashtagdacampanha" className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground" />
+                      <input value={wizardData.coupon} onChange={(e) => setWizardData({ ...wizardData, coupon: e.target.value.replace(/\s+/g, '') })} placeholder="CUPOM (opcional)" className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground uppercase" />
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Vagas:</span>
-                    <span className="font-bold text-foreground">{wizardData.creator_slots} creators</span>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">3. Entregas e prazo de cada creator</label>
+                    <textarea rows={2} value={wizardData.deliverables_text} onChange={(e) => setWizardData({ ...wizardData, deliverables_text: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground" />
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Orçamento:</span>
-                    <span className="font-bold text-foreground">R$ {wizardData.budget}</span>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground">Direito de uso dos vídeos em anúncios</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {RIGHTS_OPTIONS.map((r) => (
+                        <button type="button" key={r} onClick={() => setWizardData({ ...wizardData, usage_rights: r })} className={`px-3 py-1.5 rounded-full border-2 font-semibold ${wizardData.usage_rights === r ? 'border-black bg-primary text-black' : 'border-border text-muted-foreground'}`}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Fica registrado no briefing que o creator aceita ao entrar no squad.</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Cachê / Creator:</span>
-                    <span className="font-bold text-emerald-600">R$ {wizardData.commission_value}</span>
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                    <div className="flex justify-between gap-3"><span className="text-muted-foreground">Campanha</span><strong className="text-right">{wizardData.title}</strong></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><strong>{CAMPAIGN_TYPES[wizardData.campaign_type]?.label}</strong></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Squad</span><strong>{wizardData.creator_slots} creators × {brl(wizardData.commission_value)}</strong></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Orçamento em cachês</span><strong>{brl(wizardBudget)}</strong></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Período</span><strong>{wizardData.start_date.split('-').reverse().join('/')} a {wizardData.end_date.split('-').reverse().join('/')}</strong></div>
                   </div>
+                  <p className="text-muted-foreground">Depois de publicar, a campanha abre e você monta o squad em <strong>Creators → selecionar → Criar Squad</strong>.</p>
                 </div>
               )}
 
-              {/* Botões do Wizard */}
+              {wizardTried && stepError(wizardStep) && (
+                <p className="text-red-600 font-semibold">{stepError(wizardStep)}</p>
+              )}
+
               <div className="flex justify-between pt-3 border-t border-border">
                 {wizardStep > 1 ? (
-                  <Button type="button" variant="secondary" onClick={() => setWizardStep(s => s - 1)}>
-                    Voltar
-                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => { setWizardTried(false); setWizardStep(st => st - 1); }}>Voltar</Button>
                 ) : (
-                  <Button type="button" variant="secondary" onClick={() => setIsWizardOpen(false)}>
-                    Cancelar
-                  </Button>
+                  <Button type="button" variant="secondary" onClick={closeWizard}>Cancelar</Button>
                 )}
-
-                {wizardStep < 4 ? (
-                  <Button type="button" onClick={() => setWizardStep(s => s + 1)}>
-                    Avançar
-                  </Button>
+                {wizardStep < 3 ? (
+                  <Button type="button" onClick={goNext}>Continuar</Button>
                 ) : (
-                  <Button type="submit">
-                    Publicar Campanha
-                  </Button>
+                  <Button type="submit" disabled={publishing}>{publishing ? 'Salvando…' : 'Publicar campanha'}</Button>
                 )}
               </div>
-
             </form>
           </div>
         </div>

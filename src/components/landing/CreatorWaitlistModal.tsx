@@ -119,13 +119,13 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
           <div>
             <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider mb-1">
               <User className="w-3 h-3" />
-              <span>Lista de Espera Prioritária</span>
+              <span>Inscrição para Creators</span>
             </div>
             <h2 className="text-xl font-extrabold font-display text-foreground">
-              Garanta sua vaga no Squad
+              Entre para o Squad de Creators
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Creators de UGC e live commerce selecionados para as primeiras campanhas com marcas parceiras. Inscreva-se para a curadoria.
+              Receba produtos de marcas parceiras, produza vídeos e lives de venda, e ganhe cachê via PIX e comissão.
             </p>
           </div>
         </div>
@@ -136,9 +136,9 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <div className="space-y-2 max-w-md mx-auto">
-              <h3 className="text-lg font-bold text-foreground">Inscrição Confirmada na Lista!</h3>
+              <h3 className="text-lg font-bold text-foreground">Cadastro Realizado com Sucesso!</h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Recebemos seus dados com sucesso! Você está na fila de curadoria do piloto com as primeiras marcas. Entraremos em contato pelo WhatsApp assim que novas vagas forem liberadas.
+                Recebemos suas informações! Nosso time de curadoria avaliará seu perfil e você começará a receber convites para campanhas direto no seu WhatsApp e e-mail.
               </p>
             </div>
             <Button onClick={handleClose} className="mt-4">
@@ -258,7 +258,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
                 Cancelar
               </Button>
               <Button type="submit" disabled={isLoading} className="shadow-md">
-                {isLoading ? 'Confirmando...' : 'Entrar na Lista de Espera'}
+                {isLoading ? 'Enviando...' : 'Quero Entrar no Squad'}
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
             </div>

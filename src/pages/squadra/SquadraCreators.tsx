@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TikTokLink, tiktokUrl, InstagramLink } from '../../components/ui/TikTokLink';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { CreatorProfile } from '../../types/database';
 import {
   Search,
@@ -22,7 +23,9 @@ import {
   ChevronRight,
   X,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Instagram } from '../../components/ui/Icons';
 import { Badge } from '../../components/ui/Badge';
@@ -33,7 +36,12 @@ interface SquadraCreatorsProps {
 }
 
 export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) => {
-  const { creators, campaigns, addCreatorTags, createSquadFromCreators, importCreatorsCsv } = useData();
+  const { creators, campaigns, addCreatorTags, createSquadFromCreators, importCreatorsCsv, addCreator, deleteCreator } = useData();
+  const { role } = useAuth();
+  // contato direto (e-mail/WhatsApp) é só do time Squad UGC: empresas nunca veem, nem vazio
+  const canSeeContacts = role === 'admin_master' || role === 'admin';
+  // Importar e Exportar CSV são restritos exclusivamente ao Admin Geral (evita vazamento de base para empresas/contratantes)
+  const canManageCsv = role === 'admin_master' || role === 'admin';
 
   // Estados de visualização e filtros
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -54,16 +62,77 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const [isBulkTagModalOpen, setIsBulkTagModalOpen] = useState(false);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
-  const [targetCampaignId, setTargetCampaignId] = useState(campaigns[0]?.id || '');
+  const firstOpen = campaigns.find((c) => (c.occupied_slots || 0) < (c.creator_slots || 0)) || campaigns[0];
+  const [targetCampaignId, setTargetCampaignId] = useState(firstOpen?.id || '');
+  const [squadFee, setSquadFee] = useState<string>(String(firstOpen?.commission_value || ''));
 
   // Detalhe de Creator (Modal /creators/:id)
   const [detailCreator, setDetailCreator] = useState<CreatorProfile | null>(null);
+
+  // Novo Creator (Modal de Adição Direta)
+  const [isAddCreatorModalOpen, setIsAddCreatorModalOpen] = useState(false);
+  const [newCreatorForm, setNewCreatorForm] = useState({
+    professional_name: '',
+    tiktok: '',
+    instagram: '',
+    tiktok_followers: '10000',
+    specialties: 'Nail Designer',
+    tier: 'A',
+    email: '',
+    phone: '',
+    bio: '',
+  });
 
   // Notificação toast simples
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const handleSaveCreator = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCreatorForm.professional_name.trim() && !newCreatorForm.tiktok.trim()) {
+      alert('Informe ao menos o nome profissional ou @ do TikTok.');
+      return;
+    }
+    const tags = [
+      newCreatorForm.tier === 'A' ? 'A - Prioritário (Top Live)' : newCreatorForm.tier === 'B' ? 'B - Qualificado' : 'C - Fora do perfil',
+      newCreatorForm.specialties
+    ];
+    addCreator({
+      professional_name: newCreatorForm.professional_name.trim() || newCreatorForm.tiktok.trim(),
+      tiktok: newCreatorForm.tiktok.trim().replace(/^@/, ''),
+      instagram: newCreatorForm.instagram.trim().replace(/^@/, ''),
+      tiktok_followers: Number(newCreatorForm.tiktok_followers || 0),
+      specialties: [newCreatorForm.specialties],
+      tags,
+      email: newCreatorForm.email.trim(),
+      phone: newCreatorForm.phone.trim(),
+      bio: newCreatorForm.bio.trim() || 'Creator qualificado para campanhas UGC e live commerce.',
+      operational_score: newCreatorForm.tier === 'A' ? 95 : newCreatorForm.tier === 'B' ? 82 : 65,
+      engagement_rate: 4.5,
+    });
+    setIsAddCreatorModalOpen(false);
+    setNewCreatorForm({
+      professional_name: '',
+      tiktok: '',
+      instagram: '',
+      tiktok_followers: '10000',
+      specialties: 'Nail Designer',
+      tier: 'A',
+      email: '',
+      phone: '',
+      bio: '',
+    });
+    showToast('Novo creator adicionado com sucesso! Métricas atualizadas.');
+  };
+
+  const handleDeleteCreator = (id: string, name: string) => {
+    if (window.confirm(`Tem certeza que deseja remover o creator "${name}" da base? O painel e métricas serão recalculados imediatamente.`)) {
+      deleteCreator(id);
+      showToast(`Creator ${name} removido com sucesso.`);
+    }
   };
 
   // Filtragem dos creators
@@ -133,7 +202,9 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
   // Exportar CSV dos Creators Filtrados
   const handleExportCsv = () => {
-    const headers = ['Nome', 'TikTok', 'Instagram', 'Seguidores_TikTok', 'Engajamento_%', 'Pontuacao_Operacional', 'Nicho', 'Email', 'WhatsApp', 'Cidade', 'Estado'];
+    if (!canManageCsv) return;
+    // empresas exportam sem e-mail/WhatsApp (contato direto é só do time Squad UGC)
+    const headers = ['Nome', 'TikTok', 'Instagram', 'Seguidores_TikTok', 'Engajamento_%', 'Pontuacao_Operacional', 'Nicho', ...(canSeeContacts ? ['Email', 'WhatsApp'] : []), 'Cidade', 'Estado'];
     const rows = filteredCreators.map(c => [
       `"${c.professional_name.replace(/"/g, '""')}"`,
       `"${c.tiktok || ''}"`,
@@ -142,8 +213,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
       c.engagement_rate || 0,
       c.operational_score || 0,
       `"${(c.specialties?.[0] || 'Geral').replace(/"/g, '""')}"`,
-      `"${c.email || ''}"`,
-      `"${c.phone || ''}"`,
+      ...(canSeeContacts ? [`"${c.email || ''}"`, `"${c.phone || ''}"`] : []),
       `"${c.city || ''}"`,
       `"${c.state || ''}"`
     ]);
@@ -161,6 +231,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
   // Importar CSV com Deduplicação
   const handleImportCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canManageCsv) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -211,11 +282,22 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
   const handleCreateSquad = () => {
     if (!targetCampaignId || selectedIds.length === 0) return;
-    createSquadFromCreators(targetCampaignId, selectedIds);
+    const res = createSquadFromCreators(targetCampaignId, selectedIds, Number(squadFee) || 0);
     setIsSquadModalOpen(false);
-    showToast(`${selectedIds.length} creators adicionados ao Squad da campanha com sucesso!`);
+    const extra = [res.duplicates && `${res.duplicates} já estavam no squad`, res.noSlot && `${res.noSlot} ficaram de fora por falta de vaga`].filter(Boolean).join(' · ');
+    showToast(`${res.added} creators adicionados ao squad${extra ? ` (${extra})` : ''}. Abrindo a campanha…`);
     setSelectedIds([]);
+    // abre a campanha direto na aba do squad para seguir o próximo passo
+    sessionStorage.setItem('squadra_open_campaign', targetCampaignId);
+    setTimeout(() => onNavigate?.('campaigns'), 900);
   };
+
+  // resumo financeiro e de vagas do squad que está sendo montado
+  const targetCampaign = campaigns.find((c) => c.id === targetCampaignId);
+  const freeSlots = targetCampaign ? Math.max(0, (targetCampaign.creator_slots || 0) - (targetCampaign.occupied_slots || 0)) : 0;
+  const willAdd = Math.min(selectedIds.length, freeSlots);
+  const squadTotal = willAdd * (Number(squadFee) || 0);
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -240,21 +322,32 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Import CSV */}
-          <label className="cursor-pointer px-3 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-semibold text-foreground transition-all shadow-sm flex items-center space-x-1.5">
-            <Upload className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Importar CSV</span>
-            <input type="file" accept=".csv" className="hidden" onChange={handleImportCsv} />
-          </label>
+          {/* Import / Export CSV e Novo Creator - Apenas Admin Geral (evita vazamento de base para empresas) */}
+          {canManageCsv && (
+            <>
+              <button
+                onClick={() => setIsAddCreatorModalOpen(true)}
+                className="px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold rounded-xl text-xs transition-all shadow-sm flex items-center space-x-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Creator</span>
+              </button>
 
-          {/* Export CSV */}
-          <button
-            onClick={handleExportCsv}
-            className="px-3 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-semibold text-foreground transition-all shadow-sm flex items-center space-x-1.5"
-          >
-            <Download className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Exportar CSV</span>
-          </button>
+              <label className="cursor-pointer px-3 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-semibold text-foreground transition-all shadow-sm flex items-center space-x-1.5">
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Importar CSV</span>
+                <input type="file" accept=".csv" className="hidden" onChange={handleImportCsv} />
+              </label>
+
+              <button
+                onClick={handleExportCsv}
+                className="px-3 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-semibold text-foreground transition-all shadow-sm flex items-center space-x-1.5"
+              >
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Exportar CSV</span>
+              </button>
+            </>
+          )}
 
           {/* Toggle View Mode */}
           <div className="flex items-center bg-muted/60 p-0.5 rounded-xl border border-border">
@@ -338,8 +431,8 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
             </select>
           </div>
 
-          {/* Contato Disponível */}
-          <div>
+          {/* Contato Disponível (só time Squad UGC) */}
+          {canSeeContacts && <div>
             <select
               value={contactFilter}
               onChange={(e) => { setContactFilter(e.target.value as any); setCurrentPage(1); }}
@@ -350,7 +443,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               <option value="whatsapp">Com WhatsApp</option>
               <option value="any">Com E-mail ou WhatsApp</option>
             </select>
-          </div>
+          </div>}
 
         </div>
 
@@ -454,7 +547,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <th className="pb-3 text-right">Seguidores TikTok</th>
                   <th className="pb-3 text-center">Engajamento</th>
                   <th className="pb-3 text-left">Nicho & Tags</th>
-                  <th className="pb-3 text-center">Contatos</th>
+                  {canSeeContacts && <th className="pb-3 text-center">Contatos</th>}
                   <th className="pb-3 text-right pr-2">Ação</th>
                 </tr>
               </thead>
@@ -542,8 +635,8 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                         </div>
                       </td>
 
-                      {/* Contatos */}
-                      <td className="py-3 text-center">
+                      {/* Contatos (só time Squad UGC) */}
+                      {canSeeContacts && <td className="py-3 text-center">
                         <div className="flex items-center justify-center space-x-1.5">
                           {creator.email ? (
                             <a href={`mailto:${creator.email}`} title={creator.email} className="p-1 rounded-md bg-muted text-foreground hover:text-primary">
@@ -560,16 +653,27 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                             <span className="p-1 text-muted-foreground/30"><Phone className="w-3.5 h-3.5" /></span>
                           )}
                         </div>
-                      </td>
+                      </td>}
 
                       {/* Ação */}
                       <td className="py-3 text-right pr-2">
-                        <button
-                          onClick={() => setDetailCreator(creator)}
-                          className="px-2.5 py-1 rounded-lg bg-card hover:bg-primary hover:text-black border border-border text-[11px] font-bold transition-all"
-                        >
-                          Ver Perfil
-                        </button>
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <button
+                            onClick={() => setDetailCreator(creator)}
+                            className="px-2.5 py-1 rounded-lg bg-card hover:bg-primary hover:text-black border border-border text-[11px] font-bold transition-all"
+                          >
+                            Ver Perfil
+                          </button>
+                          {canManageCsv && (
+                            <button
+                              onClick={() => handleDeleteCreator(creator.id, creator.professional_name)}
+                              title="Remover Creator"
+                              className="p-1 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -661,12 +765,23 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <Badge variant="secondary" size="sm">
                     {creator.specialties?.[0] || 'Bem-estar'}
                   </Badge>
-                  <button
-                    onClick={() => setDetailCreator(creator)}
-                    className="text-xs font-bold text-primary hover:underline"
-                  >
-                    Ver detalhes
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setDetailCreator(creator)}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Ver detalhes
+                    </button>
+                    {canManageCsv && (
+                      <button
+                        onClick={() => handleDeleteCreator(creator.id, creator.professional_name)}
+                        title="Remover Creator"
+                        className="p-1 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -719,19 +834,53 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               <label className="text-xs font-semibold text-foreground">Campanha de Destino</label>
               <select
                 value={targetCampaignId}
-                onChange={(e) => setTargetCampaignId(e.target.value)}
+                onChange={(e) => {
+                  setTargetCampaignId(e.target.value);
+                  const c = campaigns.find((x) => x.id === e.target.value);
+                  setSquadFee(String(c?.commission_value || ''));
+                }}
                 className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
               >
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title} ({c.occupied_slots || 0}/{c.creator_slots} vagas)
-                  </option>
-                ))}
+                {campaigns.map((c) => {
+                  const free = Math.max(0, (c.creator_slots || 0) - (c.occupied_slots || 0));
+                  return (
+                    <option key={c.id} value={c.id} disabled={free === 0}>
+                      {c.title} — {free === 0 ? 'lotada' : `${free} vagas livres`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground">Cachê por creator (R$)</label>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={squadFee}
+                onChange={(e) => setSquadFee(e.target.value)}
+                placeholder="Ex.: 125 (0 = só envio de produto)"
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+              />
+            </div>
+            {targetCampaign && (
+              <div className="p-3 rounded-xl bg-muted/50 border border-border text-xs space-y-1.5">
+                <div className="flex justify-between"><span className="text-muted-foreground">Creators que entram</span><strong>{willAdd} de {selectedIds.length}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Investimento do squad</span><strong>{willAdd} × {brl(Number(squadFee) || 0)} = {brl(squadTotal)}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Orçamento da campanha</span><strong>{brl(targetCampaign.budget || 0)}</strong></div>
+                {willAdd < selectedIds.length && (
+                  <p className="text-amber-700 font-semibold">Só há {freeSlots} vagas livres: {selectedIds.length - willAdd} creators ficarão de fora. Escolha outra campanha ou aumente as vagas.</p>
+                )}
+                {squadTotal > (targetCampaign.budget || 0) && (
+                  <p className="text-red-600 font-semibold">O investimento passa do orçamento da campanha.</p>
+                )}
+              </div>
+            )}
             <div className="flex justify-end space-x-2 pt-2">
               <Button variant="secondary" onClick={() => setIsSquadModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateSquad}>Confirmar Squad</Button>
+              <Button onClick={handleCreateSquad} disabled={!targetCampaign || willAdd === 0}>
+                Confirmar squad ({willAdd})
+              </Button>
             </div>
           </div>
         </div>
@@ -776,12 +925,14 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   {(detailCreator.tiktok_followers || 0).toLocaleString('pt-BR')}
                 </p>
               </div>
+              {detailCreator.instagram && (
               <div className="p-3 rounded-xl bg-card border border-border text-center">
                 <span className="text-[10px] text-muted-foreground uppercase font-bold">Instagram</span>
                 <p className="text-sm font-extrabold text-foreground mt-1 truncate">
-                  {detailCreator.instagram ? <InstagramLink handle={detailCreator.instagram} /> : <span className="text-muted-foreground font-medium">Não informado</span>}
+                  <InstagramLink handle={detailCreator.instagram} />
                 </p>
               </div>
+              )}
               <div className="p-3 rounded-xl bg-card border border-border text-center">
                 <span className="text-[10px] text-muted-foreground uppercase font-bold">Engajamento</span>
                 <p className="text-base font-extrabold text-emerald-600 mt-0.5">
@@ -808,14 +959,19 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
             {/* Contato & Links */}
             <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">E-mail:</span>
-                <span className="font-semibold text-foreground">{detailCreator.email || 'Não informado'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">WhatsApp:</span>
-                <span className="font-semibold text-foreground">{detailCreator.phone || 'Não informado'}</span>
-              </div>
+              {/* contato direto: só time Squad UGC e só quando existe */}
+              {canSeeContacts && detailCreator.email && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">E-mail:</span>
+                  <span className="font-semibold text-foreground">{detailCreator.email}</span>
+                </div>
+              )}
+              {canSeeContacts && detailCreator.phone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">WhatsApp:</span>
+                  <span className="font-semibold text-foreground">{detailCreator.phone}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">TikTok:</span>
                 <a
@@ -844,6 +1000,141 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               </Button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Novo Creator */}
+      {isAddCreatorModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="font-bold font-display text-foreground text-lg">Novo Creator</h3>
+                <p className="text-xs text-muted-foreground">Cadastre um creator na base ativa. Os indicadores do Dashboard atualizarão em tempo real.</p>
+              </div>
+              <button onClick={() => setIsAddCreatorModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCreator} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">Nome Profissional *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCreatorForm.professional_name}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, professional_name: e.target.value })}
+                    placeholder="Ex: Beatriz Lima Nails"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">Nicho / Especialidade</label>
+                  <select
+                    value={newCreatorForm.specialties}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, specialties: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  >
+                    <option value="Nail Designer">Nail Designer</option>
+                    <option value="Unhas Decoradas">Unhas Decoradas</option>
+                    <option value="Alongamento em Gel">Alongamento em Gel</option>
+                    <option value="Manicure Tradicional">Manicure Tradicional</option>
+                    <option value="Beleza & Cuidados">Beleza & Cuidados</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">@ TikTok</label>
+                  <input
+                    type="text"
+                    value={newCreatorForm.tiktok}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, tiktok: e.target.value })}
+                    placeholder="@beatriznails"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">@ Instagram</label>
+                  <input
+                    type="text"
+                    value={newCreatorForm.instagram}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, instagram: e.target.value })}
+                    placeholder="@beatriz.nails"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">Seguidores</label>
+                  <input
+                    type="number"
+                    value={newCreatorForm.tiktok_followers}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, tiktok_followers: e.target.value })}
+                    placeholder="15000"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">Faixa / Classificação</label>
+                  <select
+                    value={newCreatorForm.tier}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, tier: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  >
+                    <option value="A">Faixa A - Prioritário (Top Live)</option>
+                    <option value="B">Faixa B - Qualificado</option>
+                    <option value="C">Faixa C - Geral</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={newCreatorForm.email}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, email: e.target.value })}
+                    placeholder="contato@creator.com"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={newCreatorForm.phone}
+                    onChange={(e) => setNewCreatorForm({ ...newCreatorForm, phone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Bio / Apresentação</label>
+                <textarea
+                  rows={2}
+                  value={newCreatorForm.bio}
+                  onChange={(e) => setNewCreatorForm({ ...newCreatorForm, bio: e.target.value })}
+                  placeholder="Especialista em unhas decoradas e reviews de produtos para marcas de beleza..."
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-border">
+                <Button type="button" variant="secondary" onClick={() => setIsAddCreatorModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  Cadastrar Creator
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

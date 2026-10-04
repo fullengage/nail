@@ -1,5 +1,14 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Campaign, CreatorProfile, BrandProfile, Product, CampaignApplication } from '../types/database';
+import { Campaign, CreatorProfile, BrandProfile, Product, CampaignApplication, RetailPoint, CampaignParticipant } from '../types/database';
+
+// tabela de leads ainda não criada no banco (migração 20261004_leads_e_cache) → mensagem clara, não técnica
+const friendlyLeadError = (error: { code?: string; message?: string }) =>
+  error.code === 'PGRST205' || /schema cache|does not exist/i.test(error.message || '')
+    ? 'Cadastro temporariamente indisponível. Tente novamente em alguns minutos.'
+    : 'Não foi possível enviar agora. Confira os dados e tente novamente.';
+
+// organização padrão (multiempresa ainda não ativado no login)
+const ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 export const supabaseService = {
   // Check connection status
@@ -25,6 +34,108 @@ export const supabaseService = {
       const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
       if (error || !data) return null;
       return data as unknown as Campaign[];
+    } catch {
+      return null;
+    }
+  },
+
+  // PDVs reais (com CNPJ). Linhas sem CNPJ são o seed antigo de demonstração e ficam de fora.
+  async getRetailPoints(): Promise<RetailPoint[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase.from('retail_points').select('*').not('cnpj', 'is', null).order('created_at', { ascending: false });
+      if (error || !data) return null;
+      return data as unknown as RetailPoint[];
+    } catch {
+      return null;
+    }
+  },
+
+  // Consulta paginada de PDVs no banco (base grande: filtros e contagem rodam no servidor)
+  async queryRetailPoints(opts: { q?: string; state?: string; type?: string; page: number; pageSize: number }): Promise<{ rows: RetailPoint[]; total: number } | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      let query = supabase.from('retail_points').select('*', { count: 'exact' }).not('cnpj', 'is', null);
+      const q = (opts.q || '').trim().replace(/[,()*%]/g, ' ');
+      if (q) {
+        const digits = q.replace(/\D/g, '');
+        query = digits.length >= 8
+          ? query.ilike('cnpj', `%${digits.split('').join('%')}%`) // ignora . / - do CNPJ formatado
+          : query.or(`name.ilike.%${q}%,trade_name.ilike.%${q}%,city.ilike.%${q}%`);
+      }
+      if (opts.state && opts.state !== 'all') query = query.eq('state', opts.state);
+      if (opts.type && opts.type !== 'all') query = query.eq('type', opts.type);
+      const from = (opts.page - 1) * opts.pageSize;
+      const { data, count, error } = await query.order('name').range(from, from + opts.pageSize - 1);
+      if (error || !data) return null;
+      return { rows: data as unknown as RetailPoint[], total: count ?? data.length };
+    } catch {
+      return null;
+    }
+  },
+
+  // Linhas enxutas de PDV (rede, tipo, cidade, UF) para agregar por rede no navegador.
+  // PostgREST devolve no máx. 1000 por chamada: busca as páginas em paralelo.
+  async retailSlim(opts: { state?: string; type?: string }): Promise<{ network: string; type: string; city: string; state: string }[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const base = () => {
+        let q = supabase!.from('retail_points').select('network,type,city,state', { count: 'exact' }).not('cnpj', 'is', null);
+        if (opts.state && opts.state !== 'all') q = q.eq('state', opts.state);
+        if (opts.type && opts.type !== 'all') q = q.eq('type', opts.type);
+        return q;
+      };
+      const first = await base().order('id').range(0, 999);
+      if (first.error || !first.data) return null;
+      const total = first.count ?? first.data.length;
+      const pages = Math.ceil(total / 1000);
+      const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, i) => base().order('id').range((i + 1) * 1000, (i + 2) * 1000 - 1)));
+      return [first, ...rest].flatMap((r) => (r.data || []) as any[]);
+    } catch {
+      return null;
+    }
+  },
+
+  // Lojas de uma rede (detalhe para o time Squad UGC)
+  async retailStoresOf(network: string, state?: string): Promise<RetailPoint[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    let q = supabase.from('retail_points').select('*').eq('network', network).not('cnpj', 'is', null);
+    if (state && state !== 'all') q = q.eq('state', state);
+    const { data, error } = await q.order('state').order('city').limit(1000);
+    return error || !data ? null : (data as unknown as RetailPoint[]);
+  },
+
+  // Totais reais por tipo de PDV (para os cards do topo)
+  async countRetailByType(): Promise<Record<string, number> | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const types = ['cosmetics', 'pharmacy', 'salon', 'distributor', 'perfumery'];
+      const res = await Promise.all(types.map((t) =>
+        supabase!.from('retail_points').select('id', { count: 'exact', head: true }).not('cnpj', 'is', null).eq('type', t)
+      ));
+      const out: Record<string, number> = {};
+      types.forEach((t, i) => { out[t] = res[i].count || 0; });
+      out.total = Object.values(out).reduce((a, b) => a + b, 0);
+      return out;
+    } catch {
+      return null;
+    }
+  },
+
+  async retailCnpjExists(cnpjFormatted: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    const { count } = await supabase.from('retail_points').select('id', { count: 'exact', head: true }).eq('cnpj', cnpjFormatted);
+    return (count || 0) > 0;
+  },
+
+  // Grava PDVs novos e devolve as linhas salvas (com id do banco)
+  async saveRetailPoints(points: Omit<RetailPoint, 'id' | 'created_at'>[]): Promise<RetailPoint[] | null> {
+    if (!isSupabaseConfigured || !supabase || points.length === 0) return null;
+    try {
+      const rows = points.map((p) => ({ ...p, cnpj: p.cnpj || null, phone: p.phone || null, email: p.email || null, manager_name: p.manager_name || null, address: p.address || null }));
+      const { data, error } = await supabase.from('retail_points').insert(rows).select('*');
+      if (error || !data) return null;
+      return data as unknown as RetailPoint[];
     } catch {
       return null;
     }
@@ -71,14 +182,92 @@ export const supabaseService = {
   },
 
   // Insert campaign
-  async createCampaign(campaignData: any): Promise<boolean> {
-    if (!isSupabaseConfigured || !supabase) return false;
+  // Grava a campanha na tabela real (public.campaigns) e devolve a linha com o id (uuid) do banco
+  async createCampaign(c: Partial<Campaign>): Promise<Campaign | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { error } = await supabase.from('ncp_campaigns').insert(campaignData);
-      return !error;
+      const isUuid = (v?: string) => !!v && /^[0-9a-f-]{36}$/i.test(v);
+      const row = {
+        organization_id: ORG_ID,
+        brand_id: isUuid(c.brand_id) ? c.brand_id : null,
+        title: c.title,
+        slug: `${c.slug || 'campanha'}-${Math.random().toString(36).slice(2, 6)}`, // slug é UNIQUE no banco
+        description: c.description || null,
+        objective: c.objective || null,
+        campaign_type: c.campaign_type || 'ugc',
+        cover_url: c.cover_url || null,
+        start_date: c.start_date,
+        end_date: c.end_date,
+        application_deadline: c.application_deadline || c.start_date,
+        creator_slots: c.creator_slots || 0,
+        occupied_slots: c.occupied_slots || 0,
+        budget: c.budget || 0,
+        commission_type: c.commission_type || 'fixed',
+        commission_value: c.commission_value || 0,
+        requirements_text: c.requirements_text || null,
+        deliverables_text: c.deliverables_text || null,
+        status: c.status || 'open',
+      };
+      const { data, error } = await supabase.from('campaigns').insert(row).select('*').single();
+      if (error || !data) return null;
+      return data as unknown as Campaign;
     } catch {
-      return false;
+      return null;
     }
+  },
+
+  async updateCampaign(id: string, patch: Partial<Campaign>): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    const { error } = await supabase.from('campaigns').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+    return !error;
+  },
+
+  // ---------- Squad (public.campaign_creators) ----------
+  // A tabela ainda não tem coluna de cachê: ele vai codificado em notes como "cache=150;" (ver migração 20261004_leads_e_cache).
+  async getParticipants(): Promise<CampaignParticipant[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase.from('campaign_creators').select('*');
+      if (error || !data) return null;
+      return (data as any[]).map((r) => {
+        const m = /cache=([\d.]+);/.exec(r.notes || '');
+        return {
+          id: r.id, campaign_id: r.campaign_id, creator_id: r.creator_id, stage: r.stage, status: r.status,
+          operational_score: Number(r.operational_score ?? 0),
+          fee: r.fee != null ? Number(r.fee) : m ? Number(m[1]) : undefined,
+          notes: (r.notes || '').replace(/cache=[\d.]+;\s*/, ''),
+          created_at: r.created_at, updated_at: r.updated_at,
+        } as CampaignParticipant;
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  async addParticipants(parts: CampaignParticipant[]): Promise<CampaignParticipant[] | null> {
+    if (!isSupabaseConfigured || !supabase || parts.length === 0) return null;
+    try {
+      const rows = parts.map((p) => ({
+        campaign_id: p.campaign_id, creator_id: p.creator_id, stage: p.stage || 'squad_approved', status: p.status || 'selected',
+        operational_score: p.operational_score ?? 0,
+        notes: `${p.fee != null ? `cache=${p.fee}; ` : ''}${p.notes || ''}`.trim(),
+      }));
+      const { data, error } = await supabase.from('campaign_creators').upsert(rows, { onConflict: 'campaign_id,creator_id' }).select('*');
+      if (error || !data) return null;
+      const byCreator = new Map((data as any[]).map((r) => [`${r.campaign_id}|${r.creator_id}`, r.id]));
+      return parts.map((p) => ({ ...p, id: byCreator.get(`${p.campaign_id}|${p.creator_id}`) || p.id }));
+    } catch {
+      return null;
+    }
+  },
+
+  async updateParticipantStage(campaignId: string, filter: { creatorId?: string; fromStage?: string }, stage: string, status?: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    let q = supabase.from('campaign_creators').update({ stage, ...(status ? { status } : {}), updated_at: new Date().toISOString() }).eq('campaign_id', campaignId);
+    if (filter.creatorId) q = q.eq('creator_id', filter.creatorId);
+    if (filter.fromStage) q = q.eq('stage', filter.fromStage);
+    const { error } = await q;
+    return !error;
   },
 
   // Approve content submission and release earning via Security Definer RPC
@@ -135,7 +324,7 @@ export const supabaseService = {
       const { error } = await supabase.from('ncp_brand_leads').insert([lead]);
       if (error) {
         console.error('Erro ao salvar lead de marca:', error);
-        return { success: false, message: error.message };
+        return { success: false, message: friendlyLeadError(error) };
       }
 
       // Optional webhook notification
@@ -154,6 +343,16 @@ export const supabaseService = {
     }
   },
 
+  // Pedidos/leads de marca para o time Squad UGC (RLS: só admin logado lê)
+  async getBrandLeads(origin?: string): Promise<{ rows: any[]; error?: 'sem_tabela' | 'sem_permissao' }> {
+    if (!isSupabaseConfigured || !supabase) return { rows: [] };
+    let q = supabase.from('ncp_brand_leads').select('*').order('created_at', { ascending: false }).limit(200);
+    if (origin) q = q.eq('origin', origin);
+    const { data, error } = await q;
+    if (error) return { rows: [], error: error.code === 'PGRST205' ? 'sem_tabela' : 'sem_permissao' };
+    return { rows: data || [] };
+  },
+
   // Submit Creator Waitlist Entry
   async submitCreatorWaitlist(entry: {
     name: string;
@@ -170,7 +369,7 @@ export const supabaseService = {
       const { error } = await supabase.from('ncp_creator_waitlist').insert([entry]);
       if (error) {
         console.error('Erro ao salvar lista de espera de creator:', error);
-        return { success: false, message: error.message };
+        return { success: false, message: friendlyLeadError(error) };
       }
 
       // Optional webhook notification
