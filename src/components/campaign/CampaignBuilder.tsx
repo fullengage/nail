@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, CloudOff, Eye, Loader2, Package, Rocket, X } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { campaignFlow, compensationText, rightsText, humanError, type Intent } from '../../services/campaignFlow';
+import { campaignFlow, compensationText, rightsText, humanError, loadRules, paymentFlowText, DEFAULT_RULES, type Intent, type SquadRules } from '../../services/campaignFlow';
+
+// regras da Squad (taxa e prazos) lidas do banco
+export function useRules(): SquadRules {
+  const [r, setR] = useState<SquadRules>(DEFAULT_RULES);
+  useEffect(() => { loadRules().then(setR); }, []);
+  return r;
+}
 import { Draft, Errors, INTENTS, OBJECTIVE_TEMPLATES, applyIntent, clearLocal, cost, loadLocal, newDraft, saveLocal, suggestTitle, validate, validateAll } from '../../lib/campaignDraft';
 
 // Assistente de campanha em 3 passos: produto e resultado → participantes, remuneração e prazos → briefing e revisão.
@@ -110,7 +117,8 @@ export const CampaignBuilder: React.FC<Props> = ({ initial, onClose, onPublished
     }
   };
 
-  const c = useMemo(() => cost(d), [d]);
+  const rules = useRules();
+  const c = useMemo(() => cost(d, rules.fee_pct), [d, rules.fee_pct]);
   const intent = INTENTS[d.intent];
   const isCommission = Number(d.compensation.commission_pct) > 0 || d.intent === 'comissao';
 
@@ -263,8 +271,8 @@ export const CampaignBuilder: React.FC<Props> = ({ initial, onClose, onPublished
 
             {/* custo: conhecido × a definir */}
             <div className="p-4 rounded-xl bg-muted/40 border border-border text-xs space-y-1" aria-live="polite">
-              <p className="font-bold text-foreground">Custo conhecido: {brl(c.known)}</p>
-              <p className="text-muted-foreground">{d.creator_slots} creators × {brl(Number(d.compensation.fee) || 0)} de cachê{c.product ? ` + ${brl(c.product)} em produtos` : ''}. A taxa da Squad UGC é combinada à parte.</p>
+              <p className="font-bold text-foreground">Custo conhecido: {brl(c.known)} se todas as entregas forem aprovadas</p>
+              <p className="text-muted-foreground">{d.creator_slots} creators × {brl(Number(d.compensation.fee) || 0)} de cachê = {brl(c.fees)} + taxa Squad UGC de {rules.fee_pct}% ({brl(c.squadFee)}){c.product ? ` + ${brl(c.product)} em produtos` : ''}. Você só paga o cachê e a taxa das entregas que aprovar.</p>
               {c.pending.length > 0 && <p className="text-muted-foreground">Ainda não definido: {c.pending.join(', ')}.</p>}
             </div>
           </>
@@ -318,7 +326,7 @@ export const CampaignBuilder: React.FC<Props> = ({ initial, onClose, onPublished
             </div>
 
             {/* resumo antes de publicar */}
-            <Summary d={d} known={c.known} pending={c.pending} />
+            <Summary d={d} known={c.known} pending={c.pending} rules={rules} />
             <button type="button" onClick={() => setShowPreview(true)} className="text-xs font-bold text-foreground underline inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> Ver como o creator vai ver</button>
           </>
         )}
@@ -367,7 +375,7 @@ const SaveBadge: React.FC<{ state: SaveState; msg: string }> = ({ state, msg }) 
   );
 };
 
-export const Summary: React.FC<{ d: Draft; known: number; pending: string[] }> = ({ d, known, pending }) => {
+export const Summary: React.FC<{ d: Draft; known: number; pending: string[]; rules: SquadRules }> = ({ d, known, pending, rules }) => {
   const rows: [string, React.ReactNode][] = [
     ['Produto', d.product.name || '—'],
     ['Objetivo', d.objective || 'Não informado'],
@@ -377,7 +385,8 @@ export const Summary: React.FC<{ d: Draft; known: number; pending: string[] }> =
     ['Prazos', `Candidaturas até ${br(d.application_deadline)} · seleção até ${br(d.selection_deadline)} · entrega até ${br(d.delivery_deadline)}`],
     ['Direitos de uso', rightsText(d.usage_rights).join(' ')],
     ['Revisões', `${d.revisions_included} por creator`],
-    ['Custo conhecido', `${brl(known)}${pending.length ? ` · a definir: ${pending.join(', ')}` : ''}`],
+    ['Custo conhecido', `${brl(known)} (cachês + taxa Squad de ${rules.fee_pct}%)${pending.length ? ` · a definir: ${pending.join(', ')}` : ''}`],
+    ['Aprovação e pagamento', paymentFlowText(rules)],
   ];
   return (
     <div className="rounded-xl border-2 border-black p-4 space-y-2">
@@ -417,7 +426,9 @@ const CreatorPreview: React.FC<{ d: Draft; onClose: () => void }> = ({ d, onClos
 );
 
 // bloco de condições: o mesmo na prévia e na tela real do creator
-export const OpportunityTerms: React.FC<{ d: Pick<Draft, 'intent' | 'deliverables' | 'compensation' | 'product' | 'usage_rights' | 'brief' | 'revisions_included' | 'delivery_deadline' | 'hashtag' | 'coupon'> }> = ({ d }) => (
+export const OpportunityTerms: React.FC<{ d: Pick<Draft, 'intent' | 'deliverables' | 'compensation' | 'product' | 'usage_rights' | 'brief' | 'revisions_included' | 'delivery_deadline' | 'hashtag' | 'coupon'> }> = ({ d }) => {
+  const rules = useRules();
+  return (
   <dl className="space-y-2 text-xs">
     {([
       ['O que entregar', deliverablesText(d)],
@@ -428,11 +439,12 @@ export const OpportunityTerms: React.FC<{ d: Pick<Draft, 'intent' | 'deliverable
       ['Prazo de entrega', br(d.delivery_deadline)],
       ['Revisões incluídas', `${d.revisions_included}`],
       ['Uso do seu conteúdo', rightsText(d.usage_rights).join(' ')],
-      ['Pagamento', 'Feito pela marca após a aprovação do conteúdo (fora da plataforma). Você vê aqui quando for informado.'],
+      ['Pagamento', `Quem paga você é a Squad UGC, por PIX, em até ${rules.payout_business_days} dias úteis depois que a marca paga a Squad (a marca tem ${rules.brand_payment_days} dias após aprovar). Se a marca não revisar sua entrega em ${rules.review_business_days} dias úteis, ela é aprovada automaticamente.`],
       d.brief.restrictions ? ['Não fazer', d.brief.restrictions] : null,
       d.brief.technical ? ['Requisitos técnicos', d.brief.technical] : null,
     ].filter(Boolean) as [string, string][]).map(([k, v]) => (
       <div key={k}><dt className="font-bold text-foreground">{k}</dt><dd className="text-muted-foreground">{v || '—'}</dd></div>
     ))}
   </dl>
-);
+  );
+};

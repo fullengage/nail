@@ -17,25 +17,40 @@ export interface FlowCampaign {
   objective: string | null; product: Product; deliverables: Deliverables; compensation: Compensation; brief: Brief; usage_rights: UsageRights;
   hashtag: string | null; coupon: string | null; creator_slots: number; revisions_included: number; terms_version: number;
   application_deadline: string | null; selection_deadline: string | null; delivery_deadline: string | null;
-  owner_id: string | null; client_ref: string | null; is_test: boolean; published_at: string | null; created_at: string; updated_at: string;
+  owner_id: string | null; client_ref: string | null; is_test: boolean; squad_fee_pct: number | null; published_at: string | null; created_at: string; updated_at: string;
 }
 export interface Participation {
   id: string; campaign_id: string; creator_id: string; stage: Stage; fee: number | null; message: string | null;
   invited_at: string | null; applied_at: string | null; hired_at: string | null;
   terms_version: number | null; terms_snapshot: Record<string, any> | null; terms_accepted_at: string | null;
   shipping: Record<string, string> | null; shipping_note: string | null;
-  payment_status: 'nao_devido' | 'pendente' | 'pago'; payment_amount: number | null; paid_at: string | null; payment_note: string | null; payment_proof_path: string | null;
+  // pagamento via Squad: marca paga a Squad (cachê + taxa) → Squad confirma → Squad repassa ao creator
+  payment_status: 'nao_devido' | 'aguardando_marca' | 'recebido' | 'repassado'; payment_amount: number | null; paid_at: string | null; payment_note: string | null; payment_proof_path: string | null;
+  squad_fee_amount: number | null; brand_total: number | null; brand_due_at: string | null; brand_reported_at: string | null; brand_payment_note: string | null; brand_proof_path: string | null; brand_paid_at: string | null; payout_due_at: string | null;
   creator?: { id: string; professional_name: string; instagram: string | null; tiktok: string | null; instagram_followers: number | null; tiktok_followers: number | null; engagement_rate: number | null; specialties: string[] | null; tags: string[] | null; city: string | null; state: string | null } | null;
 }
 export interface Content {
   id: string; campaign_id: string; creator_id: string; version: number; status: 'reviewing' | 'revision_requested' | 'approved' | string;
   file_path: string | null; file_name: string | null; mime: string | null; published_url: string | null; caption: string | null;
-  submitted_at: string; approved_at: string | null; rights_until: string | null;
+  submitted_at: string; approved_at: string | null; rights_until: string | null; review_due_at: string | null; auto_approved: boolean;
   reviews?: { id: string; comment: string; decision: string; created_at: string }[];
 }
 export interface Notification { id: string; title: string; body: string | null; link: string | null; campaign_id: string | null; read_at: string | null; created_at: string }
 
-const CAMPAIGN_COLS = 'id,title,slug,status,intent,campaign_type,objective,product,deliverables,compensation,brief,usage_rights,hashtag,coupon,creator_slots,revisions_included,terms_version,application_deadline,selection_deadline,delivery_deadline,owner_id,client_ref,is_test,published_at,created_at,updated_at';
+const CAMPAIGN_COLS = 'id,title,slug,status,intent,campaign_type,objective,product,deliverables,compensation,brief,usage_rights,hashtag,coupon,creator_slots,revisions_included,terms_version,application_deadline,selection_deadline,delivery_deadline,owner_id,client_ref,is_test,squad_fee_pct,published_at,created_at,updated_at';
+
+// regras da Squad (tabela squad_settings, ajustável pelo admin). Os valores abaixo só valem até a leitura do banco.
+export interface SquadRules { fee_pct: number; review_business_days: number; brand_payment_days: number; payout_business_days: number; loaded: boolean }
+export const DEFAULT_RULES: SquadRules = { fee_pct: 15, review_business_days: 5, brand_payment_days: 7, payout_business_days: 5, loaded: false };
+let rulesCache: SquadRules | null = null;
+export async function loadRules(): Promise<SquadRules> {
+  if (rulesCache) return rulesCache;
+  if (!supabase) return DEFAULT_RULES;
+  const { data, error } = await supabase.from('squad_settings').select('key,value');
+  if (error || !data?.length) return DEFAULT_RULES;
+  rulesCache = { ...DEFAULT_RULES, ...Object.fromEntries(data.map((r: { key: string; value: number }) => [r.key, Number(r.value)])), loaded: true };
+  return rulesCache;
+}
 const CREATOR_PUBLIC = 'id,professional_name,instagram,tiktok,instagram_followers,tiktok_followers,engagement_rate,specialties,tags,city,state';
 const BUCKET = 'campanhas';
 const ORG_ID = '00000000-0000-0000-0000-000000000001';
@@ -57,6 +72,14 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 const slugify = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+async function uploadProof(campaignId: string, creatorId: string, kind: string, file: File): Promise<string> {
+  if (!supabase) throw new Error('Supabase não configurado');
+  const path = `${campaignId}/${creatorId}/pagamento-${kind}-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+  if (error) throw new Error(humanError(error));
+  return path;
+}
 
 export const campaignFlow = {
   async session() {
@@ -193,15 +216,18 @@ export const campaignFlow = {
     return data?.signedUrl ?? null;
   },
   review: (contentId: string, decision: 'approved' | 'revision', comment?: string) => rpc<string>('brand_review', { p_content: contentId, p_decision: decision, p_comment: comment || null }),
-  async markPaid(ccId: string, campaignId: string, creatorId: string, note: string, proof?: File | null): Promise<string> {
-    let proofPath: string | null = null;
-    if (proof && supabase) {
-      proofPath = `${campaignId}/${creatorId}/pagamento-${Date.now()}-${proof.name.replace(/[^\w.-]+/g, '_')}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(proofPath, proof, { contentType: proof.type });
-      if (error) throw new Error(humanError(error));
-    }
-    return rpc<string>('brand_mark_paid', { p_cc: ccId, p_note: note, p_proof_path: proofPath });
+  // marca informa que pagou a Squad (referência + comprovante opcional); o admin confirma
+  async reportPayment(ccId: string, campaignId: string, creatorId: string, note: string, proof?: File | null): Promise<string> {
+    const proofPath = proof ? await uploadProof(campaignId, creatorId, 'marca', proof) : null;
+    return rpc<string>('brand_report_payment', { p_cc: ccId, p_note: note, p_proof_path: proofPath });
   },
+  // admin: 'received' = Squad recebeu da marca; 'payout' = Squad pagou o creator
+  async adminPayment(ccId: string, action: 'received' | 'payout', campaignId: string, creatorId: string, note?: string, proof?: File | null): Promise<string> {
+    const proofPath = proof ? await uploadProof(campaignId, creatorId, 'repasse', proof) : null;
+    return rpc<string>('admin_payment', { p_cc: ccId, p_action: action, p_note: note || null, p_proof_path: proofPath });
+  },
+  // prazos (aprovação automática e atrasos); idempotente, roda ao abrir as telas
+  runDeadlines: () => rpc<number>('squad_run_deadlines', {}).catch(() => 0),
 
   // ---------- notificações internas ----------
   async notifications(): Promise<Notification[]> {
@@ -237,7 +263,18 @@ export const STAGE: Record<string, { label: string; who: 'marca' | 'creator' | '
   rejected: { label: 'Não selecionado', who: '—', next: '' },
   cancelled: { label: 'Cancelado', who: '—', next: '' },
 };
-export const PAYMENT: Record<string, string> = { nao_devido: 'Sem cachê a pagar', pendente: 'Pagamento pendente', pago: 'Pago (informado pela marca)' };
+export const PAYMENT: Record<string, string> = {
+  nao_devido: 'Sem cachê a pagar',
+  aguardando_marca: 'Aguardando a marca pagar a Squad',
+  recebido: 'Squad recebeu · repasse ao creator em andamento',
+  repassado: 'Pago ao creator pela Squad',
+};
+// cobrança vencida (a marca passou do prazo de pagamento)
+export const isOverdue = (p: Pick<Participation, 'payment_status' | 'brand_due_at'>) => p.payment_status === 'aguardando_marca' && !!p.brand_due_at && new Date(p.brand_due_at) < new Date();
+// como o dinheiro anda, em texto para os dois lados
+export function paymentFlowText(r: SquadRules): string {
+  return `A marca paga a Squad UGC (cachê + taxa de ${r.fee_pct}%) em até ${r.brand_payment_days} dias após aprovar; a Squad repassa o cachê ao creator em até ${r.payout_business_days} dias úteis depois de receber. Se a marca não revisar em ${r.review_business_days} dias úteis, a entrega é aprovada automaticamente.`;
+}
 
 // direitos de uso em texto claro (orgânico ≠ anúncio da marca ≠ anúncio pela conta do creator)
 export function rightsText(r: UsageRights = {}): string[] {

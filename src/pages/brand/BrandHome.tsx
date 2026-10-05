@@ -37,7 +37,7 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
     { n: count('applied'), t: 'candidatura(s) para avaliar' },
     { n: all.filter((p) => p.stage === 'shipping' && p.shipping).length, t: 'produto(s) para enviar' },
     { n: count('submitted'), t: 'entrega(s) para revisar' },
-    { n: all.filter((p) => p.payment_status === 'pendente').length, t: 'pagamento(s) para informar' },
+    { n: all.filter((p) => p.payment_status === 'aguardando_marca' && !p.brand_reported_at).length, t: 'pagamento(s) a fazer à Squad' },
   ].filter((x) => x.n > 0);
   const drafts = camps.filter((c) => c.status === 'draft');
   const running = camps.filter((c) => ['open', 'selecting', 'in_progress'].includes(c.status));

@@ -15,5 +15,5 @@
 - Campanhas reais usam `src/services/campaignFlow.ts`. Mudança de estado só por funções do banco (campaign_publish, creator_apply, brand_participant, creator_submit, brand_review, brand_mark_paid) — nunca `update` direto de status/stage/pagamento.
 - Estados: campanha draft → open → selecting → in_progress → completed; creator invited → applied (aceite registrado) → hired → shipping → producing → submitted → revision → approved → paid.
 - "Publicada" ≠ "contratado"; perfil mapeado ≠ confirmado. Convite não envia e-mail.
-- Pagamento é manual (fora da plataforma): nada de saque, PIX, fatura ou escrow simulados.
+- Pagamento passa pela Squad (manual, PIX fora do sistema): marca paga a Squad (cachê + taxa %) → admin confirma recebimento → admin registra repasse ao creator. Taxa e prazos vêm de squad_settings (padrão 15%, revisão 5 dias úteis com aprovação automática, marca paga em 7 dias, repasse em 5 dias úteis). Nada de saque, fatura ou escrow simulados.
 - Teste do banco: `npm i --no-save @electric-sql/pglite && node scripts/test-fluxo/fluxo.test.cjs` (precisa passar 100%).

@@ -74,15 +74,53 @@ let db;
   const v2 = (await q1(U.marca, 'select id from contents where version=2')).id;
   check('F: limite de revisões respeitado', /revisões incluídas/.test((await erro(() => as(db, U.marca, `select brand_review($1,'revision','de novo')`, [v2]))) || ''));
   check('F: aprova', (await q1(U.marca, `select brand_review($1,'approved','Perfeito') s`, [v2])).s === 'approved');
-  const ap = await q1(U.ugc, 'select c.rights_until, cc.payment_status, cc.payment_amount from contents c join campaign_creators cc on cc.creator_id=c.creator_id where c.version=2');
+  const ap = await q1(U.ugc, 'select c.rights_until, c.review_due_at, cc.payment_status, cc.payment_amount, cc.squad_fee_amount, cc.brand_total, cc.brand_due_at from contents c join campaign_creators cc on cc.creator_id=c.creator_id where c.version=2');
   check('G: direito de uso com vencimento', !!ap.rights_until);
-  check('G: pagamento pendente R$200', ap.payment_status === 'pendente' && Number(ap.payment_amount) === 200, JSON.stringify(ap));
-  // G: pagamento manual
-  check('creator não marca pago', /permissão/.test((await erro(() => as(db, U.ugc, `select brand_mark_paid($1,'x')`, [cc.id]))) || ''));
-  check('pago exige nota', /Informe/.test((await erro(() => as(db, U.marca, `select brand_mark_paid($1,'')`, [cc.id]))) || ''));
-  check('G: marca confirma pagamento', (await q1(U.marca, `select brand_mark_paid($1,'PIX 05/10 ID E123') s`, [cc.id])).s === 'pago');
-  check('G: creator vê pago', (await q1(U.ugc, 'select payment_status, payment_note from campaign_creators')).payment_note === 'PIX 05/10 ID E123');
-  check('G: creator notificado', (await q1(U.ugc, `select count(*)::int n from squad_notifications`)).n >= 4);
+  check('entrega tem prazo de revisão', !!ap.review_due_at);
+  check('G: cobrança à marca = cachê 200 + taxa 15% (30) = 230', ap.payment_status === 'aguardando_marca' && Number(ap.squad_fee_amount) === 30 && Number(ap.brand_total) === 230, JSON.stringify(ap));
+  const dias = Math.round((new Date(ap.brand_due_at) - Date.now()) / 86400000);
+  check('G: marca tem 7 dias para pagar', dias === 7, String(dias));
+  check('taxa congelada na campanha', Number((await q1('service', 'select squad_fee_pct from campaigns where id=$1', [camp])).squad_fee_pct) === 15);
+  // G: marca paga a Squad → admin confirma → admin repassa
+  check('creator não informa pagamento da marca', /permissão/.test((await erro(() => as(db, U.ugc, `select brand_report_payment($1,'x')`, [cc.id]))) || ''));
+  check('marca: informar exige referência', /referência/.test((await erro(() => as(db, U.marca, `select brand_report_payment($1,'')`, [cc.id]))) || ''));
+  check('marca informa que pagou', (await q1(U.marca, `select brand_report_payment($1,'PIX à Squad 05/10 ID E1') s`, [cc.id])).s === 'informado');
+  check('admin avisado do pagamento', (await q1(U.admin, `select count(*)::int n from squad_notifications where title='Marca informou pagamento'`)).n === 1);
+  check('marca não confirma o próprio pagamento', /Squad UGC confirma/.test((await erro(() => as(db, U.marca, `select admin_payment($1,'received')`, [cc.id]))) || ''));
+  check('repasse antes do recebimento falha', /Confirme primeiro/.test((await erro(() => as(db, U.admin, `select admin_payment($1,'payout','x')`, [cc.id]))) || ''));
+  check('admin confirma recebimento', (await q1(U.admin, `select admin_payment($1,'received') s`, [cc.id])).s === 'recebido');
+  check('prazo de repasse aberto', !!(await q1('service', 'select payout_due_at from campaign_creators where id=$1', [cc.id])).payout_due_at);
+  check('repasse exige referência', /referência/.test((await erro(() => as(db, U.admin, `select admin_payment($1,'payout','')`, [cc.id]))) || ''));
+  check('G: admin registra repasse', (await q1(U.admin, `select admin_payment($1,'payout','PIX ao creator ID E2') s`, [cc.id])).s === 'repassado');
+  const fim = await q1(U.ugc, 'select payment_status, payment_note, stage from campaign_creators where id=$1', [cc.id]);
+  check('G: creator vê repassado', fim.payment_status === 'repassado' && fim.payment_note === 'PIX ao creator ID E2' && fim.stage === 'paid', JSON.stringify(fim));
+  check('G: creator notificado do repasse', (await q1(U.ugc, `select count(*)::int n from squad_notifications where title='Cachê pago pela Squad'`)).n === 1);
+  check('admin_payment repetido não duplica', (await q1(U.admin, `select admin_payment($1,'payout','de novo') s`, [cc.id])).s === 'repassado');
+  // aprovação automática após o prazo de revisão + cobrança em atraso
+  const [c2] = await as(db, U.marca, `insert into campaigns (organization_id,title,slug,intent,campaign_type,creator_slots,product,brief,compensation)
+     values ('00000000-0000-0000-0000-000000000001','Vídeos 2','v-2','conteudo_marca','ugc',1,'{"name":"Sérum"}','{"show":"Mostre o produto"}','{"fee":100}') returning id`);
+  await as(db, U.marca, 'select campaign_publish($1)', [c2.id]);
+  await as(db, U.ugc, 'select creator_apply($1, 1)', [c2.id]);
+  const cc2 = await q1(U.marca, 'select id from campaign_creators where campaign_id=$1', [c2.id]);
+  await as(db, U.marca, `select brand_participant($1,'hire')`, [cc2.id]);
+  const p3 = `${c2.id}/${me}/v1.mp4`;
+  await as(db, U.ugc, `insert into storage.objects (bucket_id,name) values ('campanhas',$1)`, [p3]);
+  await as(db, U.ugc, `select creator_submit($1,$2,'v1.mp4','video/mp4')`, [c2.id, p3]);
+  check('antes do prazo nada aprova sozinho', (await q1(U.ugc, 'select squad_run_deadlines() n')).n === 0);
+  await as(db, 'service', `update contents set review_due_at = now() - interval '1 minute' where campaign_id=$1`, [c2.id]);
+  check('prazo vencido: roda', (await q1(U.ugc, 'select squad_run_deadlines() n')).n === 1);
+  const auto = await q1(U.marca, 'select k.status, k.auto_approved, cc.payment_status, cc.brand_total from contents k join campaign_creators cc on cc.campaign_id=k.campaign_id where k.campaign_id=$1', [c2.id]);
+  check('aprovado automaticamente e cobrado', auto.status === 'approved' && auto.auto_approved && auto.payment_status === 'aguardando_marca' && Number(auto.brand_total) === 115, JSON.stringify(auto));
+  check('creator vê o motivo da aprovação automática', /prazo de revisão/.test((await q1(U.ugc, `select comment from content_reviews where decision='approved' order by created_at desc limit 1`)).comment));
+  await as(db, 'service', `update campaign_creators set brand_due_at = now() - interval '1 day' where id=$1`, [cc2.id]);
+  await as(db, U.ugc, 'select squad_run_deadlines()');
+  await as(db, U.ugc, 'select squad_run_deadlines()');
+  check('atraso avisa admin uma vez só', (await q1(U.admin, `select count(*)::int n from squad_notifications where title='Cobrança em atraso'`)).n === 1);
+  check('atraso avisa a marca', (await q1(U.marca, `select count(*)::int n from squad_notifications where title='Pagamento em atraso'`)).n === 1);
+  // dias úteis: sexta + 5 dias úteis = sexta seguinte
+  check('5 dias úteis a partir de sexta = sexta seguinte', (await q1('service', `select to_char(add_business_days('2026-10-02 10:00'::timestamptz, 5), 'YYYY-MM-DD') d`)).d === '2026-10-09');
+  check('taxa ajustável só pelo admin', !!(await erro(async () => { const r = await as(db, U.marca, `update squad_settings set value=1 where key='fee_pct' returning key`); if (!r.length) throw new Error('bloqueado'); })));
+  check('visitante lê a taxa', Number((await q1(null, `select squad_setting('fee_pct') v`)).v) === 15);
   // afiliados: comissão exige regra de pagamento
   const af = await q1(U.marca, `insert into campaigns (organization_id,title,slug,intent,campaign_type,product,brief,compensation)
      values ('00000000-0000-0000-0000-000000000001','Afiliados Sérum','af-1','comissao','affiliate','{"name":"Sérum"}','{"show":"Use o cupom"}','{"commission_pct":10}') returning id`);

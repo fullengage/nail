@@ -40,6 +40,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CampaignType } from '../../types/database';
 import { audienceQuality, followersOf, sizeOf, SIZES, SizeKey } from '../../lib/creatorQuality';
+import { useRules } from '../../components/campaign/CampaignBuilder';
 
 const QualityBadge: React.FC<{ c: CreatorProfile }> = ({ c }) => {
   const q = audienceQuality(c);
@@ -61,6 +62,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const canSeeContacts = role === 'admin_master' || role === 'admin';
   // Importar e Exportar CSV são restritos exclusivamente ao Admin Geral (evita vazamento de base para empresas/contratantes)
   const canManageCsv = role === 'admin_master' || role === 'admin';
+  const rules = useRules();
 
   // Estados de visualização e filtros
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -335,7 +337,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const feePerCreator = Number(squadFee) || 250;
   const countSelected = selectedIds.length;
   const subtotalCreators = countSelected * feePerCreator;
-  const platformFee = Math.round(subtotalCreators * 0.15);
+  const platformFee = Math.round(subtotalCreators * rules.fee_pct) / 100; // taxa da Squad sobre cachês aprovados (squad_settings)
   const totalSquadInvestment = subtotalCreators + platformFee;
   const pixDiscount = Math.round(totalSquadInvestment * 0.05);
   const finalPayable = totalSquadInvestment; // estimativa, sem desconto de pagamento (não há cobrança na plataforma)
@@ -1121,7 +1123,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                 </div>
                 <div className="flex justify-between items-center text-muted-foreground">
                   <span className="flex items-center">
-                    <span>Taxa de Curadoria, Gestão & Garantia Squad UGC (15%)</span>
+                    <span>Taxa Squad UGC ({rules.fee_pct}% sobre cachês aprovados)</span>
                   </span>
                   <span className="font-semibold text-foreground">{brl(platformFee)}</span>
                 </div>
@@ -1198,7 +1200,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                 <span className="font-semibold text-foreground">{brl(invoiceData.subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Taxa Squad UGC (15%):</span>
+                <span className="text-muted-foreground">Taxa Squad UGC ({rules.fee_pct}%):</span>
                 <span className="font-semibold text-foreground">{brl(invoiceData.fee)}</span>
               </div>
               <div className="pt-2 border-t border-border flex justify-between items-baseline font-bold text-sm">

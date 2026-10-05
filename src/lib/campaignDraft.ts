@@ -119,16 +119,17 @@ export function validate(d: Draft, step: 1 | 2 | 3): Errors {
 }
 export const validateAll = (d: Draft): Errors => ({ ...validate(d, 1), ...validate(d, 2), ...validate(d, 3) });
 
-// custo: o que já se sabe × o que depende de resultado
-export function cost(d: Draft) {
+// custo: o que já se sabe × o que depende de resultado. A taxa da Squad incide só sobre cachês aprovados.
+export function cost(d: Draft, feePct = 0) {
   const slots = Math.max(0, Number(d.creator_slots) || 0);
   const fees = slots * (Number(d.compensation.fee) || 0);
   const product = d.compensation.product ? slots * (Number(d.product.value) || 0) : 0;
+  const squadFee = Math.round(fees * feePct) / 100;
   const pending: string[] = [];
   if (d.compensation.product && !d.product.value) pending.push('valor dos produtos enviados');
   if (d.compensation.product) pending.push('frete de envio');
   if (Number(d.compensation.commission_pct) > 0) pending.push(`comissão de ${d.compensation.commission_pct}% sobre as vendas (depende do resultado)`);
-  return { fees, product, known: fees + product, pending };
+  return { fees, squadFee, product, known: fees + squadFee + product, pending };
 }
 
 // ---------- salvamento local (sobrevive a recarregar e a falha de rede) ----------

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Circle, Loader2, Package, Upload } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { OpportunityTerms } from '../../components/campaign/CampaignBuilder';
-import { campaignFlow, compensationText, humanError, PAYMENT, STAGE, type Content, type FlowCampaign, type Participation } from '../../services/campaignFlow';
+import { campaignFlow, compensationText, humanError, loadRules, paymentFlowText, DEFAULT_RULES, PAYMENT, STAGE, type Content, type FlowCampaign, type Participation, type SquadRules } from '../../services/campaignFlow';
 import type { Draft } from '../../lib/campaignDraft';
 
 // Lado do creator ligado ao banco: oportunidades (com aceite), minhas campanhas (tarefas) e ganhos (só o que foi informado).
@@ -130,6 +130,7 @@ export const CreatorWorkReal: React.FC = () => {
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const load = useCallback(async () => {
+    await campaignFlow.runDeadlines();
     const ps = await campaignFlow.myParticipations();
     setRows(ps);
     const ks = await Promise.all(ps.map((p) => campaignFlow.contents(p.campaign_id, p.creator_id)));
@@ -184,8 +185,8 @@ export const CreatorWorkReal: React.FC = () => {
                     onSubmit={(file, url, caption, prog) => run(() => campaignFlow.submit(c.id, p.creator_id, file, url, caption, prog), 'Entrega enviada. A marca foi avisada para revisar.')} />
                 </>
               )}
-              {p.stage === 'submitted' && <p>Entrega v{ks[0]?.version} enviada em {br(ks[0]?.submitted_at)}. Aguarde a revisão da marca.</p>}
-              {(p.stage === 'approved' || p.stage === 'paid') && <p>Conteúdo aprovado. {PAYMENT[p.payment_status]}{p.payment_status === 'pago' ? ` em ${br(p.paid_at)}: ${p.payment_note}` : p.payment_status === 'pendente' ? ` · ${brl(Number(p.payment_amount || 0))} a receber da marca` : ''}.</p>}
+              {p.stage === 'submitted' && <p>Entrega v{ks[0]?.version} enviada em {br(ks[0]?.submitted_at)}. A marca revisa até {br(ks[0]?.review_due_at)}; se não responder, ela é aprovada automaticamente.</p>}
+              {(p.stage === 'approved' || p.stage === 'paid') && <p>Conteúdo aprovado{ks[0]?.auto_approved ? ' automaticamente (a marca não revisou no prazo)' : ''}. {PAYMENT[p.payment_status]}{p.payment_status === 'repassado' ? ` em ${br(p.paid_at)}: ${p.payment_note}` : p.payment_status === 'recebido' ? ` · ${brl(Number(p.payment_amount || 0))} até ${br(p.payout_due_at)}` : p.payment_status === 'aguardando_marca' ? ` · ${brl(Number(p.payment_amount || 0))}; a marca tem até ${br(p.brand_due_at)} para pagar a Squad` : ''}.</p>}
               {p.stage === 'rejected' && <p>A marca não selecionou sua candidatura desta vez.</p>}
             </div>
             {ks.length > 0 && (
@@ -237,21 +238,22 @@ const SubmitForm: React.FC<{ mustPublish: boolean; version: number; onSubmit: (f
 export const CreatorEarningsReal: React.FC = () => {
   const { loading, me, err } = useCreator();
   const [rows, setRows] = useState<(Participation & { campaign: FlowCampaign | null })[]>([]);
-  useEffect(() => { if (me) campaignFlow.myParticipations().then(setRows).catch(() => {}); }, [me]);
+  const [rules, setRules] = useState<SquadRules>(DEFAULT_RULES);
+  useEffect(() => { if (me) { loadRules().then(setRules); campaignFlow.runDeadlines().then(() => campaignFlow.myParticipations()).then(setRows).catch(() => {}); } }, [me]);
   if (loading) return <Shell title="Ganhos" sub=""><Loader2 className="w-5 h-5 animate-spin" /></Shell>;
   if (!me) return <Shell title="Ganhos" sub="">{err ? <p className="text-xs text-red-700">{err}</p> : <NeedLogin />}</Shell>;
   const agreed = rows.filter((p) => p.hired_at && Number(p.fee) > 0);
-  const pend = rows.filter((p) => p.payment_status === 'pendente');
-  const paid = rows.filter((p) => p.payment_status === 'pago');
+  const pend = rows.filter((p) => p.payment_status === 'aguardando_marca' || p.payment_status === 'recebido');
+  const paid = rows.filter((p) => p.payment_status === 'repassado');
   const sum = (xs: Participation[], k: 'fee' | 'payment_amount') => xs.reduce((a, p) => a + Number(p[k] || 0), 0);
   return (
-    <Shell title="Ganhos" sub="Cachês combinados, aprovados e pagos. Os pagamentos são feitos pela marca, fora da plataforma.">
+    <Shell title="Ganhos" sub="Cachês combinados, aprovados e pagos. Quem paga você é a Squad UGC, depois de receber da marca.">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {([['Cachê combinado', sum(agreed, 'fee'), `${agreed.length} contratação(ões)`], ['Aprovado · aguardando pagamento', sum(pend, 'payment_amount'), `${pend.length} pendente(s)`], ['Pago (informado pela marca)', sum(paid, 'payment_amount'), `${paid.length} pagamento(s)`]] as [string, number, string][]).map(([k, v, s]) => (
+        {([['Cachê combinado', sum(agreed, 'fee'), `${agreed.length} contratação(ões)`], ['Aprovado · a receber', sum(pend, 'payment_amount'), `${pend.length} em andamento`], ['Pago pela Squad', sum(paid, 'payment_amount'), `${paid.length} pagamento(s)`]] as [string, number, string][]).map(([k, v, s]) => (
           <div key={k} className="p-4 rounded-2xl bg-card border border-border"><p className="text-[11px] font-bold uppercase text-muted-foreground">{k}</p><p className="text-2xl font-extrabold text-foreground">{brl(v)}</p><p className="text-[11px] text-muted-foreground">{s}</p></div>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground">Não existe saque pela plataforma: quando a marca paga, ela informa aqui a referência (ex.: PIX) e você confere na sua conta. Comissões de afiliado só aparecem quando houver vendas registradas.</p>
+      <p className="text-[11px] text-muted-foreground">{paymentFlowText(rules)} Não existe saque: a Squad faz o PIX e registra aqui a referência para você conferir. Comissões de afiliado só aparecem quando houver vendas registradas.</p>
       <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
         {rows.filter((p) => p.hired_at).map((p) => (
           <li key={p.id} className="p-3 flex flex-wrap justify-between gap-2 text-xs"><span className="font-bold">{p.campaign?.title}</span><span>{brl(Number(p.payment_amount ?? p.fee ?? 0))} · {PAYMENT[p.payment_status]}{p.paid_at ? ` em ${br(p.paid_at)}` : ''}{p.payment_note ? ` · ${p.payment_note}` : ''}</span></li>

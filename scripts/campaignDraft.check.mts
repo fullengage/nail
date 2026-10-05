@@ -6,6 +6,7 @@ d.product.name = 'Sérum'; d.title = suggestTitle(d.intent, 'Sérum');
 a(Object.keys(validate(d, 1)).length === 0, 'passo 1 ok com produto + nome sugerido');
 a(Object.keys(validateAll(d)).length === 0, 'modelo de vídeos já é publicável');
 a(cost(d).fees === 5 * 150 && cost(d).pending.includes('frete de envio'), 'custo conhecido + pendências');
+a(cost(d, 15).squadFee === 112.5 && cost(d, 15).known === 862.5, 'taxa Squad 15% sobre cachês');
 const af = applyIntent(d, 'comissao');
 a(af.title === 'Afiliados · Sérum', 'nome sugerido acompanha o tipo');
 a(af.compensation.fee === undefined && af.compensation.commission_pct === 10, 'comissão não vira cachê zero');

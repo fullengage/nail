@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Copy, Download, Loader2, Package, RefreshCw, Search, Send, ShieldCheck, Users, Video } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useData } from '../../context/DataContext';
-import { campaignFlow, CAMPAIGN_STATUS, STAGE, PAYMENT, rightsText, compensationText, humanError, type Content, type FlowCampaign, type Participation } from '../../services/campaignFlow';
+import { campaignFlow, CAMPAIGN_STATUS, STAGE, PAYMENT, rightsText, compensationText, humanError, isOverdue, loadRules, paymentFlowText, DEFAULT_RULES, type Content, type FlowCampaign, type Participation, type SquadRules } from '../../services/campaignFlow';
+import { useAuth } from '../../context/AuthContext';
 import { audienceQuality, followersOf } from '../../lib/creatorQuality';
 import { deliverablesText } from './CampaignBuilder';
 import type { CreatorProfile } from '../../types/database';
@@ -29,6 +30,9 @@ function reasons(c: CreatorProfile, intent: string | null): string[] {
 
 export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => void; onEditDraft: (c: FlowCampaign) => void; onDuplicate: (c: FlowCampaign) => void; justPublished?: boolean }> = ({ campaignId, onBack, onEditDraft, onDuplicate, justPublished }) => {
   const { creators } = useData();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin_master' || role === 'admin';
+  const [rules, setRules] = useState<SquadRules>(DEFAULT_RULES);
   const [camp, setCamp] = useState<FlowCampaign | null>(null);
   const [parts, setParts] = useState<Participation[]>([]);
   const [contents, setContents] = useState<Content[]>([]);
@@ -41,7 +45,9 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
   const load = useCallback(async () => {
     setErr('');
     try {
-      const [c, p, k] = await Promise.all([campaignFlow.get(campaignId), campaignFlow.participants(campaignId), campaignFlow.contents(campaignId)]);
+      await campaignFlow.runDeadlines(); // aprova entregas vencidas e marca atrasos antes de mostrar
+      const [c, p, k, r] = await Promise.all([campaignFlow.get(campaignId), campaignFlow.participants(campaignId), campaignFlow.contents(campaignId), loadRules()]);
+      setRules(r);
       setCamp(c); setParts(p); setContents(k);
     } catch (e) { setErr(humanError(e)); } finally { setLoading(false); }
   }, [campaignId]);
@@ -60,7 +66,8 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
   const by = (s: string[]) => parts.filter((p) => s.includes(p.stage));
   const hired = parts.filter((p) => p.hired_at && !['rejected', 'cancelled'].includes(p.stage));
   const approvedContents = contents.filter((k) => k.status === 'approved');
-  const paid = parts.filter((p) => p.payment_status === 'pago').reduce((a, p) => a + Number(p.payment_amount || 0), 0);
+  // investimento = o que a marca já pagou à Squad (cachê + taxa), confirmado pelo admin
+  const paid = parts.filter((p) => ['recebido', 'repassado'].includes(p.payment_status)).reduce((a, p) => a + Number(p.brand_total || 0), 0);
   const publicLink = `${window.location.origin}/creator/oportunidades?campanha=${camp.id}`;
 
   // pendências com responsável, prazo e ação
@@ -70,7 +77,12 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
   by(['applied']).length && pend.push({ who: 'Você', text: `${by(['applied']).length} candidatura(s) para avaliar`, due: camp.selection_deadline, go: () => document.getElementById('sec-applied')?.scrollIntoView({ behavior: 'smooth' }) });
   by(['shipping']).filter((p) => p.shipping).length && pend.push({ who: 'Você', text: `Enviar produto para ${by(['shipping']).filter((p) => p.shipping).length} creator(s)`, go: () => document.getElementById('sec-shipping')?.scrollIntoView({ behavior: 'smooth' }) });
   by(['submitted']).length && pend.push({ who: 'Você', text: `${by(['submitted']).length} entrega(s) para revisar`, due: camp.delivery_deadline, go: () => document.getElementById('sec-review')?.scrollIntoView({ behavior: 'smooth' }) });
-  parts.filter((p) => p.payment_status === 'pendente').length && pend.push({ who: 'Você', text: `${parts.filter((p) => p.payment_status === 'pendente').length} pagamento(s) a fazer e informar`, go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
+  const toPay = parts.filter((p) => p.payment_status === 'aguardando_marca' && !p.brand_reported_at);
+  toPay.length && pend.push({ who: 'Você', text: `${toPay.length} pagamento(s) à Squad${toPay.some(isOverdue) ? ' (em atraso!)' : ''}`, due: toPay.map((p) => p.brand_due_at).sort()[0], go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
+  isAdmin && parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length && pend.push({ who: 'Você', text: `Confirmar recebimento de ${parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length} pagamento(s) da marca`, go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
+  isAdmin && parts.filter((p) => p.payment_status === 'recebido').length && pend.push({ who: 'Você', text: `Repassar ${parts.filter((p) => p.payment_status === 'recebido').length} cachê(s) aos creators`, due: parts.filter((p) => p.payment_status === 'recebido').map((p) => p.payout_due_at).sort()[0], go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
+  !isAdmin && parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length && pend.push({ who: 'Squad UGC', text: 'Confirmar o recebimento do seu pagamento', go: () => {} });
+  !isAdmin && parts.filter((p) => p.payment_status === 'recebido').length && pend.push({ who: 'Squad UGC', text: 'Repassar o cachê aos creators', due: parts.filter((p) => p.payment_status === 'recebido').map((p) => p.payout_due_at).sort()[0], go: () => {} });
   by(['invited']).length && pend.push({ who: 'Creators', text: `${by(['invited']).length} convidado(s) ainda não responderam`, due: camp.application_deadline, go: () => {} });
   by(['producing', 'revision', 'shipping']).length && pend.push({ who: 'Creators', text: `${by(['producing', 'revision']).length} produzindo / ajustando`, due: camp.delivery_deadline, go: () => {} });
 
@@ -113,12 +125,12 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
           ['Contratados', `${hired.length}/${camp.creator_slots}`],
           ['Conteúdos entregues', contents.length ? new Set(contents.map((k) => k.creator_id)).size : 0],
           ['Aprovados', approvedContents.length],
-          ['Pago (informado)', brl(paid)],
+          ['Pago à Squad', brl(paid)],
         ] as [string, React.ReactNode][]).map(([k, v]) => (
           <div key={k} className="p-3 rounded-xl bg-card border border-border"><p className="text-[10px] uppercase font-bold text-muted-foreground">{k}</p><p className="text-lg font-extrabold text-foreground">{v}</p></div>
         ))}
       </div>
-      {approvedContents.length > 0 && paid > 0 && <p className="text-[11px] text-muted-foreground">Custo por conteúdo aprovado (pago ÷ aprovados): <strong>{brl(paid / approvedContents.length)}</strong>. Vendas e cliques só aparecem quando houver uma fonte conectada.</p>}
+      {approvedContents.length > 0 && paid > 0 && <p className="text-[11px] text-muted-foreground">Custo por conteúdo aprovado (pago à Squad ÷ aprovados): <strong>{brl(paid / approvedContents.length)}</strong>. Vendas e cliques só aparecem quando houver uma fonte conectada.</p>}
 
       <div className="flex gap-2 border-b border-border">
         {([['acompanhar', 'Acompanhar'], ['selecionar', 'Selecionar e convidar creators']] as const).map(([k, l]) => (
@@ -176,10 +188,12 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
 
           <section id="sec-pay" className="p-4 rounded-2xl bg-card border border-border space-y-3">
             <h2 className="text-sm font-bold text-foreground">Pagamentos</h2>
-            <p className="text-[11px] text-muted-foreground">O pagamento é feito por você, fora da plataforma (PIX/transferência). Depois, informe aqui com a referência e, se quiser, o comprovante. Nada é transferido automaticamente.</p>
-            {parts.filter((p) => p.payment_status !== 'nao_devido').length === 0 ? <p className="text-xs text-muted-foreground">Nenhum pagamento devido ainda (o cachê fica devido após aprovar a entrega).</p> :
+            <p className="text-[11px] text-muted-foreground">{paymentFlowText(rules)} O pagamento é feito fora do sistema (PIX/transferência para a Squad UGC); aqui fica o registro de cada etapa. Nada é cobrado automaticamente.</p>
+            {parts.filter((p) => p.payment_status !== 'nao_devido').length === 0 ? <p className="text-xs text-muted-foreground">Nenhuma cobrança ainda: ela é gerada quando uma entrega é aprovada.</p> :
               parts.filter((p) => p.payment_status !== 'nao_devido').map((p) => (
-                <PayRow key={p.id} p={p} busy={busy} onPaid={(note, file) => act(p.id, () => campaignFlow.markPaid(p.id, camp.id, p.creator_id, note, file), 'Pagamento informado ao creator')} />
+                <PayRow key={p.id} p={p} busy={busy} isAdmin={isAdmin}
+                  onReport={(note, file) => act(p.id, () => campaignFlow.reportPayment(p.id, camp.id, p.creator_id, note, file), 'Pagamento informado. A Squad vai confirmar o recebimento.')}
+                  onAdmin={(action, note, file) => act(p.id, () => campaignFlow.adminPayment(p.id, action, camp.id, p.creator_id, note, file), action === 'received' ? 'Recebimento confirmado. Prazo de repasse aberto.' : 'Repasse registrado e creator avisado.')} />
               ))}
           </section>
 
@@ -245,19 +259,33 @@ function ShipRow({ p, busy, onShip }: { p: Participation; busy: string | null; o
     </Row>
   );
 }
-function PayRow({ p, busy, onPaid }: { p: Participation; busy: string | null; onPaid: (note: string, file: File | null) => void }) {
+// cada etapa do dinheiro, com quem age: marca informa → Squad (admin) confirma → Squad repassa
+function PayRow({ p, busy, isAdmin, onReport, onAdmin }: { p: Participation; busy: string | null; isAdmin: boolean; onReport: (note: string, file: File | null) => void; onAdmin: (a: 'received' | 'payout', note: string, file: File | null) => void }) {
   const [note, setNote] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const late = isOverdue(p);
+  const form = (label: string, ph: string, onGo: () => void, needNote = true) => (
+    <div className="flex flex-wrap gap-2 items-center">
+      <input aria-label="Referência" value={note} onChange={(e) => setNote(e.target.value)} placeholder={ph} className="flex-1 min-w-[180px] px-2 py-1.5 rounded-lg border border-border bg-background" />
+      <input aria-label="Comprovante" type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-[11px]" />
+      <Button size="sm" disabled={!!busy || (needNote && !note.trim())} onClick={onGo}>{label}</Button>
+    </div>
+  );
   return (
-    <div className="p-3 rounded-xl border border-border text-xs space-y-2">
-      <div className="flex justify-between gap-2"><span className="font-bold">{p.creator?.professional_name}</span><span>{brl(Number(p.payment_amount || 0))} · <strong className={p.payment_status === 'pago' ? 'text-emerald-700' : 'text-amber-700'}>{PAYMENT[p.payment_status]}</strong></span></div>
-      {p.payment_status === 'pago' ? <p className="text-muted-foreground">Informado em {br(p.paid_at)}: {p.payment_note}{p.payment_proof_path ? ' · com comprovante' : ''}</p> : (
-        <div className="flex flex-wrap gap-2 items-center">
-          <input aria-label="Referência do pagamento" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: PIX 05/10, ID E123…" className="flex-1 min-w-[180px] px-2 py-1.5 rounded-lg border border-border bg-background" />
-          <input aria-label="Comprovante" type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-[11px]" />
-          <Button size="sm" disabled={!!busy || !note.trim()} onClick={() => onPaid(note, file)}>Informar pagamento</Button>
-        </div>
-      )}
+    <div className={`p-3 rounded-xl border text-xs space-y-2 ${late ? 'border-red-500/50 bg-red-500/5' : 'border-border'}`}>
+      <div className="flex flex-wrap justify-between gap-2">
+        <span className="font-bold">{p.creator?.professional_name}</span>
+        <strong className={p.payment_status === 'repassado' ? 'text-emerald-700' : late ? 'text-red-700' : 'text-amber-700'}>{late ? 'Em atraso · ' : ''}{PAYMENT[p.payment_status]}</strong>
+      </div>
+      <p className="text-muted-foreground">Cachê {brl(Number(p.payment_amount || 0))} + taxa Squad {brl(Number(p.squad_fee_amount || 0))} = <strong className="text-foreground">{brl(Number(p.brand_total || 0))}</strong> a pagar à Squad{p.brand_due_at ? ` até ${br(p.brand_due_at)}` : ''}.</p>
+      <ol className="space-y-0.5 text-muted-foreground">
+        <li>{p.brand_reported_at ? '✓' : '○'} Marca pagou a Squad{p.brand_reported_at ? ` (informado em ${br(p.brand_reported_at)}: ${p.brand_payment_note}${p.brand_proof_path ? ', com comprovante' : ''})` : ''}</li>
+        <li>{p.brand_paid_at ? '✓' : '○'} Squad confirmou o recebimento{p.brand_paid_at ? ` em ${br(p.brand_paid_at)}` : ''}</li>
+        <li>{p.payment_status === 'repassado' ? '✓' : '○'} Squad pagou o creator{p.paid_at ? ` em ${br(p.paid_at)}: ${p.payment_note}` : p.payout_due_at ? ` (prazo: ${br(p.payout_due_at)})` : ''}</li>
+      </ol>
+      {!isAdmin && p.payment_status === 'aguardando_marca' && !p.brand_reported_at && form('Informar que paguei', 'Ex.: PIX à Squad 05/10, ID E123…', () => onReport(note, file))}
+      {isAdmin && p.payment_status === 'aguardando_marca' && form('Confirmar recebimento da marca', 'Referência conferida no extrato (opcional)', () => onAdmin('received', note, file), false)}
+      {isAdmin && p.payment_status === 'recebido' && form('Registrar repasse ao creator', 'Ex.: PIX ao creator, ID E456…', () => onAdmin('payout', note, file))}
     </div>
   );
 }
@@ -279,7 +307,7 @@ function ReviewBlock({ camp, part, versions, busy, onDecide }: { camp: FlowCampa
         <div key={k.id} className={`p-2 rounded-lg border ${k.id === latest.id ? 'border-black' : 'border-border opacity-80'} text-xs space-y-1`}>
           <div className="flex flex-wrap justify-between gap-2">
             <span className="font-bold">v{k.version} · {k.file_name || 'link'} · {br(k.submitted_at)}</span>
-            <span className={k.status === 'approved' ? 'text-emerald-700 font-bold' : k.status === 'revision_requested' ? 'text-amber-700 font-bold' : 'font-bold'}>{k.status === 'approved' ? 'Aprovado' : k.status === 'revision_requested' ? 'Ajuste pedido' : 'Aguardando sua revisão'}</span>
+            <span className={k.status === 'approved' ? 'text-emerald-700 font-bold' : k.status === 'revision_requested' ? 'text-amber-700 font-bold' : 'font-bold'}>{k.status === 'approved' ? (k.auto_approved ? 'Aprovado automaticamente (prazo)' : 'Aprovado') : k.status === 'revision_requested' ? 'Ajuste pedido' : 'Aguardando sua revisão'}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {k.file_path && <button className="underline inline-flex items-center gap-1" onClick={() => open(k)}><Video className="w-3.5 h-3.5" />Ver vídeo</button>}
@@ -299,6 +327,7 @@ function ReviewBlock({ camp, part, versions, busy, onDecide }: { camp: FlowCampa
             <Button size="sm" disabled={!!busy} onClick={() => onDecide(latest.id, 'approved', comment)}><CheckCircle2 className="w-3.5 h-3.5" />Aprovar</Button>
             <Button size="sm" variant="outline" disabled={!!busy || !comment.trim() || used >= camp.revisions_included} onClick={() => onDecide(latest.id, 'revision', comment)}>Pedir ajuste</Button>
             {used >= camp.revisions_included && <span className="text-[11px] text-muted-foreground self-center">Revisões incluídas esgotadas.</span>}
+            {latest.review_due_at && <span className="text-[11px] font-bold text-amber-700 self-center">Se não revisar até {br(latest.review_due_at)}, a entrega é aprovada automaticamente.</span>}
           </div>
         </div>
       )}

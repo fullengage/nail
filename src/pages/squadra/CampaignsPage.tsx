@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { CampaignBuilder } from '../../components/campaign/CampaignBuilder';
 import { CampaignWorkspace } from '../../components/campaign/CampaignWorkspace';
 import { MissionSimulator } from '../../components/squadra/MissionSimulator';
+import { AdminRules } from '../../components/campaign/AdminRules';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { campaignFlow, CAMPAIGN_STATUS, humanError, type FlowCampaign } from '../../services/campaignFlow';
@@ -73,6 +74,7 @@ export const CampaignsPage: React.FC<{ startBuilding?: boolean }> = ({ startBuil
         </div>
       </div>
 
+      {isAdmin && <AdminRules />}
       {showSim && <MissionSimulator onApplyBudget={(p) => { const d = newDraft(); d.creator_slots = p.creatorCount; d.compensation.fee = p.pricePerVideo; setView({ kind: 'build', draft: d }); }} />}
       {!signedIn && <p className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-800">Você está no modo demonstração (sem login). Pode montar o rascunho; para publicar, entre com sua conta de empresa.</p>}
       {local && <p className="p-3 rounded-xl bg-muted/50 border border-border text-xs">Você tem um rascunho em andamento: <strong>{local.title || 'sem nome'}</strong> (passo {local.step}). <button className="underline font-bold" onClick={() => setView({ kind: 'build', draft: null })}>Continuar</button></p>}

@@ -6,7 +6,7 @@
 -- Estados da campanha:  draft → open (publicada) → selecting → in_progress → completed | cancelled
 -- Estados do creator:   invited → applied (aceitou as condições) → hired → shipping → producing
 --                       → submitted → revision → approved → paid   (| rejected | cancelled)
--- Pagamento é MANUAL (fora da plataforma): a marca confirma com nota/comprovante.
+-- Pagamento passa pela Squad (manual, fora do sistema): marca paga a Squad (cachê + taxa) → admin confirma → admin repassa ao creator.
 -- ==============================================================================
 
 -- ---------- campanha: dono, produto, entregas, remuneração, briefing, direitos ----------
@@ -88,7 +88,7 @@ ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS terms_accepted_at 
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS terms_accepted_by uuid;    -- auth.uid() de quem aceitou
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS shipping jsonb;            -- endereço (privado: marca dona, creator e admin)
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS shipping_note text;        -- rastreio informado pela marca
-ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'nao_devido'; -- nao_devido | pendente | pago
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'nao_devido'; -- nao_devido | aguardando_marca | recebido | repassado
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS payment_amount numeric(10,2);
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS paid_at timestamptz;
 ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS payment_note text;
@@ -197,6 +197,35 @@ DROP POLICY IF EXISTS "Allow public read shipments" ON public.shipments;
 DROP POLICY IF EXISTS "shipments_member_write" ON public.shipments;
 REVOKE ALL ON public.shipments FROM anon;
 
+-- ---------- regras da Squad (ajustáveis pelo admin; nada de número escondido no código) ----------
+CREATE TABLE IF NOT EXISTS public.squad_settings (key text PRIMARY KEY, value numeric NOT NULL, label text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
+INSERT INTO public.squad_settings (key, value, label) VALUES
+  ('fee_pct', 15, 'Taxa da Squad UGC (% sobre o cachê aprovado)'),
+  ('review_business_days', 5, 'Dias úteis para a marca revisar; depois aprova automaticamente'),
+  ('brand_payment_days', 7, 'Dias corridos para a marca pagar a Squad após a aprovação'),
+  ('payout_business_days', 5, 'Dias úteis para a Squad repassar ao creator após receber da marca')
+ON CONFLICT (key) DO NOTHING;
+ALTER TABLE public.squad_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "settings_read" ON public.squad_settings;
+CREATE POLICY "settings_read" ON public.squad_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "settings_admin" ON public.squad_settings;
+CREATE POLICY "settings_admin" ON public.squad_settings FOR UPDATE TO authenticated USING (public.squad_is_admin()) WITH CHECK (public.squad_is_admin());
+REVOKE INSERT, DELETE ON public.squad_settings FROM anon, authenticated;
+CREATE OR REPLACE FUNCTION public.squad_setting(p_key text)
+RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ SELECT value FROM public.squad_settings WHERE key = p_key $$;
+
+-- dias úteis (seg–sex; feriados não são considerados)
+CREATE OR REPLACE FUNCTION public.add_business_days(p_from timestamptz, p_days integer)
+RETURNS timestamptz LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE d timestamptz := p_from; n integer := 0;
+BEGIN
+  WHILE n < p_days LOOP
+    d := d + interval '1 day';
+    IF extract(isodow FROM d) < 6 THEN n := n + 1; END IF;
+  END LOOP;
+  RETURN d;
+END $$;
+
 -- ---------- ações (máquina de estados no servidor) ----------
 CREATE OR REPLACE FUNCTION public.campaign_publish(p_campaign uuid)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -216,7 +245,7 @@ BEGIN
   IF coalesce((c.compensation ->> 'commission_pct')::numeric, 0) > 0 AND coalesce(c.compensation ->> 'payment_terms', '') = '' THEN
     RAISE EXCEPTION 'Explique quando e como a comissão é paga.';
   END IF;
-  UPDATE public.campaigns SET status = 'open', published_at = now() WHERE id = p_campaign;
+  UPDATE public.campaigns SET status = 'open', published_at = now(), squad_fee_pct = public.squad_setting('fee_pct') WHERE id = p_campaign;
   RETURN 'open';
 END $$;
 
@@ -239,7 +268,9 @@ CREATE OR REPLACE FUNCTION public.campaign_terms(c public.campaigns)
 RETURNS jsonb LANGUAGE sql STABLE AS $$
   SELECT jsonb_build_object('version', c.terms_version, 'product', c.product, 'deliverables', c.deliverables,
     'compensation', c.compensation, 'usage_rights', c.usage_rights, 'revisions_included', c.revisions_included,
-    'delivery_deadline', c.delivery_deadline, 'brief', c.brief, 'hashtag', c.hashtag, 'coupon', c.coupon);
+    'delivery_deadline', c.delivery_deadline, 'brief', c.brief, 'hashtag', c.hashtag, 'coupon', c.coupon,
+    'review_business_days', public.squad_setting('review_business_days'), 'payout_business_days', public.squad_setting('payout_business_days'),
+    'payment_flow', 'A marca paga a Squad UGC; a Squad repassa o cachê ao creator.');
 $$;
 
 -- marca convida creators mapeados (só registro interno: nenhum convite é enviado por e-mail)
@@ -326,11 +357,26 @@ BEGIN
   PERFORM public.squad_notify(c.owner_id, 'Endereço recebido', c.title || ': envie o produto ao creator.', '/painel/campanhas', p_campaign);
 END $$;
 
+-- pagamento passa pela Squad: marca paga a Squad (cachê + taxa) → Squad confirma → Squad repassa ao creator
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS squad_fee_pct numeric(5,2);           -- congelada na publicação
+ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS review_due_at timestamptz;             -- depois disso aprova sozinho
+ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS auto_approved boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS squad_fee_amount numeric(10,2);
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_total numeric(10,2);    -- cachê + taxa (cobrado da marca)
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_due_at timestamptz;
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_reported_at timestamptz; -- marca disse que pagou
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_payment_note text;
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_proof_path text;
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS brand_paid_at timestamptz;     -- Squad confirmou o recebimento
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS payout_due_at timestamptz;
+ALTER TABLE public.campaign_creators ADD COLUMN IF NOT EXISTS overdue_notified_at timestamptz;
+-- payment_status: nao_devido | aguardando_marca | recebido (Squad recebeu) | repassado (creator recebeu)
+
 -- creator entrega (arquivo original e/ou link do post); nova versão nunca apaga a anterior
 CREATE OR REPLACE FUNCTION public.creator_submit(p_campaign uuid, p_file_path text, p_file_name text, p_mime text,
   p_post_url text DEFAULT NULL, p_caption text DEFAULT NULL)
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE me uuid := public.my_creator_id(); r public.campaign_creators; c public.campaigns; v integer;
+DECLARE me uuid := public.my_creator_id(); r public.campaign_creators; c public.campaigns; v integer; due timestamptz;
 BEGIN
   SELECT * INTO r FROM public.campaign_creators WHERE campaign_id = p_campaign AND creator_id = me FOR UPDATE;
   IF r.id IS NULL OR r.stage NOT IN ('producing', 'revision') THEN RAISE EXCEPTION 'Esta campanha não está aguardando entrega sua.'; END IF;
@@ -343,76 +389,161 @@ BEGIN
     RAISE EXCEPTION 'Arquivo fora da pasta desta campanha.';
   END IF;
   SELECT coalesce(max(version), 0) + 1 INTO v FROM public.contents WHERE campaign_id = p_campaign AND creator_id = me;
-  INSERT INTO public.contents (campaign_id, creator_id, content_type, media_url, published_url, caption, status, version, file_path, file_name, mime)
-  VALUES (p_campaign, me, CASE WHEN p_file_path IS NULL THEN 'post' ELSE 'ugc' END, p_file_path, nullif(p_post_url, ''), p_caption, 'reviewing', v, p_file_path, p_file_name, p_mime);
+  due := public.add_business_days(now(), public.squad_setting('review_business_days')::integer);
+  INSERT INTO public.contents (campaign_id, creator_id, content_type, media_url, published_url, caption, status, version, file_path, file_name, mime, review_due_at)
+  VALUES (p_campaign, me, CASE WHEN p_file_path IS NULL THEN 'post' ELSE 'ugc' END, p_file_path, nullif(p_post_url, ''), p_caption, 'reviewing', v, p_file_path, p_file_name, p_mime, due);
   UPDATE public.campaign_creators SET stage = 'submitted', updated_at = now() WHERE id = r.id;
-  PERFORM public.squad_notify(c.owner_id, 'Nova entrega para revisar', c.title || ': versão ' || v || ' enviada.', '/painel/campanhas', p_campaign);
+  PERFORM public.squad_notify(c.owner_id, 'Nova entrega para revisar', c.title || ': versão ' || v || ' enviada. Revise até '
+    || to_char(due AT TIME ZONE 'America/Sao_Paulo', 'DD/MM') || '; depois disso ela é aprovada automaticamente.', '/painel/campanhas', p_campaign);
   RETURN v;
+END $$;
+
+-- aprovação (pela marca ou automática): direitos começam a contar e a Squad cobra a marca
+CREATE OR REPLACE FUNCTION public.squad_approve_content(p_content uuid, p_comment text, p_auto boolean)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE k public.contents; c public.campaigns; r public.campaign_creators; months integer; v_fee numeric; v_pct numeric; v_tax numeric; v_due timestamptz;
+BEGIN
+  SELECT * INTO k FROM public.contents WHERE id = p_content FOR UPDATE;
+  IF k.status <> 'reviewing' THEN RETURN k.status; END IF;
+  SELECT * INTO c FROM public.campaigns WHERE id = k.campaign_id;
+  SELECT * INTO r FROM public.campaign_creators WHERE campaign_id = k.campaign_id AND creator_id = k.creator_id FOR UPDATE;
+  months := coalesce((r.terms_snapshot -> 'usage_rights' ->> 'months')::integer, (c.usage_rights ->> 'months')::integer, 0);
+  UPDATE public.contents SET status = 'approved', approved_at = now(), auto_approved = p_auto,
+    rights_until = CASE WHEN months > 0 THEN (now() + make_interval(months => months))::date END WHERE id = k.id;
+  INSERT INTO public.content_reviews (content_id, author_name, author_role, comment, decision, author_id)
+    VALUES (k.id, CASE WHEN p_auto THEN 'Squad UGC' ELSE 'Marca' END, CASE WHEN p_auto THEN 'system' ELSE 'brand' END, p_comment, 'approved', auth.uid());
+  v_fee := coalesce(r.fee, (c.compensation ->> 'fee')::numeric, 0);
+  v_pct := coalesce(c.squad_fee_pct, public.squad_setting('fee_pct'), 0);
+  v_tax := round(v_fee * v_pct / 100, 2);
+  v_due := now() + make_interval(days => public.squad_setting('brand_payment_days')::integer);
+  UPDATE public.campaign_creators SET stage = 'approved', updated_at = now(), payment_amount = v_fee,
+    squad_fee_amount = CASE WHEN v_fee > 0 THEN v_tax END, brand_total = CASE WHEN v_fee > 0 THEN v_fee + v_tax END,
+    brand_due_at = CASE WHEN v_fee > 0 THEN v_due END,
+    payment_status = CASE WHEN v_fee > 0 THEN 'aguardando_marca' ELSE 'nao_devido' END
+    WHERE id = r.id;
+  PERFORM public.squad_notify(public.creator_auth_id(k.creator_id), 'Entrega aprovada' || CASE WHEN p_auto THEN ' (prazo de revisão encerrado)' ELSE '' END,
+    c.title || CASE WHEN v_fee > 0 THEN ': a Squad repassa seu cachê depois de receber da marca.' ELSE ': conteúdo aprovado.' END, '/creator/ganhos', c.id);
+  IF v_fee > 0 THEN
+    PERFORM public.squad_notify(c.owner_id, 'Pagamento a fazer à Squad UGC',
+      c.title || ': R$ ' || to_char(v_fee + v_tax, 'FM999999990.00') || ' (cachê + taxa de ' || v_pct || '%) até ' || to_char(v_due AT TIME ZONE 'America/Sao_Paulo', 'DD/MM') || '.', '/painel/campanhas', c.id);
+  END IF;
+  RETURN 'approved';
 END $$;
 
 -- marca revisa: pedir ajuste (com motivo, dentro das revisões incluídas) ou aprovar
 CREATE OR REPLACE FUNCTION public.brand_review(p_content uuid, p_decision text, p_comment text DEFAULT NULL)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE k public.contents; c public.campaigns; r public.campaign_creators; used integer; months integer;
+DECLARE k public.contents; c public.campaigns; used integer;
 BEGIN
   SELECT * INTO k FROM public.contents WHERE id = p_content FOR UPDATE;
   IF k.id IS NULL OR NOT public.can_manage_campaign(k.campaign_id) THEN RAISE EXCEPTION 'Sem permissão.'; END IF;
   IF k.status <> 'reviewing' THEN RETURN k.status; END IF;
   SELECT * INTO c FROM public.campaigns WHERE id = k.campaign_id;
-  SELECT * INTO r FROM public.campaign_creators WHERE campaign_id = k.campaign_id AND creator_id = k.creator_id FOR UPDATE;
   IF p_decision = 'revision' THEN
     IF coalesce(trim(p_comment), '') = '' THEN RAISE EXCEPTION 'Explique o que precisa ser ajustado.'; END IF;
     SELECT count(*) INTO used FROM public.content_reviews cr JOIN public.contents x ON x.id = cr.content_id
       WHERE x.campaign_id = k.campaign_id AND x.creator_id = k.creator_id AND cr.decision = 'revision';
     IF used >= c.revisions_included THEN RAISE EXCEPTION 'As % revisões incluídas já foram usadas. Aprove ou combine uma revisão extra.', c.revisions_included; END IF;
     UPDATE public.contents SET status = 'revision_requested' WHERE id = k.id;
-    UPDATE public.campaign_creators SET stage = 'revision', updated_at = now() WHERE id = r.id;
+    UPDATE public.campaign_creators SET stage = 'revision', updated_at = now() WHERE campaign_id = k.campaign_id AND creator_id = k.creator_id;
     INSERT INTO public.content_reviews (content_id, author_name, author_role, comment, decision, author_id)
       VALUES (k.id, 'Marca', 'brand', p_comment, 'revision', auth.uid());
     PERFORM public.squad_notify(public.creator_auth_id(k.creator_id), 'Ajuste solicitado', c.title || ': ' || p_comment, '/creator/minhas-campanhas', c.id);
     RETURN 'revision';
   ELSIF p_decision = 'approved' THEN
-    months := coalesce((r.terms_snapshot -> 'usage_rights' ->> 'months')::integer, (c.usage_rights ->> 'months')::integer, 0);
-    UPDATE public.contents SET status = 'approved', approved_at = now(),
-      rights_until = CASE WHEN months > 0 THEN (now() + make_interval(months => months))::date END WHERE id = k.id;
-    UPDATE public.campaign_creators SET stage = 'approved', updated_at = now(),
-      payment_amount = coalesce(r.fee, (c.compensation ->> 'fee')::numeric, 0),
-      payment_status = CASE WHEN coalesce(r.fee, (c.compensation ->> 'fee')::numeric, 0) > 0 THEN 'pendente' ELSE 'nao_devido' END
-      WHERE id = r.id;
-    INSERT INTO public.content_reviews (content_id, author_name, author_role, comment, decision, author_id)
-      VALUES (k.id, 'Marca', 'brand', coalesce(nullif(trim(p_comment), ''), 'Aprovado.'), 'approved', auth.uid());
-    PERFORM public.squad_notify(public.creator_auth_id(k.creator_id), 'Entrega aprovada', c.title || ': conteúdo aprovado.', '/creator/minhas-campanhas', c.id);
-    RETURN 'approved';
+    RETURN public.squad_approve_content(k.id, coalesce(nullif(trim(p_comment), ''), 'Aprovado.'), false);
   END IF;
   RAISE EXCEPTION 'Decisão inválida.';
 END $$;
 
--- pagamento manual: a marca confirma que pagou (nota e comprovante opcional)
-CREATE OR REPLACE FUNCTION public.brand_mark_paid(p_cc uuid, p_note text, p_proof_path text DEFAULT NULL)
+-- marca avisa que pagou a Squad (referência + comprovante); quem confirma é o admin
+CREATE OR REPLACE FUNCTION public.brand_report_payment(p_cc uuid, p_note text, p_proof_path text DEFAULT NULL)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE r public.campaign_creators; c public.campaigns;
+DECLARE r public.campaign_creators; c public.campaigns; a uuid;
 BEGIN
   SELECT * INTO r FROM public.campaign_creators WHERE id = p_cc FOR UPDATE;
   IF r.id IS NULL OR NOT public.can_manage_campaign(r.campaign_id) THEN RAISE EXCEPTION 'Sem permissão.'; END IF;
-  IF r.payment_status = 'pago' THEN RETURN 'pago'; END IF;
-  IF r.payment_status <> 'pendente' THEN RAISE EXCEPTION 'Não há pagamento pendente para este creator.'; END IF;
-  IF coalesce(trim(p_note), '') = '' THEN RAISE EXCEPTION 'Informe como foi pago (ex.: PIX em 05/10, ID da transação).'; END IF;
-  UPDATE public.campaign_creators SET payment_status = 'pago', paid_at = now(), paid_by = auth.uid(), payment_note = p_note,
-    payment_proof_path = p_proof_path, stage = 'paid', updated_at = now() WHERE id = p_cc;
+  IF r.payment_status <> 'aguardando_marca' THEN RAISE EXCEPTION 'Não há pagamento em aberto para este creator.'; END IF;
+  IF coalesce(trim(p_note), '') = '' THEN RAISE EXCEPTION 'Informe a referência do pagamento (ex.: PIX em 05/10, ID E123…).'; END IF;
+  UPDATE public.campaign_creators SET brand_reported_at = now(), brand_payment_note = p_note, brand_proof_path = coalesce(p_proof_path, brand_proof_path), updated_at = now() WHERE id = p_cc;
   SELECT * INTO c FROM public.campaigns WHERE id = r.campaign_id;
-  PERFORM public.squad_notify(public.creator_auth_id(r.creator_id), 'Pagamento informado pela marca',
-    c.title || ': ' || p_note || '. Confira na sua conta.', '/creator/ganhos', c.id);
-  RETURN 'pago';
+  FOR a IN SELECT auth_user_id FROM public.profiles WHERE role IN ('admin_master', 'admin') AND auth_user_id IS NOT NULL LOOP
+    PERFORM public.squad_notify(a, 'Marca informou pagamento', c.title || ': ' || p_note || '. Confirme o recebimento.', '/painel/campanhas', c.id);
+  END LOOP;
+  RETURN 'informado';
 END $$;
 
+-- admin: confirma que a Squad recebeu da marca (abre o prazo de repasse) e registra o repasse ao creator
+CREATE OR REPLACE FUNCTION public.admin_payment(p_cc uuid, p_action text, p_note text DEFAULT NULL, p_proof_path text DEFAULT NULL)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r public.campaign_creators; c public.campaigns; due timestamptz;
+BEGIN
+  IF NOT public.squad_is_admin() THEN RAISE EXCEPTION 'Só o time Squad UGC confirma pagamentos.'; END IF;
+  SELECT * INTO r FROM public.campaign_creators WHERE id = p_cc FOR UPDATE;
+  SELECT * INTO c FROM public.campaigns WHERE id = r.campaign_id;
+  IF p_action = 'received' THEN
+    IF r.payment_status IN ('recebido', 'repassado') THEN RETURN r.payment_status; END IF;
+    IF r.payment_status <> 'aguardando_marca' THEN RAISE EXCEPTION 'Nada a receber da marca.'; END IF;
+    due := public.add_business_days(now(), public.squad_setting('payout_business_days')::integer);
+    UPDATE public.campaign_creators SET payment_status = 'recebido', brand_paid_at = now(), payout_due_at = due,
+      brand_payment_note = coalesce(nullif(trim(p_note), ''), brand_payment_note), updated_at = now() WHERE id = p_cc;
+    PERFORM public.squad_notify(c.owner_id, 'Pagamento recebido pela Squad', c.title || ': o creator será pago até ' || to_char(due AT TIME ZONE 'America/Sao_Paulo', 'DD/MM') || '.', '/painel/campanhas', c.id);
+    PERFORM public.squad_notify(public.creator_auth_id(r.creator_id), 'A marca pagou: seu repasse está a caminho',
+      c.title || ': a Squad repassa seu cachê até ' || to_char(due AT TIME ZONE 'America/Sao_Paulo', 'DD/MM') || '.', '/creator/ganhos', c.id);
+    RETURN 'recebido';
+  ELSIF p_action = 'payout' THEN
+    IF r.payment_status = 'repassado' THEN RETURN 'repassado'; END IF;
+    IF r.payment_status <> 'recebido' THEN RAISE EXCEPTION 'Confirme primeiro o recebimento da marca.'; END IF;
+    IF coalesce(trim(p_note), '') = '' THEN RAISE EXCEPTION 'Informe a referência do repasse (ex.: PIX ID E123…).'; END IF;
+    UPDATE public.campaign_creators SET payment_status = 'repassado', paid_at = now(), paid_by = auth.uid(), payment_note = p_note,
+      payment_proof_path = p_proof_path, stage = 'paid', updated_at = now() WHERE id = p_cc;
+    PERFORM public.squad_notify(public.creator_auth_id(r.creator_id), 'Cachê pago pela Squad', c.title || ': ' || p_note || '. Confira na sua conta.', '/creator/ganhos', c.id);
+    PERFORM public.squad_notify(c.owner_id, 'Creator pago', c.title || ': repasse feito pela Squad.', '/painel/campanhas', c.id);
+    RETURN 'repassado';
+  END IF;
+  RAISE EXCEPTION 'Ação inválida.';
+END $$;
+
+-- prazos: aprova entregas não revisadas e avisa de cobranças em atraso (idempotente).
+-- Roda quando alguém abre o painel e, se o pg_cron existir, a cada hora.
+CREATE OR REPLACE FUNCTION public.squad_run_deadlines()
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE k record; r record; a uuid; n integer := 0;
+BEGIN
+  FOR k IN SELECT id FROM public.contents WHERE status = 'reviewing' AND review_due_at < now() LOOP
+    PERFORM public.squad_approve_content(k.id, 'Aprovado automaticamente: o prazo de revisão de ' || public.squad_setting('review_business_days') || ' dias úteis terminou sem resposta da marca.', true);
+    n := n + 1;
+  END LOOP;
+  FOR r IN SELECT cc.id, cc.brand_total, c.title, c.id AS cid, c.owner_id FROM public.campaign_creators cc JOIN public.campaigns c ON c.id = cc.campaign_id
+           WHERE cc.payment_status = 'aguardando_marca' AND cc.brand_due_at < now() AND cc.overdue_notified_at IS NULL LOOP
+    UPDATE public.campaign_creators SET overdue_notified_at = now() WHERE id = r.id;
+    PERFORM public.squad_notify(r.owner_id, 'Pagamento em atraso', r.title || ': o prazo para pagar a Squad venceu.', '/painel/campanhas', r.cid);
+    FOR a IN SELECT auth_user_id FROM public.profiles WHERE role IN ('admin_master', 'admin') AND auth_user_id IS NOT NULL LOOP
+      PERFORM public.squad_notify(a, 'Cobrança em atraso', r.title || ': R$ ' || to_char(r.brand_total, 'FM999999990.00') || ' não pago no prazo.', '/painel/campanhas', r.cid);
+    END LOOP;
+    n := n + 1;
+  END LOOP;
+  RETURN n;
+END $$;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.schedule('squad-deadlines', '7 * * * *', 'select public.squad_run_deadlines()');
+  END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'pg_cron indisponível: prazos rodam ao abrir o painel (%).', SQLERRM;
+END $$;
+
+DROP FUNCTION IF EXISTS public.brand_mark_paid(uuid, text, text);
 REVOKE ALL ON FUNCTION public.campaign_publish(uuid), public.campaign_set_status(uuid, text), public.brand_invite(uuid, uuid[]),
   public.creator_apply(uuid, integer, text), public.brand_participant(uuid, text, text), public.creator_set_shipping(uuid, jsonb),
-  public.creator_submit(uuid, text, text, text, text, text), public.brand_review(uuid, text, text), public.brand_mark_paid(uuid, text, text),
-  public.squad_notify(uuid, text, text, text, uuid) FROM public;
+  public.creator_submit(uuid, text, text, text, text, text), public.brand_review(uuid, text, text),
+  public.brand_report_payment(uuid, text, text), public.admin_payment(uuid, text, text, text), public.squad_run_deadlines(),
+  public.squad_approve_content(uuid, text, boolean), public.squad_notify(uuid, text, text, text, uuid) FROM public;
 GRANT EXECUTE ON FUNCTION public.campaign_publish(uuid), public.campaign_set_status(uuid, text), public.brand_invite(uuid, uuid[]),
   public.creator_apply(uuid, integer, text), public.brand_participant(uuid, text, text), public.creator_set_shipping(uuid, jsonb),
-  public.creator_submit(uuid, text, text, text, text, text), public.brand_review(uuid, text, text), public.brand_mark_paid(uuid, text, text),
-  public.my_creator_id(), public.squad_role() TO authenticated;
+  public.creator_submit(uuid, text, text, text, text, text), public.brand_review(uuid, text, text),
+  public.brand_report_payment(uuid, text, text), public.admin_payment(uuid, text, text, text), public.squad_run_deadlines(),
+  public.my_creator_id(), public.squad_role(), public.squad_setting(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.squad_setting(text) TO anon;
 
 -- ---------- storage privado dos arquivos: campanhas/<campaign_id>/<creator_id>/arquivo ----------
 INSERT INTO storage.buckets (id, name, public) VALUES ('campanhas', 'campanhas', false) ON CONFLICT (id) DO NOTHING;
