@@ -14,15 +14,6 @@ import {
 } from '../types/database';
 import rawLeads from './realLeads.json';
 
-// 1. Contadores Consolidados por Fonte (exatamente como solicitado)
-export const SQUADRA_SOURCE_COUNTS: SourceCounts = {
-  manicures: 17000,
-  tiktok: 799,
-  instagram: 560,
-  retail_points: 8059,
-  unique_creators: 18359
-};
-
 // 2. Pesos padrão para o cálculo da Pontuação Operacional
 export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   engagement: 30,
