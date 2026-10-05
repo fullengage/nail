@@ -45,6 +45,7 @@ import {
   SQUADRA_AFFILIATE_APPLICATIONS
 } from '../data/squadraData';
 import { supabaseService } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 import { campaignFlow } from '../services/campaignFlow';
 
 // ids reais do banco são uuid; ids locais (demo/offline) não vão para o Supabase
@@ -163,6 +164,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Contadores reais: contados na base carregada do banco (nenhum número fixo)
   const [retailTotal, setRetailTotal] = useState<number | null>(null);
+  // contatos não saem do banco para quem não é admin: a contagem vem pronta (só números)
+  const [contactCounts, setContactCounts] = useState<{ any: number; email: number; phone: number } | null>(null);
+  useEffect(() => {
+    supabase?.rpc('squad_contact_counts').then(({ data, error }) => { if (!error && data) setContactCounts(data as { any: number; email: number; phone: number }); });
+  }, []);
   useEffect(() => {
     supabaseService.countRetailByType().then((r) => { if (r?.total) setRetailTotal(r.total); });
   }, []);
@@ -170,15 +176,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const filled = (v?: string | null) => !!v && v.trim() !== '';
     // conta de teste não entra em número nenhum
     const real = creators.filter((c) => !(c.tags || []).includes('teste'));
+    // sem a função do banco, só dá para contar se os contatos vieram (admin logado ou modo offline)
+    const localContacts = real.filter((c) => filled(c.email) || filled(c.phone)).length;
     return {
-      contact: real.filter((c) => filled(c.email) || filled(c.phone)).length,
+      contact: contactCounts?.any ?? (localContacts || null),
+      contact_email: contactCounts?.email ?? (localContacts ? real.filter((c) => filled(c.email)).length : null),
+      contact_phone: contactCounts?.phone ?? (localContacts ? real.filter((c) => filled(c.phone)).length : null),
       tiktok: real.filter((c) => filled(c.tiktok)).length,
       tiktok_shop: real.filter((c) => (c.tags || []).includes('TikTok Shop')).length,
       instagram: real.filter((c) => filled(c.instagram)).length,
       retail_points: retailTotal ?? retailPoints.length,
       unique_creators: real.length,
     };
-  }, [creators, retailPoints, retailTotal]);
+  }, [creators, retailPoints, retailTotal, contactCounts]);
 
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
     const saved = localStorage.getItem('squadra_campaigns');

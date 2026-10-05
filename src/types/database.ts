@@ -93,7 +93,10 @@ export interface ContentReviewItem {
 }
 
 export interface SourceCounts {
-  contact: number;
+  // null = contagem indisponível (contatos são protegidos; o número vem de squad_contact_counts)
+  contact: number | null;
+  contact_email: number | null;
+  contact_phone: number | null;
   tiktok: number;
   tiktok_shop: number;
   instagram: number;

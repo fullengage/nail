@@ -558,6 +558,17 @@ CREATE POLICY "campanhas_read" ON storage.objects FOR SELECT TO authenticated US
   bucket_id = 'campanhas' AND (public.can_manage_campaign(((storage.foldername(name))[1])::uuid)
     OR (storage.foldername(name))[2] = public.my_creator_id()::text));
 
+-- ---------- contagem de contatos (só números, nenhum e-mail/telefone sai do banco) ----------
+CREATE OR REPLACE FUNCTION public.squad_contact_counts()
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+    'any', count(*) FILTER (WHERE nullif(trim(email), '') IS NOT NULL OR nullif(trim(phone), '') IS NOT NULL),
+    'email', count(*) FILTER (WHERE nullif(trim(email), '') IS NOT NULL),
+    'phone', count(*) FILTER (WHERE nullif(trim(phone), '') IS NOT NULL))
+  FROM public.creators WHERE NOT ('teste' = ANY (coalesce(tags, ARRAY[]::text[])));
+$$;
+GRANT EXECUTE ON FUNCTION public.squad_contact_counts() TO anon, authenticated;
+
 -- ---------- dados de teste identificados ----------
 -- o login de demonstração ugc@squadra.app estava ligado a um creator REAL; passa a usar um creator de teste
 UPDATE public.creators SET user_id = NULL WHERE user_id = '00000000-0000-0000-0000-000000000003'

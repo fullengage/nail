@@ -131,6 +131,10 @@ let db;
   check('mudar condições cria versão 2', (await q1('service', 'select terms_version from campaigns where id=$1', [af.id])).terms_version === 2);
   await as(db, 'service', `update campaigns set is_test=true where id=$1`, [af.id]);
   check('H: campanha de teste oculta p/ visitante', (await as(db, null, 'select id from campaigns where id=$1', [af.id])).length === 0);
+  // contagem de contatos sem expor contato (seed: 2 creators com e-mail e telefone + 1 de teste sem)
+  const cnt = (await q1(null, 'select squad_contact_counts() c')).c;
+  check('contagem de contatos para o painel', cnt.any === 2 && cnt.email === 2 && cnt.phone === 2, JSON.stringify(cnt));
+  check('visitante continua sem ler e-mail', !!(await erro(() => as(db, null, 'select email from creators'))));
   console.log(`\n${ok} verificações OK, ${falhas.length} falhas`);
   falhas.forEach((f) => console.log('  ✗', f));
   process.exit(falhas.length ? 1 : 0);

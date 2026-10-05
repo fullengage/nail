@@ -149,7 +149,7 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
             {
               label: 'Com contato comercial',
               value: sourceCounts.contact,
-              sub: 'E-mail ou WhatsApp publicado',
+              sub: sourceCounts.contact == null ? 'Contagem disponível após a migração 20261006' : `${(sourceCounts.contact_email ?? 0).toLocaleString('pt-BR')} com e-mail · ${(sourceCounts.contact_phone ?? 0).toLocaleString('pt-BR')} com telefone/WhatsApp`,
               icon: <Sparkles className="w-4 h-4" />,
               highlight: false,
             },
@@ -203,7 +203,7 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
                 </div>
               </div>
               <p className="text-2xl font-bold font-display mt-2">
-                {k.value == null ? '…' : k.value.toLocaleString('pt-BR')}
+                {k.value == null ? '—' : k.value.toLocaleString('pt-BR')}
               </p>
               <p className={`text-[11px] mt-1 ${k.highlight ? 'text-black/70' : 'text-muted-foreground'}`}>
                 {k.sub}
