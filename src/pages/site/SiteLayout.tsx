@@ -12,7 +12,7 @@ export const SERIF = 'font-serif';
 export const PILL = 'inline-flex items-center gap-2 rounded-full border-2 border-black px-6 py-2.5 font-semibold transition-colors';
 export const WRAP = 'max-w-6xl mx-auto px-4 sm:px-8';
 
-export const SITE_VIEWS = ['landing', 'sobre', 'para-creators', 'para-marcas', 'contato', 'squad', 'planos'] as const;
+export const SITE_VIEWS = ['landing', 'sobre', 'para-creators', 'para-marcas', 'contato', 'squad', 'planos', 'ferramentas'] as const;
 
 export const Marquee: React.FC<{ items: string[]; className: string }> = ({ items, className }) => (
   <div className={`overflow-hidden whitespace-nowrap py-2 ${className}`} aria-hidden="true">
@@ -36,6 +36,7 @@ const NAV: [string, string][] = [
   ['para-creators', 'Para creators'],
   ['para-marcas', 'Para marcas'],
   ['planos', 'Planos'],
+  ['ferramentas', 'Calculadora grátis'],
   ['squad', 'Academy'],
   ['sobre', 'Sobre'],
   ['contato', 'Contato'],

@@ -1,5 +1,6 @@
 import { getViewPath } from './routes';
 import { FAQ_PLANOS } from '../pages/site/PlanosPage';
+import { FAQ_FERRAMENTAS } from '../pages/site/FerramentasPage';
 
 export interface PageSEO {
   title: string;
@@ -72,6 +73,17 @@ export const SEO_METADATA: Record<string, PageSEO> = {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
       mainEntity: FAQ_PLANOS.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+    },
+  },
+  ferramentas: {
+    title: 'Calculadora de engajamento grátis: Instagram e TikTok | Squad UGC',
+    description: 'Calcule a taxa de engajamento de qualquer perfil do Instagram ou TikTok e veja se a audiência é real, comparada com creators brasileiros.',
+    keywords: 'calculadora de engajamento, taxa de engajamento instagram, engajamento tiktok, seguidores falsos, audiencia real influenciador',
+    ogType: 'website',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ_FERRAMENTAS.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
     },
   },
   squad: {

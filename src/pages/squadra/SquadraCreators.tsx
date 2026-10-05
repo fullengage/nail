@@ -39,6 +39,16 @@ import { Instagram } from '../../components/ui/Icons';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CampaignType } from '../../types/database';
+import { audienceQuality, followersOf, sizeOf, SIZES, SizeKey } from '../../lib/creatorQuality';
+
+const QualityBadge: React.FC<{ c: CreatorProfile }> = ({ c }) => {
+  const q = audienceQuality(c);
+  return (
+    <span title={q.why} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${q.cls}`}>
+      <ShieldCheck className="w-3 h-3" />{q.label}{c.engagement_rate ? ` · ${c.engagement_rate}%` : ''}
+    </span>
+  );
+};
 
 interface SquadraCreatorsProps {
   onNavigate?: (view: string) => void;
@@ -58,6 +68,9 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const [selectedTier, setSelectedTier] = useState<string>('all');
   const [selectedNiche, setSelectedNiche] = useState<string>('all');
   const [minFollowers, setMinFollowers] = useState<string>('');
+  const [platform, setPlatform] = useState<'all' | 'tiktok' | 'instagram' | 'both'>('all');
+  const [size, setSize] = useState<'all' | SizeKey>('all');
+  const [quality, setQuality] = useState<'all' | 'real' | 'alta'>('all');
   const [maxFollowers, setMaxFollowers] = useState<string>('');
   const [minScore, setMinScore] = useState<string>('0');
   const [contactFilter, setContactFilter] = useState<'all' | 'email' | 'whatsapp' | 'any'>('all');
@@ -138,7 +151,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
       phone: newCreatorForm.phone.trim(),
       bio: newCreatorForm.bio.trim() || 'Creator qualificado para campanhas UGC e live commerce.',
       operational_score: newCreatorForm.tier === 'A' ? 95 : newCreatorForm.tier === 'B' ? 82 : 65,
-      engagement_rate: 4.5,
+      engagement_rate: 0,
     });
     setIsAddCreatorModalOpen(false);
     setNewCreatorForm({
@@ -181,6 +194,8 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
         if (selectedTier === 'B' && !tags.some(t => t.includes('B - Qualificado'))) return false;
         if (selectedTier === 'C' && !tags.some(t => t.includes('C - Fora do perfil'))) return false;
         if (selectedTier === 'live' && !tags.includes('Vendas por live') && !c.accepts_live_campaigns) return false;
+        if (selectedTier === 'shop' && !tags.includes('TikTok Shop')) return false;
+        if (selectedTier === 'ugc' && !tags.includes('UGC/publi')) return false;
       }
 
       // 3. Nicho
@@ -191,7 +206,15 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
       }
 
       // 4. Seguidores
-      const followers = c.tiktok_followers || c.instagram_followers || 0;
+      const followers = followersOf(c);
+      if (size !== 'all' && sizeOf(followers) !== size) return false;
+      if (platform === 'tiktok' && !c.tiktok) return false;
+      if (platform === 'instagram' && !c.instagram) return false;
+      if (platform === 'both' && !(c.tiktok && c.instagram)) return false;
+      if (quality !== 'all') {
+        const k = audienceQuality(c).key;
+        if (quality === 'alta' ? k !== 'alta' : k !== 'alta' && k !== 'real') return false;
+      }
       if (minFollowers && followers < Number(minFollowers)) return false;
       if (maxFollowers && followers > Number(maxFollowers)) return false;
 
@@ -205,7 +228,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
       return true;
     });
-  }, [creators, search, selectedTier, selectedNiche, minFollowers, maxFollowers, minScore, contactFilter]);
+  }, [creators, search, selectedTier, selectedNiche, minFollowers, maxFollowers, minScore, contactFilter, platform, size, quality]);
 
   // Paginação
   const totalPages = Math.ceil(filteredCreators.length / pageSize) || 1;
@@ -471,6 +494,8 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               <option value="B">Faixa B - Qualificado</option>
               <option value="C">Faixa C - Fora do Perfil</option>
               <option value="live">🔴 Vendem por Live</option>
+              <option value="shop">🛒 Vendem no TikTok Shop</option>
+              <option value="ugc">🎥 Fazem UGC / publi</option>
             </select>
           </div>
 
@@ -524,6 +549,21 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
         {/* Faixa de seguidores & Limpeza */}
         <div className="flex flex-wrap items-center justify-between text-xs pt-1 border-t border-border/60 gap-2">
           <div className="flex items-center space-x-2">
+            <select value={platform} onChange={(e) => { setPlatform(e.target.value as any); setCurrentPage(1); }} className="px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground">
+              <option value="all">Rede: todas</option>
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="both">TikTok + Instagram</option>
+            </select>
+            <select value={size} onChange={(e) => { setSize(e.target.value as any); setCurrentPage(1); }} className="px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground">
+              <option value="all">Porte: todos</option>
+              {(Object.keys(SIZES) as SizeKey[]).map((k) => <option key={k} value={k}>{SIZES[k].label}</option>)}
+            </select>
+            <select value={quality} onChange={(e) => { setQuality(e.target.value as any); setCurrentPage(1); }} className="px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground">
+              <option value="all">Audiência: todas</option>
+              <option value="real">Só audiência real (1%+)</option>
+              <option value="alta">Só audiência engajada (3%+)</option>
+            </select>
             <span className="text-muted-foreground font-semibold">Seguidores:</span>
             <input
               type="number"
@@ -544,7 +584,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
           <div className="flex items-center space-x-3 text-muted-foreground">
             <span>Mostrando <strong>{filteredCreators.length}</strong> de {creators.length} creators</span>
-            {(search || selectedTier !== 'all' || selectedNiche !== 'all' || minFollowers || maxFollowers || minScore !== '0' || contactFilter !== 'all') && (
+            {(search || selectedTier !== 'all' || selectedNiche !== 'all' || minFollowers || maxFollowers || minScore !== '0' || contactFilter !== 'all' || platform !== 'all' || size !== 'all' || quality !== 'all') && (
               <button
                 onClick={() => {
                   setSearch('');
@@ -554,6 +594,9 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   setMaxFollowers('');
                   setMinScore('0');
                   setContactFilter('all');
+                  setPlatform('all');
+                  setSize('all');
+                  setQuality('all');
                   setCurrentPage(1);
                 }}
                 className="text-primary hover:underline font-bold text-xs"
@@ -619,7 +662,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <th className="pb-3 pl-2">Creator & Handle</th>
                   <th className="pb-3 text-center">Pontuação Operacional</th>
                   <th className="pb-3 text-right">Seguidores TikTok</th>
-                  <th className="pb-3 text-center">Engajamento</th>
+                  <th className="pb-3 text-center">Audiência</th>
                   <th className="pb-3 text-left">Nicho & Tags</th>
                   {canSeeContacts && <th className="pb-3 text-center">Contatos</th>}
                   <th className="pb-3 text-right pr-2">Ação</th>
@@ -681,7 +724,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                             : 'bg-muted text-muted-foreground border-border'
                         }`}>
                           <Award className="w-3 h-3 mr-1" />
-                          {creator.operational_score || 80}
+                          {creator.operational_score || '—'}
                         </span>
                       </td>
 
@@ -691,15 +734,15 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                       </td>
 
                       {/* Engajamento */}
-                      <td className="py-3 text-center font-semibold text-emerald-600">
-                        {creator.engagement_rate || 4.2}%
+                      <td className="py-3 text-center">
+                        <QualityBadge c={creator} />
                       </td>
 
                       {/* Nicho & Tags */}
                       <td className="py-3">
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
                           <Badge variant="secondary" size="sm">
-                            {creator.specialties?.[0] || 'Bem-estar'}
+                            {creator.specialties?.[0] || (creator.tags || []).find((t) => !/^(origem:|[ABC] - |micro|médio|macro)/.test(t)) || 'UGC'}
                           </Badge>
                           {(creator.tags || []).slice(0, 1).map((t, idx) => (
                             <span key={idx} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
@@ -822,22 +865,22 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Seguidores</span>
                     <span className="text-xs font-bold text-foreground">
-                      {(creator.tiktok_followers || 0) > 1000 ? `${Math.round((creator.tiktok_followers || 0) / 1000)}k` : creator.tiktok_followers}
+                      {followersOf(creator) >= 1000 ? `${Math.round(followersOf(creator) / 1000).toLocaleString('pt-BR')}k` : followersOf(creator)}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Score</span>
-                    <span className="text-xs font-bold text-emerald-600">{creator.operational_score || 80}</span>
+                    <span className="text-xs font-bold text-emerald-600">{creator.operational_score || '—'}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Engaj.</span>
-                    <span className="text-xs font-bold text-foreground">{creator.engagement_rate || 4.2}%</span>
+                    <span className="text-xs font-bold text-foreground">{creator.engagement_rate ? `${creator.engagement_rate}%` : '—'}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
                   <Badge variant="secondary" size="sm">
-                    {creator.specialties?.[0] || 'Bem-estar'}
+                    {creator.specialties?.[0] || (creator.tags || []).find((t) => !/^(origem:|[ABC] - |micro|médio|macro)/.test(t)) || 'UGC'}
                   </Badge>
                   <div className="flex items-center space-x-2">
                     <button
@@ -1316,9 +1359,9 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
             {/* Métricas Principais */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-xl bg-card border border-border text-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Seguidores TikTok</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold">Seguidores</span>
                 <p className="text-base font-extrabold text-foreground mt-0.5">
-                  {(detailCreator.tiktok_followers || 0).toLocaleString('pt-BR')}
+                  {followersOf(detailCreator).toLocaleString('pt-BR')}
                 </p>
               </div>
               {detailCreator.instagram && (
@@ -1334,6 +1377,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                 <p className="text-base font-extrabold text-emerald-600 mt-0.5">
                   {detailCreator.engagement_rate ? `${detailCreator.engagement_rate}%` : '—'}
                 </p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{audienceQuality(detailCreator).why}</p>
               </div>
               <div className="p-3 rounded-xl bg-card border border-border text-center">
                 <span className="text-[10px] text-muted-foreground uppercase font-bold">Pontuação Operacional</span>
@@ -1368,7 +1412,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <span className="font-semibold text-foreground">{detailCreator.phone}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              {detailCreator.tiktok && <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">TikTok:</span>
                 <a
                   href={tiktokUrl(detailCreator.tiktok) || '#'}
@@ -1376,15 +1420,36 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   rel="noreferrer"
                   className="text-primary font-bold hover:underline flex items-center"
                 >
-                  <span>{tiktokUrl(detailCreator.tiktok)?.replace('https://www.', '') || 'Não informado'}</span>
+                  <span>{tiktokUrl(detailCreator.tiktok)?.replace('https://www.', '')}</span>
                   <ExternalLink className="w-3 h-3 ml-1" />
                 </a>
-              </div>
+              </div>}
             </div>
 
             {/* Rodapé do Modal */}
             <div className="flex justify-end space-x-2 pt-2 border-t border-border">
               <Button variant="secondary" onClick={() => setDetailCreator(null)}>Fechar</Button>
+              <Button
+                variant="secondary"
+                title="Mesmo porte, mesma rede e nicho, só audiência real"
+                onClick={() => {
+                  // ponytail: parecido = mesmo porte + rede + nicho; similaridade por conteúdo quando houver embeddings
+                  const d = detailCreator;
+                  setSearch('');
+                  setSelectedTier('all');
+                  setSelectedNiche(d.specialties?.[0] || 'all');
+                  setMinFollowers('');
+                  setMaxFollowers('');
+                  setSize(sizeOf(followersOf(d)));
+                  setPlatform(d.tiktok && d.instagram ? 'both' : d.instagram ? 'instagram' : 'tiktok');
+                  setQuality('real');
+                  setCurrentPage(1);
+                  setDetailCreator(null);
+                  showToast(`Mostrando creators parecidos com ${d.professional_name}`);
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1" />Ver parecidos
+              </Button>
               <Button
                 onClick={() => {
                   createSquadFromCreators(campaigns[0]?.id || '', [detailCreator.id]);
