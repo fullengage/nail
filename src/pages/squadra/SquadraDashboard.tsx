@@ -147,37 +147,37 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {[
             {
-              label: 'Com contato comercial',
-              value: sourceCounts.contact,
-              sub: 'E-mail ou WhatsApp publicado',
+              label: 'Base Manicures',
+              value: sourceCounts.manicures,
+              sub: '+100% auditadas no setor',
               icon: <Sparkles className="w-4 h-4" />,
               highlight: false,
             },
             {
-              label: 'Creators no TikTok',
+              label: 'TikTok Leads',
               value: sourceCounts.tiktok,
-              sub: `${sourceCounts.tiktok_shop.toLocaleString('pt-BR')} vendem no TikTok Shop`,
+              sub: `${(sourceCounts.tiktok_mined ?? creators.length).toLocaleString('pt-BR')} perfis minerados`,
               icon: <Video className="w-4 h-4" />,
               highlight: false,
             },
             {
-              label: 'Creators no Instagram',
+              label: 'Instagram UGC',
               value: sourceCounts.instagram,
-              sub: 'Perfil confirmado',
+              sub: 'Qualificados para seeding',
               icon: <Instagram className="w-4 h-4" />,
               highlight: false,
             },
             {
               label: 'Rede de PDVs',
               value: sourceCounts.retail_points,
-              sub: 'Redes com 10+ lojas (Receita Federal)',
+              sub: `${(sourceCounts.retail_active ?? retailPoints.length).toLocaleString('pt-BR')} no catálogo ativo`,
               icon: <Store className="w-4 h-4" />,
               highlight: false,
             },
             {
-              label: 'Creators na base',
+              label: 'Creators Únicos',
               value: sourceCounts.unique_creators,
-              sub: 'Brasileiros, sem marcas ou lojas',
+              sub: 'Deduplicados por @, e-mail',
               icon: <Users className="w-4 h-4" />,
               highlight: true,
             },
@@ -271,7 +271,7 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
           {[
-            ['1. Base mapeada', funnel.base, 'creators no TikTok'],
+            ['1. Base mapeada', sourceCounts.unique_creators, 'creators consolidados'],
             ['2. Qualificados', funnel.qualified, 'faixa A + B'],
             ['3. No squad', funnel.inSquad, 'aprovados em campanha'],
             ['4. Produto enviado', funnel.shipped, 'envio em diante'],
