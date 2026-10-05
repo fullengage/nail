@@ -118,7 +118,7 @@ export const ClientManualPage: React.FC<ClientManualPageProps> = ({ onNavigate }
             </div>
             <div className="p-3 bg-card rounded-xl border border-border space-y-1 text-xs font-mono">
               <p><strong>Login:</strong> admin@nailclubpro.com.br</p>
-              <p><strong>Senha:</strong> admin123</p>
+              <p><strong>Senha:</strong> enviada pelo time Squad UGC</p>
             </div>
             <Button
               size="sm"

@@ -145,7 +145,7 @@ def load(path=None):
         if '=' in line and not line.startswith('#'):
             k, v = line.strip().split('=', 1)
             env[k] = v.strip().strip('"')
-    url, key = env['VITE_SUPABASE_URL'].rstrip('/'), env['VITE_SUPABASE_ANON_KEY']
+    url, key = env['VITE_SUPABASE_URL'].rstrip('/'), (env.get('SUPABASE_SERVICE_ROLE_KEY') or env['VITE_SUPABASE_ANON_KEY'])
     H = {'apikey': key, 'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
 
     def req(method, path, body=None, extra=None):

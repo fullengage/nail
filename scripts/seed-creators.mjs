@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
-const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+const sb = createClient(process.env.VITE_SUPABASE_URL, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY));
 const html = readFileSync(new URL('../data/cliente.html', import.meta.url), 'utf8');
 const leads = JSON.parse(html.match(/window\.__LEADS__=(\[.*?\]);<\/script>/s)[1]);
 

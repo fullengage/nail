@@ -33,7 +33,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
 
   // Login form state
   const [email, setEmail] = useState('admin@squadra.app');
-  const [password, setPassword] = useState('Squadra@2026');
+  // senha de demonstração só aparece preenchida em modo demo
+  const DEMO_PWD = import.meta.env.VITE_DEMO_MODE === 'true' ? 'Squadra@2026' : '';
+  const [password, setPassword] = useState(DEMO_PWD);
   const [authError, setAuthError] = useState('');
 
   // Creator Register state
@@ -82,13 +84,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
     setAuthError('');
     if (level === 'admin_master') {
       setEmail('admin@squadra.app');
-      setPassword('Squadra@2026');
+      setPassword(DEMO_PWD);
     } else if (level === 'brand_admin') {
       setEmail('empresa@squadra.app');
-      setPassword('Squadra@2026');
+      setPassword(DEMO_PWD);
     } else {
       setEmail('ugc@squadra.app');
-      setPassword('Squadra@2026');
+      setPassword(DEMO_PWD);
     }
   };
 

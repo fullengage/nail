@@ -154,7 +154,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   // Login Function (Supabase Auth + Database Profile Sync)
-  const login = async (email: string, password = 'Squadra@2026'): Promise<{ success: boolean; message?: string }> => {
+  // atalho sem senha (e-mail com admin/empresa/creator) só existe em modo demonstração
+  const DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+  const login = async (email: string, password = ''): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
 
@@ -165,6 +167,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: cleanEmail,
           password: password
         });
+
+        // senha errada não entra (antes o perfil era carregado só pelo e-mail)
+        if (authErr || !authData?.user) {
+          if (!DEMO) {
+            setIsLoading(false);
+            return { success: false, message: 'E-mail ou senha incorretos.' };
+          }
+          throw new Error(authErr?.message || 'sem sessão');
+        }
 
         // 2. Buscar perfil na tabela public.profiles
         const { data: profile, error: profErr } = await supabase
@@ -180,11 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Se for creator, busca na tabela public.creators
           if (typedProfile.role === 'creator') {
-            const { data: cData } = await supabase
-              .from('creators')
-              .select('*')
-              .eq('email', cleanEmail)
-              .maybeSingle();
+            // contatos são protegidos no banco: o creator lê o próprio cadastro pela função my_creator
+            const { data: cData } = await supabase.rpc('my_creator').maybeSingle();
             if (cData) {
               setCreatorProfile(cData as CreatorProfile);
               localStorage.setItem('squadra_creator_profile', JSON.stringify(cData));
@@ -213,7 +221,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 3. Fallback inteligente para os 3 níveis locais
+    if (!DEMO) {
+      setIsLoading(false);
+      return { success: false, message: 'E-mail ou senha incorretos.' };
+    }
+
+    // 3. Fallback de demonstração para os 3 níveis locais (só com VITE_DEMO_MODE=true)
     if (cleanEmail.includes('admin')) {
       loginAsLevel('admin_master');
       setIsLoading(false);

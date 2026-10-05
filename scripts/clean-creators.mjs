@@ -74,7 +74,7 @@ console.log(`realLeads.json: ${clean.length} creators | instagram real: ${clean.
 
 // Supabase: corrige as linhas existentes pelo @ do TikTok
 if (process.env.VITE_SUPABASE_URL) {
-  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+  const sb = createClient(process.env.VITE_SUPABASE_URL, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY));
   let ok = 0, fail = 0;
   for (let i = 0; i < clean.length; i += 20) {
     await Promise.all(clean.slice(i, i + 20).map(async (c) => {

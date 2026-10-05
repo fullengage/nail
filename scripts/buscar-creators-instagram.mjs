@@ -44,7 +44,7 @@ async function actor(id, input) {
 
 if (process.argv.includes('--apply')) {
   const { createClient } = await import('@supabase/supabase-js');
-  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+  const sb = createClient(process.env.VITE_SUPABASE_URL, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY));
   const rows = readFileSync(OUT, 'utf8').trim().split('\n').slice(1).map((l) => JSON.parse(`[${l}]`));
   const { data: ex } = await sb.from('creators').select('instagram').neq('instagram', '');
   const known = new Set((ex || []).map((r) => (r.instagram || '').toLowerCase()));

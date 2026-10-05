@@ -64,7 +64,7 @@ for x in L[:5]: print('  ', x['ig'], x['seg'], x['nome'], x['uf'], x['cat'])
 
 if '--apply' in sys.argv:
     env = dict(l.strip().split('=', 1) for l in open('.env', encoding='utf8') if '=' in l and not l.startswith('#'))
-    URL, KEY = env['VITE_SUPABASE_URL'], env['VITE_SUPABASE_ANON_KEY']
+    URL, KEY = env['VITE_SUPABASE_URL'], env.get('SUPABASE_SERVICE_ROLE_KEY') or env['VITE_SUPABASE_ANON_KEY']  # service_role: escrita protegida por RLS
     H = {'apikey': KEY, 'Authorization': f'Bearer {KEY}', 'Content-Type': 'application/json'}
     def call(method, path, body=None):
         req = urllib.request.Request(URL + '/rest/v1/' + path, method=method, headers=H, data=json.dumps(body).encode() if body is not None else None)

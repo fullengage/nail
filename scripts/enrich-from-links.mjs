@@ -131,7 +131,7 @@ if (!process.argv.includes('--apply')) {
   console.log(`realLeads.json: +${filled.instagram} instagram, +${filled.phone} whatsapp, +${filled.email} e-mail, +${filled.link} links de bio (${updates.length} creators alterados)`);
   if (process.env.VITE_SUPABASE_URL) {
     const { createClient } = await import('@supabase/supabase-js');
-    const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+    const sb = createClient(process.env.VITE_SUPABASE_URL, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY));
     let ok = 0;
     for (const l of updates) {
       const { error } = await sb.from('creators').update({

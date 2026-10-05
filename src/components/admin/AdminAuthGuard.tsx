@@ -19,7 +19,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
   // If already authenticated as admin_master or admin, bypass guard
   const isMasterAdmin = role === 'admin_master' || role === 'admin';
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
-    return isMasterAdmin || localStorage.getItem('ncp_admin_unlocked') === 'true';
+    return isMasterAdmin || (isDemoMode && localStorage.getItem('ncp_admin_unlocked') === 'true');
   });
 
   const [email, setEmail] = useState('admin@squadra.app');
@@ -33,7 +33,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
     setErrorMsg('');
 
     try {
-      if (email === 'admin@squadra.app' && (password === 'Squadra@2026' || password === 'admin123')) {
+      if (isDemoMode && email === 'admin@squadra.app' && (password === 'Squadra@2026' || password === 'admin123')) {
         loginAsLevel('admin_master');
         setIsAdminUnlocked(true);
         localStorage.setItem('ncp_admin_unlocked', 'true');
@@ -57,6 +57,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
   };
 
   const handleQuickMasterUnlock = () => {
+    if (!isDemoMode) return;
     loginAsLevel('admin_master');
     setIsAdminUnlocked(true);
     localStorage.setItem('ncp_admin_unlocked', 'true');
@@ -134,14 +135,14 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
 
           {/* Quick Demo Access Trigger */}
           <div className="pt-3 border-t border-border space-y-3 text-center">
-            <button
+            {isDemoMode && <button
               type="button"
               onClick={handleQuickMasterUnlock}
               className="w-full py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-500/20 transition-all flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               Acesso Rápido Master (1. Administrador Geral)
-            </button>
+            </button>}
 
             {onNavigate && (
               <button

@@ -10,6 +10,24 @@ const friendlyLeadError = (error: { code?: string; message?: string }) =>
 // organização padrão (multiempresa ainda não ativado no login)
 const ORG_ID = '00000000-0000-0000-0000-000000000001';
 
+// Colunas públicas (migração 20261005_protege_contatos): e-mail, telefone e gerente só chegam
+// para admin logado, pelas funções admin_*_contacts. Nunca usar select('*') nessas tabelas.
+const CREATOR_COLS = 'id,user_id,professional_name,bio,city,state,instagram,tiktok,youtube,instagram_followers,tiktok_followers,youtube_followers,operational_score,engagement_rate,tags,specialties,techniques,media_kit_url,portfolio_cover_url,profile_completion,verification_status,created_at,updated_at';
+const RETAIL_COLS = 'id,organization_id,name,trade_name,network,cnpj,type,city,state,address,status,created_at';
+
+// junta os contatos (se o usuário for admin; para os demais a função devolve vazio)
+async function withContacts<T extends { id: string }>(rows: T[], fn: string, args: Record<string, unknown> = {}): Promise<T[]> {
+  if (!supabase || rows.length === 0) return rows;
+  const byId = new Map<string, Record<string, unknown>>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.rpc(fn, args).range(from, from + 999);
+    if (error || !data) break;
+    (data as { id: string }[]).forEach((c) => byId.set(c.id, c));
+    if ((data as unknown[]).length < 1000) break;
+  }
+  return byId.size ? rows.map((r) => ({ ...r, ...byId.get(r.id) })) : rows;
+}
+
 export const supabaseService = {
   // Check connection status
   async checkConnection(): Promise<{ connected: boolean; message: string; tableCount?: number }> {
@@ -43,9 +61,9 @@ export const supabaseService = {
   async getRetailPoints(): Promise<RetailPoint[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { data, error } = await supabase.from('retail_points').select('*').not('cnpj', 'is', null).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('retail_points').select(RETAIL_COLS).not('cnpj', 'is', null).order('created_at', { ascending: false });
       if (error || !data) return null;
-      return data as unknown as RetailPoint[];
+      return withContacts(data as unknown as RetailPoint[], 'admin_retail_contacts');
     } catch {
       return null;
     }
@@ -55,7 +73,7 @@ export const supabaseService = {
   async queryRetailPoints(opts: { q?: string; state?: string; type?: string; page: number; pageSize: number }): Promise<{ rows: RetailPoint[]; total: number } | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      let query = supabase.from('retail_points').select('*', { count: 'exact' }).not('cnpj', 'is', null);
+      let query = supabase.from('retail_points').select(RETAIL_COLS, { count: 'exact' }).not('cnpj', 'is', null);
       const q = (opts.q || '').trim().replace(/[,()*%]/g, ' ');
       if (q) {
         const digits = q.replace(/\D/g, '');
@@ -99,10 +117,10 @@ export const supabaseService = {
   // Lojas de uma rede (detalhe para o time Squad UGC)
   async retailStoresOf(network: string, state?: string): Promise<RetailPoint[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
-    let q = supabase.from('retail_points').select('*').eq('network', network).not('cnpj', 'is', null);
+    let q = supabase.from('retail_points').select(RETAIL_COLS).eq('network', network).not('cnpj', 'is', null);
     if (state && state !== 'all') q = q.eq('state', state);
     const { data, error } = await q.order('state').order('city').limit(1000);
-    return error || !data ? null : (data as unknown as RetailPoint[]);
+    return error || !data ? null : withContacts(data as unknown as RetailPoint[], 'admin_retail_contacts', { p_network: network });
   },
 
   // Totais reais por tipo de PDV (para os cards do topo)
@@ -133,7 +151,7 @@ export const supabaseService = {
     if (!isSupabaseConfigured || !supabase || points.length === 0) return null;
     try {
       const rows = points.map((p) => ({ ...p, cnpj: p.cnpj || null, phone: p.phone || null, email: p.email || null, manager_name: p.manager_name || null, address: p.address || null }));
-      const { data, error } = await supabase.from('retail_points').insert(rows).select('*');
+      const { data, error } = await supabase.from('retail_points').insert(rows).select(RETAIL_COLS);
       if (error || !data) return null;
       return data as unknown as RetailPoint[];
     } catch {
@@ -148,10 +166,10 @@ export const supabaseService = {
       // o PostgREST devolve no máximo 1000 linhas por chamada: pagina até acabar
       const all: CreatorProfile[] = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase.from('creators').select('*').order('created_at').range(from, from + 999);
-        if (error || !data) return all.length ? all : null;
+        const { data, error } = await supabase.from('creators').select(CREATOR_COLS).order('created_at').range(from, from + 999);
+        if (error || !data) return all.length ? withContacts(all, 'admin_creator_contacts') : null;
         all.push(...(data as unknown as CreatorProfile[]));
-        if (data.length < 1000) return all;
+        if (data.length < 1000) return withContacts(all, 'admin_creator_contacts');
       }
     } catch {
       return null;

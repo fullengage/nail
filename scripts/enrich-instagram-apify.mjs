@@ -64,7 +64,7 @@ if (process.argv.includes('--apply')) {
   console.log(`realLeads.json: ${changed} creators com seguidores do Instagram`);
   if (process.env.VITE_SUPABASE_URL) {
     const { createClient } = await import('@supabase/supabase-js');
-    const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+    const sb = createClient(process.env.VITE_SUPABASE_URL, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY));
     let ok = 0;
     for (const l of updates) {
       const { error } = await sb.from('creators').update({ instagram_followers: l.instagram_followers }).eq('tiktok', l.tiktok);
