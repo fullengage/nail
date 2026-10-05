@@ -29,3 +29,7 @@ data/receita/
 data/ig-cache.json
 data/ig-descoberta.json
 data/creators_instagram_novos.csv
+data/tt-descoberta.json
+data/creators_tiktok_novos.csv
+data/ig-run.log
+data/tt-run.log

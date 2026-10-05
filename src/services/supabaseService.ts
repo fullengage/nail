@@ -145,9 +145,14 @@ export const supabaseService = {
   async getCreators(): Promise<CreatorProfile[] | null> {
     if (!isSupabaseConfigured || !supabase) return null;
     try {
-      const { data, error } = await supabase.from('creators').select('*');
-      if (error || !data) return null;
-      return data as unknown as CreatorProfile[];
+      // o PostgREST devolve no máximo 1000 linhas por chamada: pagina até acabar
+      const all: CreatorProfile[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase.from('creators').select('*').order('created_at').range(from, from + 999);
+        if (error || !data) return all.length ? all : null;
+        all.push(...(data as unknown as CreatorProfile[]));
+        if (data.length < 1000) return all;
+      }
     } catch {
       return null;
     }
