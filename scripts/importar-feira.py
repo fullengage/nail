@@ -46,9 +46,19 @@ for x in reg:
     for k in ('nome', 'email', 'tel', 'cidade', 'uf', 'cat'):
         y[k] = y[k] or x[k]
     y['seg'] = max(y['seg'], x['seg']); y['fontes'].add(x['fonte'])
-sem_ig = [x for x in reg if not x['ig']]
+import unicodedata
+nm = lambda t: re.sub(r'\s+', ' ', unicodedata.normalize('NFKD', t).encode('ascii', 'ignore').decode().lower()).strip()
+com_ig = {nm(x['nome']) for x in por_ig.values()}
+sem_ig = {}
+for x in reg:  # sem @: entra pelo nome, sem repetir quem já entrou pelo Instagram
+    if x['ig'] or not x['nome'] or nm(x['nome']) in com_ig: continue
+    y = sem_ig.setdefault(nm(x['nome']), dict(x, fontes=set()))
+    for k in ('email', 'tel', 'cidade', 'uf', 'cat'):
+        y[k] = y[k] or x[k]
+    y['seg'] = max(y['seg'], x['seg']); y['fontes'].add(x['fonte'])
+sem_ig = list(sem_ig.values())
 L = sorted(por_ig.values(), key=lambda x: -x['seg'])
-print(f"linhas lidas: {len(reg)} | com Instagram: {len(L)} únicas | sem Instagram (fora): {len(sem_ig)}")
+print(f"linhas lidas: {len(reg)} | com Instagram: {len(L)} únicas | sem Instagram (entram pelo nome): {len(sem_ig)}")
 print(f"com e-mail: {sum(1 for x in L if x['email'])} | com WhatsApp: {sum(1 for x in L if x['tel'])} | com UF: {sum(1 for x in L if x['uf'])}")
 for x in L[:5]: print('  ', x['ig'], x['seg'], x['nome'], x['uf'], x['cat'])
 
@@ -80,5 +90,19 @@ if '--apply' in sys.argv:
         novos.append(dict(professional_name=x['nome'] or x['ig'], bio='', city=x['cidade'], state=x['uf'], instagram='@' + x['ig'], tiktok='',
                           instagram_followers=x['seg'], engagement_rate=0, operational_score=0, tags=tags, specialties=[x['cat']] if x['cat'] else [],
                           email=x['email'] or None, phone=x['tel'] or None, media_kit_url=f"https://www.instagram.com/{x['ig']}", verification_status='unverified'))
+    H['Range'] = '0-0'
+    ja_feira = set()
+    for i in range(0, 100000, 1000):
+        H['Range'] = f'{i}-{i + 999}'
+        page = call('GET', 'creators?select=professional_name&instagram=eq.&tags=cs.{origem:feira-influence}')
+        ja_feira |= {nm(c['professional_name']) for c in page}
+        if len(page) < 1000: break
+    H.pop('Range')
+    for x in sem_ig:
+        if nm(x['nome']) in ja_feira: continue
+        tags = ['UGC', 'origem:feira-influence', 'sem Instagram'] + ([tier(x['seg'])] if x['seg'] else []) + ([x['cat']] if x['cat'] else [])
+        novos.append(dict(professional_name=x['nome'], bio='', city=x['cidade'], state=x['uf'], instagram='', tiktok='',
+                          instagram_followers=x['seg'], engagement_rate=0, operational_score=0, tags=tags, specialties=[x['cat']] if x['cat'] else [],
+                          email=x['email'] or None, phone=x['tel'] or None, media_kit_url=None, verification_status='unverified'))
     for i in range(0, len(novos), 200): call('POST', 'creators', novos[i:i + 200])
     print(f'supabase: {len(novos)} novos inseridos | {atual} já existiam (marcados como feira e completados)')
