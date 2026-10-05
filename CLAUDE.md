@@ -6,5 +6,7 @@
 - Quando falta um dado, mostrar "—" (nunca um valor padrão como 4.2% ou score 80).
 
 ## Privacidade
-- Empresas (brand) nunca veem e-mail/WhatsApp de creators nem telefone de PDV. CSV só para admin.
+- Empresas (brand) nunca veem e-mail/WhatsApp de creators nem telefone/e-mail/gerente de PDV. CSV só para admin.
+- Proteção no banco (migração 20261005_protege_contatos): **nunca usar select('*') em creators/retail_points** — usar CREATOR_COLS/RETAIL_COLS de supabaseService; contatos só via rpc admin_creator_contacts/admin_retail_contacts.
+- Login: sem senha padrão e sem atalho por e-mail fora de VITE_DEMO_MODE=true. Scripts gravam com SUPABASE_SERVICE_ROLE_KEY (só no .env local).
 - `data/` com planilhas e contatos fica fora do git.
