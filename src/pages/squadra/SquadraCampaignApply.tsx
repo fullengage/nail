@@ -20,7 +20,9 @@ interface SquadraCampaignApplyProps {
 
 export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug, onNavigate }) => {
   const { campaigns } = useData();
-  const campaign = campaigns.find(c => c.slug === slug) || campaigns[0];
+  const querySlug = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('slug') || new URLSearchParams(window.location.search).get('campanha')) : null;
+  const targetSlug = slug || querySlug;
+  const campaign = campaigns.find(c => c.slug === targetSlug || c.id === targetSlug) || campaigns[0];
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -37,6 +39,32 @@ export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug
   });
 
   const [submitted, setSubmitted] = useState(false);
+
+  if (!campaign) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4 text-center space-y-4 animate-in fade-in duration-300">
+        <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-inner">
+          <Sparkles className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-bold font-display text-foreground">Campanha Não Encontrada</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+          Nenhuma campanha aberta para inscrições públicas foi encontrada no momento ou as vagas já foram preenchidas.
+        </p>
+        <div className="pt-4 flex items-center justify-center gap-3">
+          {onNavigate && (
+            <Button onClick={() => onNavigate('landing')} variant="outline">
+              Voltar ao Início
+            </Button>
+          )}
+          {onNavigate && (
+            <Button onClick={() => onNavigate('campaigns')}>
+              Ver Campanhas no Painel
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,7 +119,7 @@ export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug
           <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-extrabold uppercase">
             Inscrição Pública
           </span>
-          <span className="text-xs text-muted-foreground">• Squad Oficial</span>
+          <span className="text-xs text-muted-foreground">• Squad UGC Oficial</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-foreground">
           {campaign.title}
@@ -104,12 +132,12 @@ export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug
           <div>
             <span className="text-muted-foreground block text-[10px]">Cachê Estimado</span>
             <span className="font-bold text-foreground">
-              {campaign.commission_value > 0 ? `R$ ${campaign.commission_value},00 fixo` : 'Envio de Produtos'}
+              {(campaign.commission_value || 0) > 0 ? `R$ ${campaign.commission_value},00 fixo` : 'Envio de Produtos'}
             </span>
           </div>
           <div>
             <span className="text-muted-foreground block text-[10px]">Prazo de Inscrição</span>
-            <span className="font-bold text-foreground">{campaign.application_deadline}</span>
+            <span className="font-bold text-foreground">{campaign.application_deadline || 'A definir'}</span>
           </div>
         </div>
       </div>

@@ -70,6 +70,7 @@ export const CreatorMyCampaigns: React.FC = () => {
           ) : (
             producingList.map((part) => {
               const camp = campaigns.find((c) => c.id === part.campaign_id) || campaigns[0];
+              if (!camp) return null;
               return (
                 <Card key={part.id} variant="elevated" className="border-primary/20 space-y-5 p-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-border">
@@ -141,6 +142,7 @@ export const CreatorMyCampaigns: React.FC = () => {
           ) : (
             submittedList.map((part) => {
               const camp = campaigns.find((c) => c.id === part.campaign_id) || campaigns[0];
+              if (!camp) return null;
               const sub = mySubmissions.find((s) => s.campaign_id === camp.id);
               return (
                 <Card key={part.id} variant="elevated" className="p-6 space-y-4 border-amber-500/30">
@@ -191,6 +193,7 @@ export const CreatorMyCampaigns: React.FC = () => {
           ) : (
             completedList.map((part) => {
               const camp = campaigns.find((c) => c.id === part.campaign_id) || campaigns[0];
+              if (!camp) return null;
               return (
                 <Card key={part.id} variant="elevated" className="p-6 border-emerald-500/30 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -216,6 +219,7 @@ export const CreatorMyCampaigns: React.FC = () => {
         <div className="space-y-4">
           {myApplications.map((app) => {
             const camp = campaigns.find((c) => c.id === app.campaign_id) || campaigns[0];
+            if (!camp) return null;
             return (
               <Card key={app.id} variant="elevated" className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-start space-x-3">

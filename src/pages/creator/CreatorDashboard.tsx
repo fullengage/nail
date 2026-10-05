@@ -136,6 +136,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onNavigate }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activeParticipations.map((part) => {
               const camp = campaigns.find((c) => c.id === part.campaign_id) || campaigns[0];
+              if (!camp) return null;
               return (
                 <Card key={part.id} variant="elevated" className="p-5 border-primary/20 space-y-4">
                   <div className="flex items-start space-x-3">
