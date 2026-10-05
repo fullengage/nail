@@ -160,51 +160,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return SQUADRA_RETAIL_POINTS;
   });
 
-  // Contadores dinâmicos calculados em tempo real com base no estado real de creators e PDVs
+  // Contadores reais: contados na base carregada do banco (nenhum número fixo)
   const [retailTotal, setRetailTotal] = useState<number | null>(null);
   useEffect(() => {
     supabaseService.countRetailByType().then((r) => { if (r?.total) setRetailTotal(r.total); });
   }, []);
   const sourceCounts = useMemo<SourceCounts>(() => {
-    const baselineManicures = 17000;
-    const baselineCreators = 808;
-    const baselineTiktokLeads = 799;
-    const baselineInstagramUgc = 560;
-    const baselineRetailActive = 1000;
-    const baselineRetailTotal = 8059;
-
-    const totalCreators = creators.length;
-    const creatorsWithTiktok = creators.filter((c) => !!c.tiktok && c.tiktok.trim() !== '').length;
-    const creatorsWithInsta = creators.filter((c) => !!c.instagram && c.instagram.trim() !== '').length;
-
-    // Delta em relação aos 808 da base inicial
-    const tiktokDelta = creatorsWithTiktok - baselineCreators;
-    const instaDelta = creatorsWithInsta - 169;
-
-    const tiktok = Math.max(0, baselineTiktokLeads + (tiktokDelta > 0 ? tiktokDelta : 0));
-    const instagram = Math.max(0, baselineInstagramUgc + (instaDelta > 0 ? instaDelta : Math.min(0, totalCreators - baselineCreators)));
-
-    // PDVs em tempo real
-    const retailDelta = (retailTotal ?? retailPoints.length) - 200;
-    const retail_active = Math.max(0, baselineRetailActive + (retailDelta > 0 ? retailDelta : 0));
-    const retail_points = Math.max(0, baselineRetailTotal + (retailDelta > 0 ? retailDelta : 0));
-
-    // Creators Únicos: 17.000 manicures + tiktok + instagram + novos cadastros únicos
-    // No baseline: 17.000 + 799 + 560 = 18.359
-    const uniqueDelta = totalCreators - baselineCreators;
-    const unique_creators = Math.max(0, baselineManicures + baselineTiktokLeads + baselineInstagramUgc + (uniqueDelta > 0 ? uniqueDelta : 0));
-
     const filled = (v?: string | null) => !!v && v.trim() !== '';
     return {
-      manicures: baselineManicures,
-      tiktok,
-      instagram,
-      retail_points,
-      unique_creators,
-      tiktok_mined: totalCreators,
-      retail_active,
       contact: creators.filter((c) => filled(c.email) || filled(c.phone)).length,
+      tiktok: creators.filter((c) => filled(c.tiktok)).length,
       tiktok_shop: creators.filter((c) => (c.tags || []).includes('TikTok Shop')).length,
+      instagram: creators.filter((c) => filled(c.instagram)).length,
+      retail_points: retailTotal ?? retailPoints.length,
+      unique_creators: creators.length,
     };
   }, [creators, retailPoints, retailTotal]);
 

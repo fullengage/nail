@@ -88,17 +88,13 @@ export interface ContentReviewItem {
 }
 
 export interface SourceCounts {
-  manicures: number;
+  contact: number;
   tiktok: number;
+  tiktok_shop: number;
   instagram: number;
   retail_points: number;
   unique_creators: number;
-  tiktok_mined?: number;
-  retail_active?: number;
-  contact?: number;
-  tiktok_shop?: number;
 }
-
 
 export type CampaignType = 
   | 'product_seeding'
