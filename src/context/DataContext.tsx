@@ -45,6 +45,7 @@ import {
   SQUADRA_AFFILIATE_APPLICATIONS
 } from '../data/squadraData';
 import { supabaseService } from '../services/supabaseService';
+import { campaignFlow } from '../services/campaignFlow';
 
 // ids reais do banco são uuid; ids locais (demo/offline) não vão para o Supabase
 const isUuid = (v?: string) => !!v && /^[0-9a-f-]{36}$/i.test(v);
@@ -167,13 +168,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
   const sourceCounts = useMemo<SourceCounts>(() => {
     const filled = (v?: string | null) => !!v && v.trim() !== '';
+    // conta de teste não entra em número nenhum
+    const real = creators.filter((c) => !(c.tags || []).includes('teste'));
     return {
-      contact: creators.filter((c) => filled(c.email) || filled(c.phone)).length,
-      tiktok: creators.filter((c) => filled(c.tiktok)).length,
-      tiktok_shop: creators.filter((c) => (c.tags || []).includes('TikTok Shop')).length,
-      instagram: creators.filter((c) => filled(c.instagram)).length,
+      contact: real.filter((c) => filled(c.email) || filled(c.phone)).length,
+      tiktok: real.filter((c) => filled(c.tiktok)).length,
+      tiktok_shop: real.filter((c) => (c.tags || []).includes('TikTok Shop')).length,
+      instagram: real.filter((c) => filled(c.instagram)).length,
       retail_points: retailTotal ?? retailPoints.length,
-      unique_creators: creators.length,
+      unique_creators: real.length,
     };
   }, [creators, retailPoints, retailTotal]);
 
@@ -259,13 +262,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ncp_products');
     if (saved) return JSON.parse(saved);
-    return MOCK_PRODUCTS;
+    return isDemoMode ? MOCK_PRODUCTS : [];
   });
 
   const [earnings, setEarnings] = useState<CreatorEarning[]>(() => {
     const saved = localStorage.getItem('ncp_earnings');
     if (saved) return JSON.parse(saved);
-    return MOCK_EARNINGS;
+    return isDemoMode ? MOCK_EARNINGS : [];
   });
 
   const [courses, setCourses] = useState<Course[]>(() => {
@@ -277,13 +280,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [portfolio, setPortfolio] = useState<CreatorPortfolioItem[]>(() => {
     const saved = localStorage.getItem('ncp_portfolio');
     if (saved) return JSON.parse(saved);
-    return MOCK_PORTFOLIO;
+    return isDemoMode ? MOCK_PORTFOLIO : [];
   });
 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('ncp_notifications');
     if (saved) return JSON.parse(saved);
-    return MOCK_NOTIFICATIONS;
+    return isDemoMode ? MOCK_NOTIFICATIONS : [];
   });
 
   const [brands, setBrands] = useState<BrandProfile[]>(() => {
@@ -500,20 +503,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Creator PIX Withdrawal Request
-  const requestPixWithdrawal = (creatorId: string, pixKey: string) => {
-    setEarnings((prev) =>
-      prev.map((e) =>
-        e.creator_id === creatorId && e.status === 'approved'
-          ? { ...e, status: 'paid', paid_at: new Date().toISOString() }
-          : e
-      )
-    );
+  // não existe saque: nada é marcado como pago aqui (só a marca informa pagamento, no servidor)
+  const requestPixWithdrawal = (_creatorId: string, pixKey: string) => {
 
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-c1',
-      title: '💸 Saque PIX Solicitado!',
-      message: `Sua solicitação de saque para a chave ${pixKey} foi recebida e está em processamento bancário.`,
+      title: 'Saque não disponível',
+      message: `Não há saque pela plataforma (chave ${pixKey} não usada). Os pagamentos são feitos pela marca e informados no painel.`,
       type: 'payment',
       read: false,
       link: '/creator/earnings',
@@ -766,8 +763,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       user_id: 'user-c1',
-      title: '💰 Lote PIX Concluído!',
-      message: 'Todos os cachês e comissões aprovados foram transferidos via PIX com sucesso.',
+      title: 'Pagamentos marcados (demonstração)',
+      message: 'Registro local de demonstração: nenhum valor foi transferido.',
       type: 'payment',
       read: false,
       link: '/creator/earnings',
@@ -846,7 +843,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newParticipants: CampaignParticipant[] = [];
     const camp = campaigns.find((c) => c.id === campaignId);
     // respeita as vagas da campanha: não deixa o squad passar do limite
-    let freeSlots = camp ? Math.max(0, (camp.creator_slots || 0) - (camp.occupied_slots || 0)) : Infinity;
+    // convite não ocupa vaga: a vaga só é ocupada quando a marca contrata quem aceitou as condições
+    let freeSlots = camp && !isUuid(campaignId) ? Math.max(0, (camp.creator_slots || 0) - (camp.occupied_slots || 0)) : Infinity;
     let duplicates = 0;
     let noSlot = 0;
     creatorIds.forEach((cId) => {
@@ -867,11 +865,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           campaign_id: campaignId,
           creator_id: cId,
           creator: creatorObj,
-          stage: 'squad_approved',
-          status: 'selected',
+          stage: 'invited',
+          status: 'invited',
           operational_score: creatorObj?.operational_score ?? 0,
           fee: fee ?? camp?.commission_value ?? 0,
-          notes: 'Adicionado via seleção em massa no painel de Creators.',
+          notes: 'Convidado pelo painel de Creators (perfil mapeado: ainda não aceitou).',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -881,13 +879,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (newParticipants.length > 0) {
       setParticipants((prev) => [...newParticipants, ...prev]);
       if (isUuid(campaignId)) {
-        const toSave = newParticipants.filter((p) => isUuid(p.creator_id));
-        supabaseService.addParticipants(toSave).then((saved) => {
-          if (!saved) return;
-          // troca os ids locais pelos do banco
-          const idMap = new Map(toSave.map((p, i) => [p.id, saved[i]?.id || p.id]));
-          setParticipants((prev) => prev.map((p) => (idMap.has(p.id) ? { ...p, id: idMap.get(p.id)! } : p)));
-        });
+        // campanha real: o convite é registrado no servidor (brand_invite); nenhum e-mail é enviado
+        const toSave = newParticipants.filter((p) => isUuid(p.creator_id)).map((p) => p.creator_id);
+        campaignFlow.invite(campaignId, toSave).catch((e) => console.warn('Convite não registrado:', e.message));
         supabaseService.updateCampaign(campaignId, { occupied_slots: (camp?.occupied_slots || 0) + newParticipants.length });
       }
       // Update occupied slots

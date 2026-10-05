@@ -1,0 +1,17 @@
+import { newDraft, applyIntent, validate, validateAll, cost, suggestTitle } from '../src/lib/campaignDraft.ts';
+const a = (c: unknown, m: string) => { if (!c) { console.log('FALHOU:', m); process.exitCode = 1; } else console.log('ok', m); };
+const d = newDraft();
+a(validate(d, 1)['product.name'], 'produto obrigatório');
+d.product.name = 'Sérum'; d.title = suggestTitle(d.intent, 'Sérum');
+a(Object.keys(validate(d, 1)).length === 0, 'passo 1 ok com produto + nome sugerido');
+a(Object.keys(validateAll(d)).length === 0, 'modelo de vídeos já é publicável');
+a(cost(d).fees === 5 * 150 && cost(d).pending.includes('frete de envio'), 'custo conhecido + pendências');
+const af = applyIntent(d, 'comissao');
+a(af.title === 'Afiliados · Sérum', 'nome sugerido acompanha o tipo');
+a(af.compensation.fee === undefined && af.compensation.commission_pct === 10, 'comissão não vira cachê zero');
+af.compensation.payment_terms = '';
+a(validate(af, 2)['compensation.payment_terms'], 'comissão exige regra de pagamento');
+const s = applyIntent(d, 'seeding'); s.compensation.product = false;
+a(validate(s, 2).compensation, 'sem remuneração nenhuma bloqueia');
+const t = { ...d, titleTouched: true, title: 'Meu nome' };
+a(applyIntent(t, 'live').title === 'Meu nome', 'nome editado não é sobrescrito');

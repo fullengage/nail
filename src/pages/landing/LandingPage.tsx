@@ -6,8 +6,6 @@ import { formatNumber } from '../../lib/utils';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { LIME, INK, HEAVY, SERIF, PILL, Marquee, SiteActions } from '../site/SiteLayout';
 import { NavLink } from '../../components/common/NavLink';
-import { SQUADRA_CAMPAIGNS } from '../../data/squadraData';
-import { MOCK_CREATORS } from '../../data/mockData';
 
 // Home do site institucional (estilo theugcclub.com)
 export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => {
@@ -32,8 +30,9 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
   }, []);
 
   // Garante que a Home sempre exibe campanhas ativas e creators de destaque reais (sem lista de espera)
-  const displayCampaigns = publicCampaigns.length > 0 ? publicCampaigns : SQUADRA_CAMPAIGNS;
-  const displayCreators = featuredCreators.length > 0 ? featuredCreators : MOCK_CREATORS.slice(0, 4);
+  // só campanhas reais publicadas (nada de exemplo aparecendo como se fosse real)
+  const displayCampaigns = publicCampaigns;
+  const displayCreators = featuredCreators;
 
   return (
     <div>
@@ -193,11 +192,15 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
           </button>
         </div>
 
+        {displayCampaigns.length === 0 && !isLoadingData ? (
+          <p className="p-6 border-2 border-dashed border-black/30 rounded-2xl text-center font-semibold">Nenhuma campanha aberta neste momento. Cadastre-se para ser avisado(a) quando abrir a próxima.</p>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {displayCampaigns.slice(0, 3).map((camp) => (
             <CampaignCard key={camp.id} campaign={camp} onApply={openCreator} />
           ))}
         </div>
+        )}
       </section>
 
       {/* 4. PARA MARCAS (bloco grafite, como o "Who are we?") */}
@@ -242,6 +245,7 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
       </section>
 
       {/* 5. TOP CREATORS */}
+      {displayCreators.length > 0 && (
       <section className="max-w-6xl mx-auto px-4 sm:px-8 py-16 lg:py-24">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
           <div>
@@ -274,6 +278,7 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
           ))}
         </div>
       </section>
+      )}
 
       {/* 6. ACADEMY */}
       <section id="academy" className="bg-[#F0EFEC]">

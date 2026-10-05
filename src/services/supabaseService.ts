@@ -444,15 +444,16 @@ export const supabaseService = {
   async getPublicCampaigns(): Promise<Campaign[]> {
     if (!isSupabaseConfigured || !supabase) return [];
     try {
+      // campanhas reais abertas (o banco esconde rascunhos e campanhas de teste de visitantes)
       const { data, error } = await supabase
-        .from('ncp_campaigns')
+        .from('campaigns')
         .select('*')
-        .in('status', ['open', 'published'])
-        .gte('end_date', new Date().toISOString().split('T')[0])
-        .order('created_at', { ascending: false });
+        .in('status', ['open', 'selecting'])
+        .order('published_at', { ascending: false })
+        .limit(6);
 
       if (error || !data) return [];
-      return data as unknown as Campaign[];
+      return (data as any[]).map((c) => ({ ...c, cover_url: c.cover_url || c.product?.image_url || '', description: c.description || c.brief?.show || '' })) as unknown as Campaign[];
     } catch {
       return [];
     }

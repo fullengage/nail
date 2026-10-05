@@ -24,7 +24,9 @@ import { PrivacyPage } from './pages/legal/PrivacyPage';
 import { SquadraDashboard } from './pages/squadra/SquadraDashboard';
 import { SquadraCreators } from './pages/squadra/SquadraCreators';
 import { SquadraRetail } from './pages/squadra/SquadraRetail';
-import { SquadraCampaigns } from './pages/squadra/SquadraCampaigns';
+import { CampaignsPage } from './pages/squadra/CampaignsPage';
+import { BrandHome } from './pages/brand/BrandHome';
+import { CreatorOpportunitiesReal, CreatorWorkReal, CreatorEarningsReal } from './pages/creator/CreatorFlow';
 import { SquadraCampaignApply } from './pages/squadra/SquadraCampaignApply';
 import { SquadraAffiliates } from './pages/squadra/SquadraAffiliates';
 import { SquadraReports } from './pages/squadra/SquadraReports';
@@ -33,17 +35,12 @@ import { SquadraSettings } from './pages/squadra/SquadraSettings';
 import { SquadraResetPassword } from './pages/squadra/SquadraResetPassword';
 
 // Creator Legacy / Dedicated Pages
-import { CreatorDashboard } from './pages/creator/CreatorDashboard';
-import { CreatorCampaigns } from './pages/creator/CreatorCampaigns';
-import { CreatorMyCampaigns } from './pages/creator/CreatorMyCampaigns';
 import { CreatorPortfolio } from './pages/creator/CreatorPortfolio';
-import { CreatorEarnings } from './pages/creator/CreatorEarnings';
 import { CreatorAcademy } from './pages/creator/CreatorAcademy';
 import { CreatorProfilePage } from './pages/creator/CreatorProfile';
 
 // Brand Legacy / Dedicated Pages
 import { BrandDashboard } from './pages/brand/BrandDashboard';
-import { BrandCampaigns } from './pages/brand/BrandCampaigns';
 import { BrandCreators } from './pages/brand/BrandCreators';
 import { BrandApplications } from './pages/brand/BrandApplications';
 import { BrandContent } from './pages/brand/BrandContent';
@@ -147,13 +144,14 @@ const MainApp: React.FC = () => {
     switch (currentView) {
       // 1. Squadra Core Suite
       case 'dashboard':
-        return <SquadraDashboard onNavigate={setCurrentView} />;
+        // a marca entra pela tarefa (criar/acompanhar campanha), não pelas métricas de prospecção
+        return role === 'brand_admin' || role === 'brand' ? <BrandHome onNavigate={setCurrentView} /> : <SquadraDashboard onNavigate={setCurrentView} />;
       case 'creators':
         return <SquadraCreators onNavigate={setCurrentView} />;
       case 'retail':
         return <SquadraRetail />;
       case 'campaigns':
-        return <SquadraCampaigns onNavigatePublicApply={() => setCurrentView('public-apply')} />;
+        return <CampaignsPage />;
       case 'affiliates':
         return <SquadraAffiliates />;
       case 'reports':
@@ -181,15 +179,16 @@ const MainApp: React.FC = () => {
 
       // 3. Creator Dedicated Views
       case 'creator-dashboard':
-        return checkPermission('creator', <CreatorDashboard onNavigate={setCurrentView} />);
+        // painel do creator = próximas ações reais (sem saldos de exemplo)
+        return checkPermission('creator', <CreatorWorkReal />);
       case 'creator-campaigns':
-        return checkPermission('creator', <CreatorCampaigns />);
+        return checkPermission('creator', <CreatorOpportunitiesReal />);
       case 'creator-my-campaigns':
-        return checkPermission('creator', <CreatorMyCampaigns />);
+        return checkPermission('creator', <CreatorWorkReal />);
       case 'creator-portfolio':
         return checkPermission('creator', <CreatorPortfolio />);
       case 'creator-earnings':
-        return checkPermission('creator', <CreatorEarnings />);
+        return checkPermission('creator', <CreatorEarningsReal />);
       case 'creator-academy':
         return <CreatorAcademy />;
       case 'creator-profile':
@@ -197,11 +196,11 @@ const MainApp: React.FC = () => {
 
       // 4. Brand Dedicated Views
       case 'brand-dashboard':
-        return <SquadraDashboard onNavigate={setCurrentView} />;
+        return <BrandHome onNavigate={setCurrentView} />;
       case 'brand-campaigns':
-        return checkPermission('brand', <BrandCampaigns onNavigate={setCurrentView} />);
+        return checkPermission('brand', <CampaignsPage />);
       case 'brand-create-campaign':
-        return checkPermission('brand', <BrandCampaigns onNavigate={setCurrentView} openCreateWizard={true} />);
+        return checkPermission('brand', <CampaignsPage startBuilding key="novo" />);
       case 'brand-creators':
         return <SquadraCreators onNavigate={setCurrentView} />;
       case 'brand-applications':

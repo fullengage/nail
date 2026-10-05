@@ -10,3 +10,10 @@
 - Proteção no banco (migração 20261005_protege_contatos): **nunca usar select('*') em creators/retail_points** — usar CREATOR_COLS/RETAIL_COLS de supabaseService; contatos só via rpc admin_creator_contacts/admin_retail_contacts.
 - Login: sem senha padrão e sem atalho por e-mail fora de VITE_DEMO_MODE=true. Scripts gravam com SUPABASE_SERVICE_ROLE_KEY (só no .env local).
 - `data/` com planilhas e contatos fica fora do git.
+
+## Fluxo de campanha (migração 20261006_fluxo_campanha)
+- Campanhas reais usam `src/services/campaignFlow.ts`. Mudança de estado só por funções do banco (campaign_publish, creator_apply, brand_participant, creator_submit, brand_review, brand_mark_paid) — nunca `update` direto de status/stage/pagamento.
+- Estados: campanha draft → open → selecting → in_progress → completed; creator invited → applied (aceite registrado) → hired → shipping → producing → submitted → revision → approved → paid.
+- "Publicada" ≠ "contratado"; perfil mapeado ≠ confirmado. Convite não envia e-mail.
+- Pagamento é manual (fora da plataforma): nada de saque, PIX, fatura ou escrow simulados.
+- Teste do banco: `npm i --no-save @electric-sql/pglite && node scripts/test-fluxo/fluxo.test.cjs` (precisa passar 100%).

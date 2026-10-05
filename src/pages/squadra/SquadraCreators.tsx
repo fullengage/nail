@@ -338,63 +338,35 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const platformFee = Math.round(subtotalCreators * 0.15);
   const totalSquadInvestment = subtotalCreators + platformFee;
   const pixDiscount = Math.round(totalSquadInvestment * 0.05);
-  const finalPayable = paymentMethod === 'pix' ? totalSquadInvestment - pixDiscount : totalSquadInvestment;
+  const finalPayable = totalSquadInvestment; // estimativa, sem desconto de pagamento (não há cobrança na plataforma)
 
   const targetCampaign = campaigns.find((c) => c.id === targetCampaignId);
   const freeSlots = targetCampaign ? Math.max(0, (targetCampaign.creator_slots || 0) - (targetCampaign.occupied_slots || 0)) : Infinity;
   const willAdd = squadMode === 'new_campaign' ? countSelected : Math.min(countSelected, freeSlots);
   const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
+  // convidar ≠ contratar: o creator precisa aceitar as condições e a marca confirmar.
+  // Nada de fatura/PIX aqui: o pagamento acontece depois da entrega aprovada, fora da plataforma.
   const handleConfirmAndHireSquad = async () => {
     if (selectedIds.length === 0) return;
-
-    let finalCampaignId = targetCampaignId;
-    let finalTitle = targetCampaign?.title || 'Campanha Squad UGC';
-
-    if (squadMode === 'new_campaign' || !finalCampaignId) {
-      const defaultTitle = `Squad ${newCampType === 'ugc' ? 'Vídeos UGC' : newCampType === 'live_commerce' ? 'Live Commerce' : 'Seeding'} — ${countSelected} Creators`;
-      const title = newCampTitle.trim() || defaultTitle;
-      finalTitle = title;
-      finalCampaignId = await createCampaign({
-        brand_id: 'brand-1',
-        title,
-        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-        description: `Squad de ${countSelected} creators alocados para entrega de conteúdos exclusivos.`,
-        objective: newCampObjective.trim() || 'Produção de conteúdo UGC de alta conversão para engajamento e vendas.',
-        campaign_type: newCampType,
-        cover_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800',
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-        application_deadline: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
-        creator_slots: countSelected,
-        occupied_slots: countSelected,
-        budget: finalPayable,
-        commission_type: 'fixed',
-        commission_value: feePerCreator,
-        requirements_text: 'Creators qualificados com pontuação operacional validada.',
-        deliverables_text: '1x Vídeo vertical de alta qualidade + stories com cupom de desconto.',
-        status: 'open'
-      });
+    if (squadMode === 'new_campaign' || !targetCampaignId) {
+      // campanha nova: monta no assistente; os escolhidos ficam pré-selecionados para convidar após publicar
+      sessionStorage.setItem('squad_pending_invites', JSON.stringify(selectedIds));
+      setIsSquadModalOpen(false);
+      setSelectedIds([]);
+      onNavigate?.('brand-create-campaign');
+      return;
     }
-
-    createSquadFromCreators(finalCampaignId, selectedIds, feePerCreator);
-
-    const invId = `FAT-${Math.floor(100000 + Math.random() * 900000)}`;
-    setInvoiceData({
-      invoiceId: invId,
-      campaignId: finalCampaignId,
-      campaignTitle: finalTitle,
-      creatorsCount: countSelected,
-      subtotal: subtotalCreators,
-      fee: platformFee,
-      total: finalPayable,
-      pixCode: `00020126580014BR.GOV.BCB.PIX0136squadra-fatura-${invId}@squadugc.com.br520400005303986540${finalPayable}.005802BR5916SQUADRA UGC BRAS6009SAO PAULO62070503***6304`,
-      paymentMethod: paymentMethod === 'pix' ? 'PIX Imediato (5% OFF)' : paymentMethod === 'boleto' ? 'Boleto Faturado 15/30 Dias PJ' : 'Cartão de Crédito Corporativo'
-    });
-
+    if (!['open', 'selecting', 'in_progress'].includes(targetCampaign?.status || '')) {
+      showToast('Publique a campanha antes de convidar creators.');
+      return;
+    }
+    createSquadFromCreators(targetCampaignId, selectedIds, feePerCreator);
+    showToast(`${countSelected} creator(s) convidado(s) para "${targetCampaign?.title}". Eles veem o convite ao entrar; nenhum e-mail foi enviado.`);
     setIsSquadModalOpen(false);
-    setIsInvoiceModalOpen(true);
     setSelectedIds([]);
+    sessionStorage.setItem('squadra_open_campaign', targetCampaignId);
+    onNavigate?.('campaigns');
   };
 
   return (
@@ -633,7 +605,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-black rounded-full text-xs font-bold flex items-center space-x-1 shadow-sm"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Criar Squad ({selectedIds.length})</span>
+              <span>Convidar para campanha ({selectedIds.length})</span>
             </button>
             <button
               onClick={() => setSelectedIds([])}
@@ -951,10 +923,10 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   <span className="text-[11px] text-muted-foreground">Proposta & Orçamento</span>
                 </div>
                 <h3 className="font-bold font-display text-foreground text-xl mt-1">
-                  Contratação & Orçamento do Squad
+                  Convidar creators para uma campanha
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Defina o cachê dos creators, a campanha de destino e veja exatamente como é calculada a cobrança.
+                  Escolha a campanha e veja a estimativa de custo. Os creators só entram depois de aceitar as condições.
                 </p>
               </div>
               <button
@@ -1153,18 +1125,10 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                   </span>
                   <span className="font-semibold text-foreground">{brl(platformFee)}</span>
                 </div>
-                {paymentMethod === 'pix' && (
-                  <div className="flex justify-between items-center text-emerald-600 font-semibold">
-                    <span>Desconto PIX à Vista (5% OFF)</span>
-                    <span>- {brl(pixDiscount)}</span>
-                  </div>
-                )}
                 <div className="pt-2 border-t border-border flex justify-between items-baseline">
                   <div>
-                    <span className="text-sm font-bold font-display text-foreground">Investimento Total</span>
-                    <span className="text-[10px] text-muted-foreground block">
-                      {paymentMethod === 'pix' ? 'Valor final no PIX' : 'Valor faturado / cartão'}
-                    </span>
+                    <span className="text-sm font-bold font-display text-foreground">Estimativa se todos forem contratados</span>
+                    <span className="text-[10px] text-muted-foreground block">Taxa confirmada na proposta. Nada é cobrado agora.</span>
                   </div>
                   <span className="text-2xl font-extrabold font-display text-primary">
                     {brl(finalPayable)}
@@ -1173,47 +1137,10 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               </div>
             </div>
 
-            {/* 4. Forma de Pagamento */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                4. Como você prefere pagar?
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {[
-                  { id: 'pix' as const, label: 'PIX (5% OFF)', sub: 'Liberação imediata', icon: <QrCode className="w-4 h-4 text-emerald-600" /> },
-                  { id: 'boleto' as const, label: 'Boleto PJ (15/30d)', sub: 'Faturado com NF-e', icon: <Receipt className="w-4 h-4 text-primary" /> },
-                  { id: 'credit_card' as const, label: 'Cartão Corporativo', sub: 'Até 6x sem juros', icon: <CreditCard className="w-4 h-4 text-blue-500" /> }
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(m.id)}
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
-                      paymentMethod === m.id
-                        ? 'border-primary bg-primary/10 shadow-sm'
-                        : 'border-border hover:border-muted-foreground/30 bg-card'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-1.5">
-                      {m.icon}
-                      <span className="text-xs font-bold text-foreground">{m.label}</span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{m.sub}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 5. Garantia Escrow da Plataforma */}
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-start space-x-2.5">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="space-y-0.5 text-foreground">
-                <span className="font-bold text-emerald-700 block">Custódia & Garantia de Entrega (Escrow)</span>
-                <p className="text-black/80 text-[11px] leading-relaxed">
-                  O valor investido fica retido em custódia segura na Squad UGC. O cachê só é liberado para o creator após você receber, avaliar e aprovar o conteúdo no painel.
-                </p>
-              </div>
+            {/* Como funciona o pagamento (sem cobrança aqui) */}
+            <div className="p-3.5 rounded-2xl bg-muted/50 border border-border text-[11px] text-foreground leading-relaxed">
+              <strong>Isto é um convite, não uma contratação.</strong> Cada creator vê as condições, aceita ou não, e você escolhe quem contratar na campanha.
+              O cachê é pago por você depois de aprovar a entrega (fora da plataforma) e informado no painel. Nenhum valor é cobrado agora.
             </div>
 
             {/* Rodapé com Ações */}
@@ -1232,7 +1159,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                 className="bg-primary hover:bg-primary/90 text-black font-bold border-2 border-black rounded-full px-6 py-2.5 shadow-lg flex items-center space-x-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmar & Contratar Squad ({brl(finalPayable)})</span>
+                <span>{squadMode === 'new_campaign' ? 'Criar campanha com estes creators' : `Convidar ${countSelected} creator(s)`}</span>
               </Button>
             </div>
 
@@ -1456,10 +1383,10 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                 onClick={() => {
                   createSquadFromCreators(campaigns[0]?.id || '', [detailCreator.id]);
                   setDetailCreator(null);
-                  showToast(`${detailCreator.professional_name} adicionada ao Squad da campanha!`);
+                  showToast(`${detailCreator.professional_name} convidado(a). Só entra no squad depois de aceitar as condições e você contratar.`);
                 }}
               >
-                Convidar para Squad
+                Convidar para campanha
               </Button>
             </div>
 

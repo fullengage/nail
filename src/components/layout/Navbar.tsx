@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { campaignFlow } from '../../services/campaignFlow';
+import { PATH_TO_VIEW } from '../../lib/routes';
 import { useAuth, SQUADRA_AUTH_LEVELS } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { 
@@ -22,7 +24,22 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
   const { user, role, logout, loginAsLevel } = useAuth();
-  const { notifications, markNotificationAsRead } = useData();
+  const { notifications: localNotifs, markNotificationAsRead } = useData();
+  // com login: notificações reais do servidor; sem login (demonstração): as locais
+  const [serverNotifs, setServerNotifs] = useState<typeof localNotifs | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const user = await campaignFlow.session().catch(() => null);
+      if (!user) { if (alive) setServerNotifs(null); return; }
+      const ns = await campaignFlow.notifications().catch(() => []);
+      if (alive) setServerNotifs(ns.map((n) => ({ id: n.id, user_id: '', title: n.title, message: n.body || '', type: 'campaign', read: !!n.read_at, link: n.link || '', created_at: n.created_at })) as typeof localNotifs);
+    };
+    load();
+    const t = window.setInterval(load, 60000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [user?.id]);
+  const notifications = serverNotifs ?? localNotifs;
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -188,8 +205,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
                     <div
                       key={n.id}
                       onClick={() => {
-                        markNotificationAsRead(n.id);
-                        if (n.link) onNavigate(n.link.replace('/', ''));
+                        if (serverNotifs) { campaignFlow.markRead(n.id); setServerNotifs((p) => p && p.map((x) => (x.id === n.id ? { ...x, read: true } : x))); }
+                        else markNotificationAsRead(n.id);
+                        if (n.link) onNavigate(PATH_TO_VIEW[n.link] || n.link.replace('/', ''));
                         setShowNotifs(false);
                       }}
                       className={`p-3 text-left rounded-xl transition-colors cursor-pointer hover:bg-muted/60 ${

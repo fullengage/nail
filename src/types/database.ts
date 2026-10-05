@@ -24,7 +24,12 @@ export type PipelineStage =
   | 'reviewing'
   | 'approved'
   | 'published'
-  | 'completed';
+  | 'completed'
+  | 'hired'
+  | 'revision'
+  | 'paid'
+  | 'rejected'
+  | 'cancelled';
 
 export interface ScoreWeights {
   engagement: number;     // ex: 30
@@ -117,6 +122,9 @@ export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'cancelled
 
 export type ParticipantStatus = 
   | 'selected'
+  | 'invited'
+  | 'applied'
+  | 'hired'
   | 'product_sent'
   | 'producing'
   | 'submitted'

@@ -124,12 +124,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
             <div className="mt-3 pt-2.5 border-t border-primary/10">
               <div className="flex items-center justify-between text-[11px] font-semibold text-foreground/80 mb-1">
                 <span>Completude do Mídia Kit</span>
-                <span className="text-primary font-bold">{creatorProfile?.profile_completion || 95}%</span>
+                <span className="text-primary font-bold">{creatorProfile?.profile_completion ?? 0}%</span>
               </div>
               <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-primary to-amber-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${creatorProfile?.profile_completion || 95}%` }}
+                  style={{ width: `${creatorProfile?.profile_completion ?? 0}%` }}
                 ></div>
               </div>
             </div>
