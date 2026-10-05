@@ -11,7 +11,13 @@ const TOKEN = process.env.APIFY_TOKEN;
 const CACHE = new URL('../data/ig-descoberta.json', import.meta.url);
 const OUT = new URL('../data/creators_instagram_novos.csv', import.meta.url);
 const LEADS = JSON.parse(readFileSync(new URL('../src/data/realLeads.json', import.meta.url), 'utf8'));
-const HASHTAGS = ['ugcbrasil', 'ugcbr', 'ugcbrazil', 'ugccreatorbrasil', 'creatorugc', 'criadoradeconteudougc', 'ugccreator', 'publipost'];
+const HASHTAGS = [
+  // gerais de UGC / publi
+  'ugcbrasil', 'ugcbr', 'ugcbrazil', 'ugccreatorbrasil', 'creatorugc', 'criadoradeconteudougc', 'ugccreator', 'publipost',
+  'conteudougc', 'criadoraugc', 'ugcportfolio', 'microinfluenciadora', 'influenciadoradigital', 'creatorbrasil',
+  // por segmento
+  'ugcbeleza', 'ugcmoda', 'ugcfitness', 'ugcskincare', 'ugcmaquiagem', 'ugcmaternidade', 'ugctech', 'ugcgastronomia', 'ugcpet', 'ugccasa',
+];
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
 const db = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : { tags: {}, profiles: {} };
 const save = () => writeFileSync(CACHE, JSON.stringify(db));
@@ -20,17 +26,35 @@ const save = () => writeFileSync(CACHE, JSON.stringify(db));
 const CREATOR = /\bugc\b|creator|criador[ae]? de conte[uú]do|influenc|parcerias?|publi|m[ií]dia ?kit|media ?kit|contato comercial|comercial:|collab|presskit|portf[oó]lio/i;
 const BRAND = /\bloja\b|compre|comprar|frete|envio para|enviamos|atacado|varejo|cnpj|pedidos?|encomend|delivery|whats.*pedido|site oficial|loja oficial|cat[aá]logo|cupom de desconto da loja|distribuidora|ind[uú]stria|fábrica|fabrica|ltda|\bme\b|eireli/i;
 const BRAND_CAT = /shopping|retail|brand|product\/service|clothing|cosmetics store|beauty, cosmetic|e-commerce|company|business|store|restaurant|food & beverage|health\/beauty$/i;
-const PT = /[ãõçáéíóúâê]|\b(você|vocês|para|com|meu|minha|conteúdo|contato|parcerias?)\b/i;
+const PAGE = /frases|versos|mensage(m|ns)|t[eé]cnicas de conquista|te ajudando se relacionar|reflex[oõ]es|memes?|curiosidades|not[ií]cias|fofoca|palavras para|vers[ií]culo|ora[cç][aã]o|motiva[cç][aã]o di[aá]ria/i;
+// Brasil de verdade (não basta "português": espanhol e Portugal ficam de fora)
+const BR_STRONG = /🇧🇷|\bbrasil\b|\bbrazil\b|brasileir|\+55|\(\d{2}\)\s?9?\d{4}|\b(SP|RJ|MG|BH|PR|RS|SC|BA|PE|CE|GO|DF|ES|PA|AM|MT|MS|PB|RN|AL|SE|PI|MA|TO|RO|AC|AP|RR)\b|s[aã]o paulo|rio de janeiro|belo horizonte|curitiba|porto alegre|salvador|recife|fortaleza|bras[ií]lia|goi[aâ]nia|florian[oó]polis|campinas|manaus|bel[eé]m|vit[oó]ria|natal|jo[aã]o pessoa|macei[oó]|aracaju|teresina|cuiab[aá]|santos/;
+const PT_BR = /[ãõ]|\b(voc[eê]s?|conte[uú]do|parcerias?|contato|n[aã]o|tamb[eé]m|minha|meu|pra)\b/i;
+const ES = /ñ|¿|¡|\b(contenido|creadora de contenido|colaboraciones|también|aquí|mexic|argentin|colombi|españa|chile|per[uú]|cdmx|buenos aires)\b|🇲🇽|🇦🇷|🇨🇴|🇪🇸|🇨🇱|🇵🇪|🇺🇾|🇻🇪/i;
+const PORTUGAL = /🇵🇹|\bportugal\b|lisboa|\+351|\bporto\b(?!\s*alegre)/i;
+const isBrazil = (t) => (BR_STRONG.test(t) || /brasil|brazil|s[aã]o paulo|rio de janeiro/i.test(t) || PT_BR.test(t)) && !ES.test(t) && !PORTUGAL.test(t);
 
 export function classify(p) {
   const bio = `${p.biography || ''} ${p.fullName || ''}`;
   const cat = p.businessCategoryName || '';
   const isBrand = BRAND.test(bio) || (BRAND_CAT.test(cat) && !/creator|blogger|influencer|personal|public figure|artist|digital/i.test(cat));
-  const isCreator = CREATOR.test(bio) || /creator|blogger|influencer|digital creator|public figure/i.test(cat);
-  return { creator: isCreator && !isBrand, brand: isBrand, br: PT.test(bio) };
+  // a pessoa precisa se apresentar como creator NA BIO (categoria "criador digital" sozinha pega páginas de frases/memes)
+  const isPage = PAGE.test(bio);
+  const isCreator = CREATOR.test(bio) && !isPage;
+  return { creator: isCreator && !isBrand, brand: isBrand, br: isBrazil(bio) };
 }
 console.assert(classify({ biography: 'UGC creator ✨ parcerias: contato@x.com' }).creator, 'creator');
 console.assert(!classify({ biography: 'Loja de roupas 🛍️ enviamos para todo Brasil' }).creator, 'marca');
+console.assert(classify({ biography: 'UGC creator 🇧🇷 São Paulo' }).br && !classify({ biography: 'Creadora de contenido UGC 🇲🇽' }).br && !classify({ biography: 'UGC creator | Lisboa 🇵🇹' }).br && !classify({ biography: 'UGC creator based in LA' }).br, 'brasil');
+
+// trava de orçamento: para antes de passar do limite do mês no Apify
+const MAX_USD = Number(process.env.APIFY_MAX_USD || 16);
+async function budgetOk() {
+  const r = await fetch(`https://api.apify.com/v2/users/me/limits?token=${TOKEN}`).then((x) => x.json()).catch(() => null);
+  const used = r?.data?.current?.monthlyUsageUsd ?? 0;
+  if (used >= MAX_USD) { console.log(`orçamento atingido: US$ ${used.toFixed(2)} de ${MAX_USD}. Parando (cache salvo).`); return false; }
+  return true;
+}
 
 async function actor(id, input) {
   const r = await fetch(`https://api.apify.com/v2/acts/${id}/run-sync-get-dataset-items?token=${TOKEN}&timeout=300`, {
@@ -63,9 +87,12 @@ if (process.argv.includes('--apply')) {
 if (!TOKEN) { console.log('Falta APIFY_TOKEN no .env'); process.exit(1); }
 const POSTS = Number(arg('--posts', 50));
 
+// --so-filtrar: não chama o Apify, só refaz o filtro com o que já está no cache
+const SO_FILTRAR = process.argv.includes('--so-filtrar');
 // 1) hashtags → autores
-for (const tag of HASHTAGS) {
+for (const tag of SO_FILTRAR ? [] : HASHTAGS) {
   if ((db.tags[tag]?.limit || 0) >= POSTS) continue;
+  if (!(await budgetOk())) break;
   const items = await actor('apify~instagram-hashtag-scraper', { hashtags: [tag], resultsLimit: POSTS });
   db.tags[tag] = { limit: POSTS, owners: [...new Set(items.map((i) => (i.ownerUsername || '').toLowerCase()).filter(Boolean))] };
   save();
@@ -74,10 +101,11 @@ for (const tag of HASHTAGS) {
 
 // 2) perfis (lotes de 25, só os ainda não lidos e fora da base atual)
 const jaNaBase = new Set(LEADS.map((l) => (l.instagram || '').replace('@', '').toLowerCase()).filter(Boolean));
-const owners = [...new Set(Object.values(db.tags).flatMap((t) => t.owners))].filter((u) => !db.profiles[u] && !jaNaBase.has(u));
+const owners = SO_FILTRAR ? [] : [...new Set(Object.values(db.tags).flatMap((t) => t.owners))].filter((u) => !db.profiles[u] && !jaNaBase.has(u));
 console.log(`perfis novos para ler: ${owners.length}`);
 for (let i = 0; i < owners.length; i += 25) {
   const lote = owners.slice(i, i + 25);
+  if (!(await budgetOk())) break;
   const items = await actor('apify~instagram-profile-scraper', { usernames: lote });
   for (const p of items) {
     if (!p.username) continue;
@@ -96,7 +124,7 @@ for (let i = 0; i < owners.length; i += 25) {
 }
 
 // 3) filtro final: pessoa creator, BR, público, 1k+ seguidores
-const all = Object.values(db.profiles).filter((p) => !p.missing);
+const all = Object.values(db.profiles).filter((p) => !p.missing).map((p) => ({ ...p, ...classify({ biography: p.bio, fullName: p.nome, businessCategoryName: p.cat }) })); // reclassifica do cache, sem custo
 const ok = all.filter((p) => p.creator && p.br && !p.priv && p.seg >= 1000).sort((a, b) => b.seg - a.seg);
 const esc = (v) => JSON.stringify(v ?? '');
 writeFileSync(OUT, ['usuario,nome,seguidores,engajamento,categoria,bio,email,link'].concat(ok.map((p) => [esc(p.u), esc(p.nome), p.seg, p.eng ?? 0, esc(p.cat), esc(p.bio.replace(/\s+/g, ' ')), esc(p.email), esc(p.link)].join(','))).join('\n'));

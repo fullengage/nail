@@ -7,6 +7,8 @@ import {
   Shipment,
   ContentSubmission,
   AffiliateLink,
+  AffiliateProposal,
+  AffiliateApplication,
   SourceCounts,
   ScoreWeights
 } from '../types/database';
@@ -445,3 +447,80 @@ export const SQUADRA_AFFILIATES: AffiliateLink[] = SQUADRA_PARTICIPANTS.filter(p
     created_at: new Date(Date.now() - idx * 86400000).toISOString()
   };
 });
+
+// 11. Propostas de Afiliação da Empresa (Creator Commerce Invertido: a empresa anuncia, os creators escolhem)
+export const SQUADRA_AFFILIATE_PROPOSALS: AffiliateProposal[] = [
+  {
+    id: 'prop-1',
+    brand_id: 'brand-1',
+    brand_name: 'Vòlia Cosméticos',
+    title: 'Kit Blindagem Diamante Pro — Programa de Embaixadoras',
+    description: 'Buscamos manicures e nail designers para divulgar nosso kit completo de blindagem e esmaltação duradoura. Receba 15% de comissão por cada kit vendido com seu cupom exclusivo.',
+    product_name: 'Kit Blindagem Diamante Pro (Base Gel + Top Coat + Primer)',
+    product_image_url: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800',
+    product_price: 249.90,
+    commission_type: 'percentage',
+    commission_value: 15,
+    default_coupon: 'BLINDAGEM15',
+    store_url: 'https://loja.volia.com.br/kit-blindagem-pro',
+    rules: 'Permitido vídeos no TikTok, Reels, Stories e lives de aplicação. Proibido anunciar cupom em sites de desconto genéricos.',
+    benefits: 'Amostra grátis após 3 kits vendidos. Acesso a grupo VIP com lançamentos em primeira mão.',
+    status: 'active',
+    total_affiliates_count: 8,
+    total_sales_count: 86,
+    created_at: '2026-10-01T10:00:00Z'
+  },
+  {
+    id: 'prop-2',
+    brand_id: 'brand-1',
+    brand_name: 'Vòlia Cosméticos',
+    title: 'Coleção Esmaltes em Gel Outono/Inverno — Live Commerce & Vídeos',
+    description: 'Comissão fixa agressiva de R$ 35,00 por coleção vendida durante lives ou em vídeos demonstrando a pigmentação e curvatura.',
+    product_name: 'Coleção 12 Cores Gel Polish Premium',
+    product_image_url: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800',
+    product_price: 199.00,
+    commission_type: 'fixed',
+    commission_value: 35,
+    default_coupon: 'GELCOLECAO',
+    store_url: 'https://loja.volia.com.br/colecao-inverno',
+    rules: 'Vídeos com iluminação nítida mostrando a cor real nas unhas. Menção ao cupom na tela e na legenda.',
+    benefits: 'Pagamento de comissão quinzenal direto via PIX. Kit de demonstração enviado com frete grátis.',
+    status: 'active',
+    total_affiliates_count: 5,
+    total_sales_count: 47,
+    created_at: '2026-10-02T10:00:00Z'
+  }
+];
+
+export const SQUADRA_AFFILIATE_APPLICATIONS: AffiliateApplication[] = [
+  {
+    id: 'app-aff-1',
+    proposal_id: 'prop-1',
+    proposal_title: 'Kit Blindagem Diamante Pro — Programa de Embaixadoras',
+    creator_id: 'lead-1',
+    message: 'Faço atendimento diário no meu estúdio e 80% das minhas clientes pedem blindagem. Gravo reels toda semana mostrando os produtos que uso e minhas seguidoras sempre perguntam a marca!',
+    status: 'pending',
+    requested_coupon: 'CAMILABLINDADA',
+    created_at: '2026-10-04T14:20:00Z'
+  },
+  {
+    id: 'app-aff-2',
+    proposal_id: 'prop-1',
+    proposal_title: 'Kit Blindagem Diamante Pro — Programa de Embaixadoras',
+    creator_id: 'lead-2',
+    message: 'Tenho lives diárias no TikTok às 20h com média de 800 pessoas simultâneas aprendendo nail design. Quero colocar o link no carrinho e demonstrar o passo a passo ao vivo.',
+    status: 'pending',
+    requested_coupon: 'JULIVES',
+    created_at: '2026-10-04T15:10:00Z'
+  },
+  {
+    id: 'app-aff-3',
+    proposal_id: 'prop-2',
+    proposal_title: 'Coleção Esmaltes em Gel Outono/Inverno — Live Commerce & Vídeos',
+    creator_id: 'lead-3',
+    message: 'Adorei a cartela de cores dessa coleção! Quero produzir 4 tutoriais de Nail Art usando as cores e direcionar para o checkout com cupom.',
+    status: 'pending',
+    requested_coupon: 'BEATRIZNAILS',
+    created_at: '2026-10-04T16:05:00Z'
+  }
+];

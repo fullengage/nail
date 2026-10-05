@@ -358,6 +358,39 @@ export interface AffiliateLink {
   created_at: string;
 }
 
+export interface AffiliateProposal {
+  id: string;
+  brand_id: string;
+  brand_name: string;
+  title: string;
+  description: string;
+  product_name: string;
+  product_image_url: string;
+  product_price: number;
+  commission_type: 'percentage' | 'fixed';
+  commission_value: number;
+  default_coupon: string;
+  store_url: string;
+  rules: string;
+  benefits: string;
+  status: 'active' | 'paused';
+  total_affiliates_count: number;
+  total_sales_count: number;
+  created_at: string;
+}
+
+export interface AffiliateApplication {
+  id: string;
+  proposal_id: string;
+  proposal_title: string;
+  creator_id: string;
+  creator?: CreatorProfile;
+  message: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_coupon?: string;
+  created_at: string;
+}
+
 export interface CreatorEarning {
   id: string;
   creator_id: string;

@@ -25,18 +25,27 @@ import {
   Sparkles,
   CheckCircle2,
   Plus,
-  Trash2
+  Trash2,
+  DollarSign,
+  CreditCard,
+  QrCode,
+  Receipt,
+  ShieldCheck,
+  AlertCircle,
+  Briefcase,
+  Copy
 } from 'lucide-react';
 import { Instagram } from '../../components/ui/Icons';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { CampaignType } from '../../types/database';
 
 interface SquadraCreatorsProps {
   onNavigate?: (view: string) => void;
 }
 
 export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) => {
-  const { creators, campaigns, addCreatorTags, createSquadFromCreators, importCreatorsCsv, addCreator, deleteCreator } = useData();
+  const { creators, campaigns, addCreatorTags, createSquadFromCreators, importCreatorsCsv, addCreator, deleteCreator, createCampaign } = useData();
   const { role } = useAuth();
   // contato direto (e-mail/WhatsApp) é só do time Squad UGC: empresas nunca veem, nem vazio
   const canSeeContacts = role === 'admin_master' || role === 'admin';
@@ -64,7 +73,25 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
   const [newTagInput, setNewTagInput] = useState('');
   const firstOpen = campaigns.find((c) => (c.occupied_slots || 0) < (c.creator_slots || 0)) || campaigns[0];
   const [targetCampaignId, setTargetCampaignId] = useState(firstOpen?.id || '');
-  const [squadFee, setSquadFee] = useState<string>(String(firstOpen?.commission_value || ''));
+  const [squadFee, setSquadFee] = useState<string>(() => String(firstOpen?.commission_value || '250'));
+  const [squadMode, setSquadMode] = useState<'new_campaign' | 'existing_campaign'>(() => campaigns.length > 0 ? 'existing_campaign' : 'new_campaign');
+  const [newCampTitle, setNewCampTitle] = useState('');
+  const [newCampObjective, setNewCampObjective] = useState('');
+  const [newCampType, setNewCampType] = useState<CampaignType>('ugc');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'boleto' | 'credit_card'>('pix');
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<{
+    invoiceId: string;
+    campaignId: string;
+    campaignTitle: string;
+    creatorsCount: number;
+    subtotal: number;
+    fee: number;
+    total: number;
+    pixCode: string;
+    paymentMethod: string;
+  } | null>(null);
+  const [copiedPix, setCopiedPix] = useState(false);
 
   // Detalhe de Creator (Modal /creators/:id)
   const [detailCreator, setDetailCreator] = useState<CreatorProfile | null>(null);
@@ -280,24 +307,71 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
     setSelectedIds([]);
   };
 
-  const handleCreateSquad = () => {
-    if (!targetCampaignId || selectedIds.length === 0) return;
-    const res = createSquadFromCreators(targetCampaignId, selectedIds, Number(squadFee) || 0);
-    setIsSquadModalOpen(false);
-    const extra = [res.duplicates && `${res.duplicates} já estavam no squad`, res.noSlot && `${res.noSlot} ficaram de fora por falta de vaga`].filter(Boolean).join(' · ');
-    showToast(`${res.added} creators adicionados ao squad${extra ? ` (${extra})` : ''}. Abrindo a campanha…`);
-    setSelectedIds([]);
-    // abre a campanha direto na aba do squad para seguir o próximo passo
-    sessionStorage.setItem('squadra_open_campaign', targetCampaignId);
-    setTimeout(() => onNavigate?.('campaigns'), 900);
-  };
+  // Resumo financeiro e de cobrança do squad
+  const feePerCreator = Number(squadFee) || 250;
+  const countSelected = selectedIds.length;
+  const subtotalCreators = countSelected * feePerCreator;
+  const platformFee = Math.round(subtotalCreators * 0.15);
+  const totalSquadInvestment = subtotalCreators + platformFee;
+  const pixDiscount = Math.round(totalSquadInvestment * 0.05);
+  const finalPayable = paymentMethod === 'pix' ? totalSquadInvestment - pixDiscount : totalSquadInvestment;
 
-  // resumo financeiro e de vagas do squad que está sendo montado
   const targetCampaign = campaigns.find((c) => c.id === targetCampaignId);
-  const freeSlots = targetCampaign ? Math.max(0, (targetCampaign.creator_slots || 0) - (targetCampaign.occupied_slots || 0)) : 0;
-  const willAdd = Math.min(selectedIds.length, freeSlots);
-  const squadTotal = willAdd * (Number(squadFee) || 0);
+  const freeSlots = targetCampaign ? Math.max(0, (targetCampaign.creator_slots || 0) - (targetCampaign.occupied_slots || 0)) : Infinity;
+  const willAdd = squadMode === 'new_campaign' ? countSelected : Math.min(countSelected, freeSlots);
   const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  const handleConfirmAndHireSquad = async () => {
+    if (selectedIds.length === 0) return;
+
+    let finalCampaignId = targetCampaignId;
+    let finalTitle = targetCampaign?.title || 'Campanha Squad UGC';
+
+    if (squadMode === 'new_campaign' || !finalCampaignId) {
+      const defaultTitle = `Squad ${newCampType === 'ugc' ? 'Vídeos UGC' : newCampType === 'live_commerce' ? 'Live Commerce' : 'Seeding'} — ${countSelected} Creators`;
+      const title = newCampTitle.trim() || defaultTitle;
+      finalTitle = title;
+      finalCampaignId = await createCampaign({
+        brand_id: 'brand-1',
+        title,
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        description: `Squad de ${countSelected} creators alocados para entrega de conteúdos exclusivos.`,
+        objective: newCampObjective.trim() || 'Produção de conteúdo UGC de alta conversão para engajamento e vendas.',
+        campaign_type: newCampType,
+        cover_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        application_deadline: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+        creator_slots: countSelected,
+        occupied_slots: countSelected,
+        budget: finalPayable,
+        commission_type: 'fixed',
+        commission_value: feePerCreator,
+        requirements_text: 'Creators qualificados com pontuação operacional validada.',
+        deliverables_text: '1x Vídeo vertical de alta qualidade + stories com cupom de desconto.',
+        status: 'open'
+      });
+    }
+
+    createSquadFromCreators(finalCampaignId, selectedIds, feePerCreator);
+
+    const invId = `FAT-${Math.floor(100000 + Math.random() * 900000)}`;
+    setInvoiceData({
+      invoiceId: invId,
+      campaignId: finalCampaignId,
+      campaignTitle: finalTitle,
+      creatorsCount: countSelected,
+      subtotal: subtotalCreators,
+      fee: platformFee,
+      total: finalPayable,
+      pixCode: `00020126580014BR.GOV.BCB.PIX0136squadra-fatura-${invId}@squadugc.com.br520400005303986540${finalPayable}.005802BR5916SQUADRA UGC BRAS6009SAO PAULO62070503***6304`,
+      paymentMethod: paymentMethod === 'pix' ? 'PIX Imediato (5% OFF)' : paymentMethod === 'boleto' ? 'Boleto Faturado 15/30 Dias PJ' : 'Cartão de Crédito Corporativo'
+    });
+
+    setIsSquadModalOpen(false);
+    setIsInvoiceModalOpen(true);
+    setSelectedIds([]);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -817,71 +891,393 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
         </div>
       )}
 
-      {/* Modal 2: Criar Squad a partir de Seleção */}
+      {/* Modal 2: Contratar Squad, Orçamento Transparente & Cobrança */}
       {isSquadModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold font-display text-foreground text-base">Adicionar Creators ao Squad</h3>
-              <button onClick={() => setIsSquadModalOpen(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+            
+            {/* Cabeçalho */}
+            <div className="flex items-start justify-between border-b border-border pb-3">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-black">
+                    Squad de {countSelected} Creators
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Proposta & Orçamento</span>
+                </div>
+                <h3 className="font-bold font-display text-foreground text-xl mt-1">
+                  Contratação & Orçamento do Squad
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Defina o cachê dos creators, a campanha de destino e veja exatamente como é calculada a cobrança.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSquadModalOpen(false)}
+                className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Selecione a campanha para alocar os <strong>{selectedIds.length} creators</strong> no pipeline de produção.
-            </p>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Campanha de Destino</label>
-              <select
-                value={targetCampaignId}
-                onChange={(e) => {
-                  setTargetCampaignId(e.target.value);
-                  const c = campaigns.find((x) => x.id === e.target.value);
-                  setSquadFee(String(c?.commission_value || ''));
-                }}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
-              >
-                {campaigns.map((c) => {
-                  const free = Math.max(0, (c.creator_slots || 0) - (c.occupied_slots || 0));
-                  return (
-                    <option key={c.id} value={c.id} disabled={free === 0}>
-                      {c.title} — {free === 0 ? 'lotada' : `${free} vagas livres`}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Cachê por creator (R$)</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={squadFee}
-                onChange={(e) => setSquadFee(e.target.value)}
-                placeholder="Ex.: 125 (0 = só envio de produto)"
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
-              />
-            </div>
-            {targetCampaign && (
-              <div className="p-3 rounded-xl bg-muted/50 border border-border text-xs space-y-1.5">
-                <div className="flex justify-between"><span className="text-muted-foreground">Creators que entram</span><strong>{willAdd} de {selectedIds.length}</strong></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Investimento do squad</span><strong>{willAdd} × {brl(Number(squadFee) || 0)} = {brl(squadTotal)}</strong></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Orçamento da campanha</span><strong>{brl(targetCampaign.budget || 0)}</strong></div>
-                {willAdd < selectedIds.length && (
-                  <p className="text-amber-700 font-semibold">Só há {freeSlots} vagas livres: {selectedIds.length - willAdd} creators ficarão de fora. Escolha outra campanha ou aumente as vagas.</p>
-                )}
-                {squadTotal > (targetCampaign.budget || 0) && (
-                  <p className="text-red-600 font-semibold">O investimento passa do orçamento da campanha.</p>
-                )}
+
+            {/* 1. Destino do Squad: Nova Campanha vs Campanha Existente */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                1. Onde este squad vai atuar?
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSquadMode('new_campaign')}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                    squadMode === 'new_campaign'
+                      ? 'border-primary bg-primary/10 shadow-sm'
+                      : 'border-border hover:border-muted-foreground/30 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Plus className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">Criar Nova Campanha</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Ideal para um novo lançamento ou ação com estes {countSelected} creators.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSquadMode('existing_campaign')}
+                  disabled={campaigns.length === 0}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                    campaigns.length === 0
+                      ? 'opacity-40 cursor-not-allowed border-border'
+                      : squadMode === 'existing_campaign'
+                      ? 'border-primary bg-primary/10 shadow-sm'
+                      : 'border-border hover:border-muted-foreground/30 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Briefcase className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">Campanha Aberta ({campaigns.length})</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {campaigns.length === 0
+                      ? 'Nenhuma campanha cadastrada ainda.'
+                      : 'Alocar este squad dentro de uma campanha já existente.'}
+                  </p>
+                </button>
               </div>
-            )}
-            <div className="flex justify-end space-x-2 pt-2">
-              <Button variant="secondary" onClick={() => setIsSquadModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateSquad} disabled={!targetCampaign || willAdd === 0}>
-                Confirmar squad ({willAdd})
+
+              {/* Campos se for Nova Campanha */}
+              {squadMode === 'new_campaign' && (
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-3 animate-in fade-in">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">Nome da Campanha *</label>
+                    <input
+                      type="text"
+                      value={newCampTitle}
+                      onChange={(e) => setNewCampTitle(e.target.value)}
+                      placeholder={`Ex: Lançamento Coleção Outono — ${countSelected} Creators`}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Formato de Produção</label>
+                      <select
+                        value={newCampType}
+                        onChange={(e) => setNewCampType(e.target.value as CampaignType)}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      >
+                        <option value="ugc">Vídeos Curtos UGC (Reels / TikTok)</option>
+                        <option value="live_commerce">Live Commerce (TikTok Shop / Instagram)</option>
+                        <option value="product_seeding">Envio de Produto (Seeding)</option>
+                        <option value="paid_content">Publicidade Paga (Perfil do Creator)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Objetivo Mensurável</label>
+                      <input
+                        type="text"
+                        value={newCampObjective}
+                        onChange={(e) => setNewCampObjective(e.target.value)}
+                        placeholder="Ex: 20 vídeos de prova social e conversão"
+                        className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Se for Campanha Existente */}
+              {squadMode === 'existing_campaign' && (
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-2">
+                  <label className="text-xs font-semibold text-foreground">Selecione a Campanha</label>
+                  <select
+                    value={targetCampaignId}
+                    onChange={(e) => {
+                      setTargetCampaignId(e.target.value);
+                      const c = campaigns.find((x) => x.id === e.target.value);
+                      if (c?.commission_value) setSquadFee(String(c.commission_value));
+                    }}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
+                  >
+                    {campaigns.map((c) => {
+                      const free = Math.max(0, (c.creator_slots || 0) - (c.occupied_slots || 0));
+                      return (
+                        <option key={c.id} value={c.id} disabled={free === 0}>
+                          {c.title} — {free === 0 ? 'lotada' : `${free} vagas livres`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Régua de Cachê por Creator */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  2. Cachê por Creator (Remuneração Direta)
+                </label>
+                <span className="text-[11px] text-emerald-600 font-semibold">100% repassado aos creators</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'UGC Básico', val: '150', sub: 'Iniciantes / Seeding' },
+                  { label: 'UGC Pro (Recomendado)', val: '250', sub: 'Técnicas + Roteiro', rec: true },
+                  { label: 'Live / Top Creator', val: '350', sub: 'Lives de 1h+ ou Faixa A' }
+                ].map((item) => (
+                  <button
+                    key={item.val}
+                    type="button"
+                    onClick={() => setSquadFee(item.val)}
+                    className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                      squadFee === item.val
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-border hover:border-muted-foreground/30 bg-card'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">R$ {item.val}</span>
+                      {item.rec && <span className="text-[9px] bg-primary text-black px-1.5 py-0.2 rounded font-extrabold">TOP</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{item.sub}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <span className="text-xs text-muted-foreground">Ou digite outro valor:</span>
+                <div className="relative max-w-[140px]">
+                  <span className="absolute left-2.5 top-2 text-xs text-muted-foreground">R$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={squadFee}
+                    onChange={(e) => setSquadFee(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded-xl text-xs font-bold text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Discriminativo de Cobrança Transparente (Como nós cobramos & quanto paga) */}
+            <div className="p-4 rounded-2xl bg-card border-2 border-border shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Demonstrativo Financeiro do Squad
+                </span>
+                <span className="text-xs font-bold text-foreground">{countSelected} Creators</span>
+              </div>
+
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Cachê dos Creators ({countSelected} × {brl(feePerCreator)})</span>
+                  <span className="font-semibold text-foreground">{brl(subtotalCreators)}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span className="flex items-center">
+                    <span>Taxa de Curadoria, Gestão & Garantia Squad UGC (15%)</span>
+                  </span>
+                  <span className="font-semibold text-foreground">{brl(platformFee)}</span>
+                </div>
+                {paymentMethod === 'pix' && (
+                  <div className="flex justify-between items-center text-emerald-600 font-semibold">
+                    <span>Desconto PIX à Vista (5% OFF)</span>
+                    <span>- {brl(pixDiscount)}</span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-border flex justify-between items-baseline">
+                  <div>
+                    <span className="text-sm font-bold font-display text-foreground">Investimento Total</span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      {paymentMethod === 'pix' ? 'Valor final no PIX' : 'Valor faturado / cartão'}
+                    </span>
+                  </div>
+                  <span className="text-2xl font-extrabold font-display text-primary">
+                    {brl(finalPayable)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Forma de Pagamento */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                4. Como você prefere pagar?
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'pix' as const, label: 'PIX (5% OFF)', sub: 'Liberação imediata', icon: <QrCode className="w-4 h-4 text-emerald-600" /> },
+                  { id: 'boleto' as const, label: 'Boleto PJ (15/30d)', sub: 'Faturado com NF-e', icon: <Receipt className="w-4 h-4 text-primary" /> },
+                  { id: 'credit_card' as const, label: 'Cartão Corporativo', sub: 'Até 6x sem juros', icon: <CreditCard className="w-4 h-4 text-blue-500" /> }
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.id)}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      paymentMethod === m.id
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-border hover:border-muted-foreground/30 bg-card'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      {m.icon}
+                      <span className="text-xs font-bold text-foreground">{m.label}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{m.sub}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Garantia Escrow da Plataforma */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-start space-x-2.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-foreground">
+                <span className="font-bold text-emerald-700 block">Custódia & Garantia de Entrega (Escrow)</span>
+                <p className="text-black/80 text-[11px] leading-relaxed">
+                  O valor investido fica retido em custódia segura na Squad UGC. O cachê só é liberado para o creator após você receber, avaliar e aprovar o conteúdo no painel.
+                </p>
+              </div>
+            </div>
+
+            {/* Rodapé com Ações */}
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsSquadModalOpen(false)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-2"
+              >
+                Voltar e alterar seleção
+              </button>
+
+              <Button
+                onClick={handleConfirmAndHireSquad}
+                disabled={willAdd === 0}
+                className="bg-primary hover:bg-primary/90 text-black font-bold border-2 border-black rounded-full px-6 py-2.5 shadow-lg flex items-center space-x-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmar & Contratar Squad ({brl(finalPayable)})</span>
               </Button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2.1: Fatura Gerada & Confirmação de Contratação */}
+      {isInvoiceModalOpen && invoiceData && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border-2 border-primary/40 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+            
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                <Receipt className="w-6 h-6" />
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500 text-white inline-block">
+                Fatura Gerada com Sucesso
+              </span>
+              <h3 className="font-bold font-display text-foreground text-xl">
+                Squad Contratado Oficialmente!
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Fatura <strong>{invoiceData.invoiceId}</strong> emitida para {invoiceData.creatorsCount} creators na campanha <strong>{invoiceData.campaignTitle}</strong>.
+              </p>
+            </div>
+
+            {/* Detalhes da Fatura */}
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Forma Escolhida:</span>
+                <span className="font-bold text-foreground">{invoiceData.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cachês dos Creators:</span>
+                <span className="font-semibold text-foreground">{brl(invoiceData.subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Taxa Squad UGC (15%):</span>
+                <span className="font-semibold text-foreground">{brl(invoiceData.fee)}</span>
+              </div>
+              <div className="pt-2 border-t border-border flex justify-between items-baseline font-bold text-sm">
+                <span>Total a Pagar:</span>
+                <span className="text-lg text-primary">{brl(invoiceData.total)}</span>
+              </div>
+            </div>
+
+            {/* Código PIX Copia e Cola */}
+            {paymentMethod === 'pix' && (
+              <div className="space-y-2 p-3.5 rounded-2xl bg-primary/10 border border-primary/30">
+                <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                  <span className="flex items-center space-x-1.5">
+                    <QrCode className="w-4 h-4 text-emerald-600" />
+                    <span>Chave PIX Copia e Cola</span>
+                  </span>
+                  <span className="text-[11px] text-emerald-600">5% OFF aplicado</span>
+                </div>
+                <div className="p-2.5 bg-background border border-border rounded-xl font-mono text-[11px] text-muted-foreground break-all select-all">
+                  {invoiceData.pixCode}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(invoiceData.pixCode);
+                    setCopiedPix(true);
+                    setTimeout(() => setCopiedPix(false), 3000);
+                  }}
+                  className="w-full py-2 bg-primary text-black font-bold text-xs rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center space-x-1.5 shadow-sm"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Botão de Conclusão */}
+            <div className="pt-2">
+              <Button
+                onClick={() => {
+                  setIsInvoiceModalOpen(false);
+                  sessionStorage.setItem('squadra_open_campaign', invoiceData.campaignId);
+                  onNavigate?.('campaigns');
+                }}
+                className="w-full py-3 bg-black text-white hover:bg-black/90 font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg"
+              >
+                <span>Acessar Campanha & Acompanhar Squad</span>
+                <ChevronRight className="w-4 h-4 text-primary" />
+              </Button>
+            </div>
+
           </div>
         </div>
       )}

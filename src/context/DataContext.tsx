@@ -15,7 +15,9 @@ import {
   Shipment,
   SourceCounts,
   ScoreWeights,
-  PipelineStage
+  PipelineStage,
+  AffiliateProposal,
+  AffiliateApplication
 } from '../types/database';
 import {
   MOCK_CAMPAIGNS,
@@ -39,7 +41,9 @@ import {
   SQUADRA_CAMPAIGNS,
   SQUADRA_PARTICIPANTS,
   SQUADRA_SHIPMENTS,
-  SQUADRA_SUBMISSIONS
+  SQUADRA_SUBMISSIONS,
+  SQUADRA_AFFILIATE_PROPOSALS,
+  SQUADRA_AFFILIATE_APPLICATIONS
 } from '../data/squadraData';
 import { supabaseService } from '../services/supabaseService';
 
@@ -63,6 +67,8 @@ interface DataContextType {
   sourceCounts: SourceCounts;
   scoreWeights: ScoreWeights;
   selectedBrandId: string;
+  affiliateProposals: AffiliateProposal[];
+  affiliateApplications: AffiliateApplication[];
   
   // Actions for Creator Flow
   applyToCampaign: (campaignId: string, message: string) => boolean;
@@ -79,6 +85,11 @@ interface DataContextType {
   approveContentSubmission: (submissionId: string) => void;
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => void;
   inviteCreatorToCampaign: (creatorId: string, campaignId: string) => void;
+  createAffiliateProposal: (proposal: Omit<AffiliateProposal, 'id' | 'created_at' | 'total_affiliates_count' | 'total_sales_count'>) => void;
+  updateAffiliateProposal: (id: string, patch: Partial<AffiliateProposal>) => void;
+  deleteAffiliateProposal: (id: string) => void;
+  approveAffiliateApplication: (applicationId: string, customCoupon?: string) => void;
+  rejectAffiliateApplication: (applicationId: string) => void;
   
   // Actions for Squadra Platform
   setSelectedBrandId: (brandId: string) => void;
@@ -311,6 +322,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (e) { /* ignore */ }
     }
     return SQUADRA_BRANDS;
+  });
+
+  const [affiliateProposals, setAffiliateProposals] = useState<AffiliateProposal[]>(() => {
+    const saved = localStorage.getItem('squadra_affiliate_proposals');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_AFFILIATE_PROPOSALS;
+  });
+
+  const [affiliateApplications, setAffiliateApplications] = useState<AffiliateApplication[]>(() => {
+    const saved = localStorage.getItem('squadra_affiliate_applications');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return SQUADRA_AFFILIATE_APPLICATIONS;
   });
 
   // When Supabase is configured, sync in background
@@ -678,13 +705,79 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `notif-${Date.now()}`,
       user_id: 'user-c1',
       title: '💌 Convite VIP de Parceria da Marca!',
-      message: `A marca convidou você com exclusividade para participar da campanha: "${camp.title}".`,
+      message: `A marca convidou você com exclusividade para participar da campanha: "${camp?.title || 'Campanha Exclusiva'}".`,
       type: 'campaign',
       read: false,
       link: '/creator/campaigns',
       created_at: new Date().toISOString(),
     };
     setNotifications((prev) => [newNotif, ...prev]);
+  };
+
+  // Creator Commerce Invertido: Propostas de Afiliação e Candidaturas
+  const createAffiliateProposal = (proposal: Omit<AffiliateProposal, 'id' | 'created_at' | 'total_affiliates_count' | 'total_sales_count'>) => {
+    const newProp: AffiliateProposal = {
+      ...proposal,
+      id: `prop-${Date.now()}`,
+      total_affiliates_count: 0,
+      total_sales_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    setAffiliateProposals((prev) => {
+      const next = [newProp, ...prev];
+      localStorage.setItem('squadra_affiliate_proposals', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const updateAffiliateProposal = (id: string, patch: Partial<AffiliateProposal>) => {
+    setAffiliateProposals((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      localStorage.setItem('squadra_affiliate_proposals', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const deleteAffiliateProposal = (id: string) => {
+    setAffiliateProposals((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      localStorage.setItem('squadra_affiliate_proposals', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const approveAffiliateApplication = (applicationId: string, customCoupon?: string) => {
+    setAffiliateApplications((prev) => {
+      const next = prev.map((a) => {
+        if (a.id === applicationId) {
+          return { ...a, status: 'approved' as const, requested_coupon: customCoupon || a.requested_coupon };
+        }
+        return a;
+      });
+      localStorage.setItem('squadra_affiliate_applications', JSON.stringify(next));
+      return next;
+    });
+
+    const targetApp = affiliateApplications.find((a) => a.id === applicationId);
+    if (targetApp) {
+      setAffiliateProposals((prev) => {
+        const next = prev.map((p) =>
+          p.id === targetApp.proposal_id
+            ? { ...p, total_affiliates_count: (p.total_affiliates_count || 0) + 1 }
+            : p
+        );
+        localStorage.setItem('squadra_affiliate_proposals', JSON.stringify(next));
+        return next;
+      });
+    }
+  };
+
+  const rejectAffiliateApplication = (applicationId: string) => {
+    setAffiliateApplications((prev) => {
+      const next = prev.map((a) => (a.id === applicationId ? { ...a, status: 'rejected' as const } : a));
+      localStorage.setItem('squadra_affiliate_applications', JSON.stringify(next));
+      return next;
+    });
   };
 
   // Admin Processes All PIX Payouts
@@ -1143,6 +1236,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         scoreWeights,
         selectedBrandId,
         setSelectedBrandId: setSelectedBrandIdHandler,
+        affiliateProposals,
+        affiliateApplications,
+        createAffiliateProposal,
+        updateAffiliateProposal,
+        deleteAffiliateProposal,
+        approveAffiliateApplication,
+        rejectAffiliateApplication,
         setScoreWeights,
         updateCreatorStage,
         addCreatorTags,
