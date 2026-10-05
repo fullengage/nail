@@ -301,7 +301,7 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
                 <span className="text-[11px] font-bold text-muted-foreground block mb-2">Hashtags Obrigatórias:</span>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="secondary">#UGC</Badge>
-                  <Badge variant="secondary">#SquadraCreators</Badge>
+                  <Badge variant="secondary">#SquadUGC</Badge>
                   <Badge variant="secondary">#UnhasBlindadas</Badge>
                 </div>
               </div>

@@ -28,7 +28,7 @@ export const SquadraResetPassword: React.FC<SquadraResetPasswordProps> = ({ onNa
             Recuperação de Senha
           </h2>
           <p className="text-xs text-muted-foreground">
-            Informe o e-mail cadastrado na sua conta Squadra para receber as instruções de redefinição.
+            Informe o e-mail cadastrado na sua conta Squad UGC para receber as instruções de redefinição.
           </p>
         </div>
 

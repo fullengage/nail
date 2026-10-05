@@ -36,7 +36,7 @@ export const SquadraReports: React.FC = () => {
     if (!canExportCsv) return;
     const headers = ['Relatório', 'Período', 'Plataforma', 'Nicho', 'Região', 'Total_Creators_Avaliados', 'Views_Totais', 'Engajamento_Medio', 'GMV_Total_R$'];
     const row = [
-      '"Consolidado de Performance UGC Squadra"',
+      '"Consolidado de Performance - Squad UGC"',
       filterPeriod,
       filterPlatform,
       filterNiche,

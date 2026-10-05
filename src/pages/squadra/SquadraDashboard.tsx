@@ -101,7 +101,7 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
         <div>
           <div className="flex items-center space-x-2">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Squadra Intelligence</span>
+            <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Squad UGC</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-foreground mt-1">
             Dashboard Executivo

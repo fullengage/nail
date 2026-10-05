@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => onNavigate('dashboard')}>
             <span className="font-display font-black tracking-tight text-xl text-foreground flex items-center gap-1">
-              <span className="bg-primary text-black px-2 py-0.5 rounded font-black tracking-tighter">SQUADRA</span>
+              <span className="bg-primary text-black px-2 py-0.5 rounded font-black tracking-tighter">SQUAD</span>
               <span className="text-primary font-bold tracking-tight text-sm">UGC</span>
             </span>
           </div>

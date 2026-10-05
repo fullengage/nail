@@ -112,7 +112,7 @@ export const SquadraBrands: React.FC = () => {
       cnpj: formData.cnpj.trim() || '00.000.000/0001-00',
       city: formData.city,
       state: formData.state,
-      description: formData.description.trim() || 'Marca cadastrada na organização Squadra.',
+      description: formData.description.trim() || 'Marca cadastrada na organização Squad UGC.',
       website: formData.website.trim() || undefined,
       logo_url: formData.logo_url,
       contact_name: 'Administrador da Marca',
