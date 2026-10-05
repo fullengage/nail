@@ -195,7 +195,8 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
         if (selectedTier === 'C' && !tags.some(t => t.includes('C - Fora do perfil'))) return false;
         if (selectedTier === 'live' && !tags.includes('Vendas por live') && !c.accepts_live_campaigns) return false;
         if (selectedTier === 'shop' && !tags.includes('TikTok Shop')) return false;
-        if (selectedTier === 'ugc' && !tags.includes('UGC/publi')) return false;
+        if (selectedTier === 'ugc' && !tags.includes('UGC/publi') && !tags.includes('UGC')) return false;
+        if (selectedTier === 'feira' && !tags.includes('origem:feira-influence')) return false;
       }
 
       // 3. Nicho
@@ -496,6 +497,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
               <option value="live">🔴 Vendem por Live</option>
               <option value="shop">🛒 Vendem no TikTok Shop</option>
               <option value="ugc">🎥 Fazem UGC / publi</option>
+              <option value="feira">🤝 Lista da feira de influência</option>
             </select>
           </div>
 
