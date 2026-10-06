@@ -9,7 +9,7 @@
 // .env: APIFY_TOKEN=apify_api_...   (sem prefixo VITE_: o token NÃO pode ir para o navegador)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const LEADS = new URL('../src/data/realLeads.json', import.meta.url);
+const LEADS = new URL('../data/realLeads.json', import.meta.url);
 const CACHE = new URL('../data/ig-cache.json', import.meta.url);
 const ACTOR = 'apify~instagram-profile-scraper';
 const BATCH = 25;

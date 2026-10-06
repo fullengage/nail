@@ -56,7 +56,7 @@ export const SquadraResetPassword: React.FC<SquadraResetPasswordProps> = ({ onNa
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@marca.com.br"
+                  placeholder="voce@example.com"
                   className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 text-xs"
                 />
               </div>

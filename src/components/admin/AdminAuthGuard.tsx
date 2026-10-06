@@ -22,7 +22,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
     return isMasterAdmin || (isDemoMode && localStorage.getItem('ncp_admin_unlocked') === 'true');
   });
 
-  const [email, setEmail] = useState('admin@squadra.app');
+  const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
     setErrorMsg('');
 
     try {
-      if (isDemoMode && email === 'admin@squadra.app' && (password === 'Squadra@2026' || password === 'admin123')) {
+      if (isDemoMode && email === 'admin@example.com' && (password === 'Squadra@2026' || password === 'admin123')) {
         loginAsLevel('admin_master');
         setIsAdminUnlocked(true);
         localStorage.setItem('ncp_admin_unlocked', 'true');
@@ -100,7 +100,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children, onNavi
             <Input
               label="E-mail de Administrador Geral"
               type="email"
-              placeholder="admin@squadra.app"
+              placeholder="voce@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

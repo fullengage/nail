@@ -166,7 +166,7 @@ export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="seu@email.com"
+              placeholder="voce@example.com"
               className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
             />
           </div>
@@ -180,7 +180,7 @@ export const SquadraCampaignApply: React.FC<SquadraCampaignApplyProps> = ({ slug
               required
               value={formData.whatsapp}
               onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-              placeholder="(11) 98765-4321"
+              placeholder="DDD + número"
               className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground"
             />
           </div>

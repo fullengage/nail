@@ -13,14 +13,14 @@ export const SQUADRA_AUTH_LEVELS: Record<'admin_master' | 'brand_admin' | 'creat
   admin_master: {
     label: '1. Administrador Geral',
     description: 'Gestão global da plataforma, multiempresa, pesos do score e relatórios',
-    defaultEmail: 'admin@squadra.app',
+    defaultEmail: 'admin@example.com',
     profile: {
       id: '00000000-0000-0000-0000-000000000001',
       auth_user_id: 'a0000000-0000-0000-0000-000000000001',
       role: 'admin_master',
       full_name: 'Administrador Geral (Squad UGC)',
-      email: 'admin@squadra.app',
-      phone: '(11) 99999-0001',
+      email: 'admin@example.com',
+      phone: '',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
       status: 'active',
       created_at: '2026-10-01T10:00:00Z',
@@ -30,14 +30,14 @@ export const SQUADRA_AUTH_LEVELS: Record<'admin_master' | 'brand_admin' | 'creat
   brand_admin: {
     label: '2. Administrador de Empresa (Contratante)',
     description: 'Contratação de creators, gestão de campanhas, pipeline e aprovação de vídeos',
-    defaultEmail: 'empresa@squadra.app',
+    defaultEmail: 'empresa@example.com',
     profile: {
       id: '00000000-0000-0000-0000-000000000002',
       auth_user_id: 'b0000000-0000-0000-0000-000000000002',
       role: 'brand_admin',
       full_name: 'Diretoria de Marketing (Squadra Nutrition)',
-      email: 'empresa@squadra.app',
-      phone: '(11) 98888-0002',
+      email: 'empresa@example.com',
+      phone: '',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
       status: 'active',
       created_at: '2026-10-01T10:00:00Z',
@@ -47,14 +47,14 @@ export const SQUADRA_AUTH_LEVELS: Record<'admin_master' | 'brand_admin' | 'creat
   creator: {
     label: '3. UGC / Influenciador (Prestador de Serviço)',
     description: 'Oferta de serviços, submissão de vídeos TikTok/Reels, cupons e recebimento de cachês',
-    defaultEmail: 'ugc@squadra.app',
+    defaultEmail: 'ugc@example.com',
     profile: {
       id: '00000000-0000-0000-0000-000000000003',
       auth_user_id: 'c0000000-0000-0000-0000-000000000003',
       role: 'creator',
       full_name: 'Bruna Oliveira (UGC Creator)',
-      email: 'ugc@squadra.app',
-      phone: '(11) 97777-0003',
+      email: 'ugc@example.com',
+      phone: '',
       avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
       status: 'active',
       created_at: '2026-10-01T10:00:00Z',
@@ -93,6 +93,7 @@ interface AuthContextType {
   role: UserRole;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasSession: boolean | null; // null = conferindo; false = sem sessão do Supabase
   login: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   signUpCreator: (data: SignUpCreatorData) => Promise<{ success: boolean; message?: string }>;
   signUpBrand: (data: SignUpBrandData) => Promise<{ success: boolean; message?: string }>;
@@ -106,17 +107,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// fora do modo demonstração, nada de papel ou usuário vindo do localStorage
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+// caches antigos que podiam guardar contatos ou um "admin" falso
+const LEGACY_KEYS = ['squadra_active_user', 'squadra_active_role', 'squadra_creator_profile', 'squadra_brand_profile', 'squadra_creators_v2', 'ncp_admin_unlocked'];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
-    const savedRole = localStorage.getItem('squadra_active_role');
-    if (savedRole === 'admin_master' || savedRole === 'brand_admin' || savedRole === 'creator') {
-      return savedRole;
+    if (!IS_DEMO) {
+      LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+      return 'creator'; // menor privilégio até o perfil do banco carregar (o painel exige sessão)
     }
-    // Default to admin_master so client sees complete system immediately
+    const savedRole = localStorage.getItem('squadra_active_role');
+    if (savedRole === 'admin_master' || savedRole === 'brand_admin' || savedRole === 'creator') return savedRole;
     return 'admin_master';
   });
+  // null = conferindo; false = sem sessão (painel vai para /entrar); true = logado no Supabase
+  const [hasSession, setHasSession] = useState<boolean | null>(IS_DEMO ? true : null);
 
   const [user, setUser] = useState<Profile | null>(() => {
+    if (!IS_DEMO) return null;
     const saved = localStorage.getItem('squadra_active_user');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
@@ -125,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(() => {
+    if (!IS_DEMO) return null;
     const saved = localStorage.getItem('squadra_creator_profile');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
@@ -133,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(() => {
+    if (!IS_DEMO) return null;
     const saved = localStorage.getItem('squadra_brand_profile');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
@@ -142,8 +154,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync to localStorage
+  // sessão real: perfil e papel vêm de public.profiles (auth_user_id = usuário logado)
   useEffect(() => {
+    if (IS_DEMO) return;
+    if (!isSupabaseConfigured || !supabase) { setHasSession(false); return; }
+    const applySession = async (authId: string | null) => {
+      if (!authId) { setUser(null); setRoleState('creator'); setHasSession(false); return; }
+      const { data: prof } = await supabase!.from('profiles').select('*').eq('auth_user_id', authId).maybeSingle();
+      if (prof) { setUser(prof as Profile); setRoleState((prof as Profile).role); }
+      setHasSession(!!prof);
+    };
+    supabase.auth.getSession().then(({ data }) => applySession(data.session?.user?.id ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { applySession(session?.user?.id ?? null); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Sync to localStorage (só no modo demonstração)
+  useEffect(() => {
+    if (!IS_DEMO) return;
     if (user) {
       localStorage.setItem('squadra_active_user', JSON.stringify(user));
       localStorage.setItem('squadra_active_role', user.role);
@@ -247,8 +275,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  // Alternador Rápido entre os 3 Níveis Autenticados
+  // Alternador Rápido entre os 3 Níveis Autenticados (só demonstração: em produção o papel vem do banco)
   const loginAsLevel = (level: 'admin_master' | 'brand_admin' | 'creator') => {
+    if (!IS_DEMO) return;
     const config = SQUADRA_AUTH_LEVELS[level];
     setUser(config.profile);
     setRoleState(level);
@@ -283,8 +312,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabase.auth.signOut().catch(() => {});
     }
     setUser(null);
-    localStorage.removeItem('squadra_active_user');
-    localStorage.removeItem('squadra_active_role');
+    if (!IS_DEMO) { setRoleState('creator'); setHasSession(false); }
+    LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
   };
 
   // Sign Up Creator
@@ -428,6 +457,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isAuthenticated: !!user,
         isLoading,
+        hasSession,
         login,
         signUpCreator,
         signUpBrand,

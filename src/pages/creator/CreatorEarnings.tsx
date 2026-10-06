@@ -24,7 +24,7 @@ import confetti from 'canvas-confetti';
 export const CreatorEarnings: React.FC = () => {
   const { earnings, requestPixWithdrawal } = useData();
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [pixKey, setPixKey] = useState('camila@camilanails.art');
+  const [pixKey, setPixKey] = useState('camila@example.com');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
   const creatorId = 'creator-1';

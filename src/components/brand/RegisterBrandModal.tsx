@@ -60,7 +60,7 @@ export const RegisterBrandModal: React.FC<RegisterBrandModalProps> = ({
       email,
       password: password || '123456',
       contactName: contactName || 'Responsável Parcerias',
-      phone: phone || '(11) 99999-9999',
+      phone: phone || '',
       city: city || 'São Paulo',
       state,
     });
@@ -128,7 +128,7 @@ export const RegisterBrandModal: React.FC<RegisterBrandModalProps> = ({
             <Input
               label="E-mail Corporativo"
               type="email"
-              placeholder="parcerias@suamarca.com.br"
+              placeholder="voce@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -146,7 +146,7 @@ export const RegisterBrandModal: React.FC<RegisterBrandModalProps> = ({
             />
             <Input
               label="WhatsApp / Telefone Direto"
-              placeholder="(11) 99999-9999"
+              placeholder="DDD + número"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required

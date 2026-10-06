@@ -69,7 +69,7 @@ const clean = leads.map((l) => {
   };
 });
 
-writeFileSync(new URL('../src/data/realLeads.json', import.meta.url), JSON.stringify(clean, null, 1));
+writeFileSync(new URL('../data/realLeads.json', import.meta.url), JSON.stringify(clean, null, 1));
 console.log(`realLeads.json: ${clean.length} creators | instagram real: ${clean.filter((c) => c.instagram).length} | e-mail: ${clean.filter((c) => c.email).length} | whatsapp: ${clean.filter((c) => c.phone).length}`);
 
 // Supabase: corrige as linhas existentes pelo @ do TikTok

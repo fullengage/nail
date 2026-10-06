@@ -187,6 +187,11 @@ let db;
   check('plataforma inválida é recusada', !!(await erro(() => as(db, 'service', `insert into creator_metrics (creator_id, platform) values ($1,'youtube')`, [cid]))));
   await as(db, 'service', 'delete from creators where id=$1', [cid]);
   check('apagar creator apaga as métricas', (await q1('service', 'select count(*)::int n from creator_metrics')).n === 0);
+  // bio e mídia kit com contato: só admin (e o próprio creator) leem a base
+  await as(db, 'service', `insert into creators (id, professional_name, city, state, instagram, bio, media_kit_url) values ('22222222-0000-0000-0000-000000000001','Bio Contato','','','@bio','parcerias: fulana@gmail.com (11) 99999-1234','https://wa.me/5511999991234')`);
+  check('visitante não lê bio com contato', (await as(db, null, `select bio from creators where id='22222222-0000-0000-0000-000000000001'`).catch(() => [])).length === 0);
+  check('empresa não lê bio com contato', (await as(db, U.marca, `select bio, media_kit_url from creators where id='22222222-0000-0000-0000-000000000001'`).catch(() => [])).length === 0);
+  check('admin lê a bio', (await as(db, U.admin, `select bio from creators where id='22222222-0000-0000-0000-000000000001'`))[0]?.bio?.includes('@gmail.com'));
   console.log(`\n${ok} verificações OK, ${falhas.length} falhas`);
   falhas.forEach((f) => console.log('  ✗', f));
   process.exit(falhas.length ? 1 : 0);

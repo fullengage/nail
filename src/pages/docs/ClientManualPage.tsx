@@ -117,7 +117,7 @@ export const ClientManualPage: React.FC<ClientManualPageProps> = ({ onNavigate }
               <p className="text-xs text-muted-foreground">Controle financeiro, GMV e moderação</p>
             </div>
             <div className="p-3 bg-card rounded-xl border border-border space-y-1 text-xs font-mono">
-              <p><strong>Login:</strong> admin@nailclubpro.com.br</p>
+              <p><strong>Login:</strong> admin@example.com</p>
               <p><strong>Senha:</strong> enviada pelo time Squad UGC</p>
             </div>
             <Button
@@ -141,7 +141,7 @@ export const ClientManualPage: React.FC<ClientManualPageProps> = ({ onNavigate }
               <p className="text-xs text-muted-foreground">48.5k seguidoras • Fibra & Nail Art</p>
             </div>
             <div className="p-3 bg-card rounded-xl border border-border space-y-1 text-xs font-mono">
-              <p><strong>Login:</strong> camila@camilanails.art</p>
+              <p><strong>Login:</strong> camila@example.com</p>
               <p><strong>Senha:</strong> 123456</p>
             </div>
             <Button
@@ -164,7 +164,7 @@ export const ClientManualPage: React.FC<ClientManualPageProps> = ({ onNavigate }
               <p className="text-xs text-muted-foreground">Esmaltes Profissionais & Géis</p>
             </div>
             <div className="p-3 bg-card rounded-xl border border-border space-y-1 text-xs font-mono">
-              <p><strong>Login:</strong> parcerias@bellavitta.com.br</p>
+              <p><strong>Login:</strong> parcerias@example.com</p>
               <p><strong>Senha:</strong> 123456</p>
             </div>
             <Button

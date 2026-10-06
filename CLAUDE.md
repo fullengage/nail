@@ -9,7 +9,9 @@
 - Empresas (brand) nunca veem e-mail/WhatsApp de creators nem telefone/e-mail/gerente de PDV. CSV só para admin.
 - Proteção no banco (migração 20261005_protege_contatos): **nunca usar select('*') em creators/retail_points** — usar CREATOR_COLS/RETAIL_COLS de supabaseService; contatos só via rpc admin_creator_contacts/admin_retail_contacts.
 - Login: sem senha padrão e sem atalho por e-mail fora de VITE_DEMO_MODE=true. Scripts gravam com SUPABASE_SERVICE_ROLE_KEY (só no .env local).
-- `data/` com planilhas e contatos fica fora do git.
+- `data/` inteira fica fora do git (repositório PÚBLICO): planilhas, listas e `data/realLeads.json`. Nenhuma lista de creators reais dentro de `src/`: o JavaScript do site é público.
+- Sem sessão do Supabase não existe painel: `/painel/*` vai para `/entrar`; o papel vem de `profiles` (nunca do localStorage). Seletor de papel, atalhos e dados de exemplo só com VITE_DEMO_MODE=true, e o modo demo nunca usa dados reais.
+- Antes de publicar: `grep @gmail.com` e busca de telefones em `dist/` têm que dar zero.
 
 ## Fluxo de campanha (migração 20261006_fluxo_campanha)
 - Campanhas reais usam `src/services/campaignFlow.ts`. Mudança de estado só por funções do banco (campaign_publish, creator_apply, brand_participant, creator_submit, brand_review, brand_report_payment, admin_payment) — nunca `update` direto de status/stage/pagamento.
