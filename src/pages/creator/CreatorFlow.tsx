@@ -191,7 +191,7 @@ export const CreatorWorkReal: React.FC = () => {
             </div>
             {ks.length > 0 && (
               <details className="text-xs"><summary className="cursor-pointer font-bold">Histórico de entregas ({ks.length})</summary>
-                <ul className="mt-1 space-y-1">{ks.map((k) => <li key={k.id}>v{k.version} · {k.file_name || 'link'} · {br(k.submitted_at)} · {k.status === 'approved' ? 'aprovada' : k.status === 'revision_requested' ? 'ajuste pedido' : 'em revisão'}{(k.reviews || []).map((r) => <span key={r.id} className="block text-muted-foreground">↳ {r.comment}</span>)}</li>)}</ul>
+                <ul className="mt-1 space-y-1">{ks.map((k) => <li key={k.id}>v{k.version} · {k.file_name || 'link'} · {br(k.submitted_at)} · {k.status === 'approved' ? 'aprovada' : k.status === 'revision_requested' ? 'ajuste pedido' : k.status === 'squad_review' ? 'em revisão pela Squad' : 'em revisão pela marca'}{(k.reviews || []).map((r) => <span key={r.id} className="block text-muted-foreground">↳ {r.comment}</span>)}</li>)}</ul>
               </details>
             )}
             {p.terms_snapshot && <details className="text-xs"><summary className="cursor-pointer font-bold">Condições que você aceitou (v{p.terms_version})</summary><div className="mt-2"><OpportunityTerms d={{ ...asTerms(c), ...p.terms_snapshot, intent: (c.intent || 'conteudo_marca') as Draft['intent'] } as never} /></div></details>}

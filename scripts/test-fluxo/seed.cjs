@@ -16,7 +16,7 @@ async function seeded() {
       ('f4ed01f7-791b-4979-9e11-150200c02f12','00000000-0000-0000-0000-000000000003','Dicas de mulher (REAL)','','','@real','real@x.com','11999'),
       ('11111111-0000-0000-0000-000000000001',null,'Creator Mapeado','','','@mapeado','map@x.com','11888');
   `);
-  for (const f of ['20261004_leads_e_cache.sql', '20261005_protege_contatos.sql', '20261006_fluxo_campanha.sql', '20261007_creator_metrics.sql']) {
+  for (const f of ['20261004_leads_e_cache.sql', '20261005_protege_contatos.sql', '20261006_fluxo_campanha.sql', '20261007_creator_metrics.sql', '20261008_curadoria_squad.sql']) {
     const sql = require('fs').readFileSync(require('path').join(__dirname, '../../src/supabase/migrations/', f), 'utf8').replace(/NOTIFY pgrst[^;]*;/gi, '');
     try { await db.exec(sql); } catch (e) { throw new Error(f + ': ' + e.message); }
   }

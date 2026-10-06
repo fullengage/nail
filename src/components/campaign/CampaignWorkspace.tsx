@@ -40,17 +40,18 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState('');
-  const [tab, setTab] = useState<'acompanhar' | 'selecionar'>(justPublished ? 'selecionar' : 'acompanhar');
+  // curadoria: só a Squad (admin) seleciona creators
+  const [tab, setTab] = useState<'acompanhar' | 'selecionar'>(justPublished && isAdmin ? 'selecionar' : 'acompanhar');
 
   const load = useCallback(async () => {
     setErr('');
     try {
       await campaignFlow.runDeadlines(); // aprova entregas vencidas e marca atrasos antes de mostrar
-      const [c, p, k, r] = await Promise.all([campaignFlow.get(campaignId), campaignFlow.participants(campaignId), campaignFlow.contents(campaignId), loadRules()]);
+      const [c, p, k, r] = await Promise.all([campaignFlow.get(campaignId), campaignFlow.participants(campaignId, isAdmin), campaignFlow.contents(campaignId), loadRules()]);
       setRules(r);
       setCamp(c); setParts(p); setContents(k);
     } catch (e) { setErr(humanError(e)); } finally { setLoading(false); }
-  }, [campaignId]);
+  }, [campaignId, isAdmin]);
   useEffect(() => { load(); }, [load]);
 
   const act = async (key: string, fn: () => Promise<unknown>, ok: string) => {
@@ -71,20 +72,26 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
   const publicLink = `${window.location.origin}/creator/oportunidades?campanha=${camp.id}`;
 
   // pendências com responsável, prazo e ação
-  const pend: { who: string; text: string; due?: string | null; go: () => void }[] = [];
+  const toScreen = contents.filter((k) => k.status === 'squad_review');
+  const toReview = contents.filter((k) => k.status === 'reviewing');
+  const pend: { who: string; text: string; due?: string | null; go?: () => void }[] = [];
   if (camp.status === 'draft') pend.push({ who: 'Você', text: 'Publicar a campanha', go: () => onEditDraft(camp) });
-  if (['open', 'selecting'].includes(camp.status) && parts.length === 0) pend.push({ who: 'Você', text: 'Convidar creators recomendados', due: camp.application_deadline, go: () => setTab('selecionar') });
-  by(['applied']).length && pend.push({ who: 'Você', text: `${by(['applied']).length} candidatura(s) para avaliar`, due: camp.selection_deadline, go: () => document.getElementById('sec-applied')?.scrollIntoView({ behavior: 'smooth' }) });
-  by(['shipping']).filter((p) => p.shipping).length && pend.push({ who: 'Você', text: `Enviar produto para ${by(['shipping']).filter((p) => p.shipping).length} creator(s)`, go: () => document.getElementById('sec-shipping')?.scrollIntoView({ behavior: 'smooth' }) });
-  by(['submitted']).length && pend.push({ who: 'Você', text: `${by(['submitted']).length} entrega(s) para revisar`, due: camp.delivery_deadline, go: () => document.getElementById('sec-review')?.scrollIntoView({ behavior: 'smooth' }) });
+  if (isAdmin && ['open', 'selecting'].includes(camp.status) && parts.length === 0) pend.push({ who: 'Você', text: 'Convidar creators recomendados', due: camp.application_deadline, go: () => setTab('selecionar') });
+  if (!isAdmin && ['open', 'selecting', 'in_progress'].includes(camp.status) && hired.length < camp.creator_slots) pend.push({ who: 'Squad UGC', text: `Selecionar e contratar os creators (${hired.length}/${camp.creator_slots})`, due: camp.selection_deadline });
+  if (!isAdmin && camp.compensation?.product && camp.status !== 'draft') pend.push({ who: 'Você', text: 'Enviar os produtos para a Squad UGC (ela repassa aos creators)' });
+  isAdmin && by(['applied']).length && pend.push({ who: 'Você', text: `${by(['applied']).length} candidatura(s) para avaliar`, due: camp.selection_deadline, go: () => document.getElementById('sec-applied')?.scrollIntoView({ behavior: 'smooth' }) });
+  isAdmin && by(['shipping']).filter((p) => p.shipping).length && pend.push({ who: 'Você', text: `Enviar produto para ${by(['shipping']).filter((p) => p.shipping).length} creator(s)`, go: () => document.getElementById('sec-shipping')?.scrollIntoView({ behavior: 'smooth' }) });
+  isAdmin && toScreen.length && pend.push({ who: 'Você', text: `${toScreen.length} entrega(s) para filtrar antes da marca`, go: () => document.getElementById('sec-review')?.scrollIntoView({ behavior: 'smooth' }) });
+  !isAdmin && by(['submitted']).length > toReview.length && pend.push({ who: 'Squad UGC', text: 'Conferir entregas antes de enviar para você' });
+  toReview.length && pend.push({ who: isAdmin ? 'Marca' : 'Você', text: `${toReview.length} entrega(s) para revisar`, due: toReview.map((k) => k.review_due_at).sort()[0], go: isAdmin ? undefined : () => document.getElementById('sec-review')?.scrollIntoView({ behavior: 'smooth' }) });
   const toPay = parts.filter((p) => p.payment_status === 'aguardando_marca' && !p.brand_reported_at);
   toPay.length && pend.push({ who: 'Você', text: `${toPay.length} pagamento(s) à Squad${toPay.some(isOverdue) ? ' (em atraso!)' : ''}`, due: toPay.map((p) => p.brand_due_at).sort()[0], go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
   isAdmin && parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length && pend.push({ who: 'Você', text: `Confirmar recebimento de ${parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length} pagamento(s) da marca`, go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
   isAdmin && parts.filter((p) => p.payment_status === 'recebido').length && pend.push({ who: 'Você', text: `Repassar ${parts.filter((p) => p.payment_status === 'recebido').length} cachê(s) aos creators`, due: parts.filter((p) => p.payment_status === 'recebido').map((p) => p.payout_due_at).sort()[0], go: () => document.getElementById('sec-pay')?.scrollIntoView({ behavior: 'smooth' }) });
-  !isAdmin && parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length && pend.push({ who: 'Squad UGC', text: 'Confirmar o recebimento do seu pagamento', go: () => {} });
-  !isAdmin && parts.filter((p) => p.payment_status === 'recebido').length && pend.push({ who: 'Squad UGC', text: 'Repassar o cachê aos creators', due: parts.filter((p) => p.payment_status === 'recebido').map((p) => p.payout_due_at).sort()[0], go: () => {} });
-  by(['invited']).length && pend.push({ who: 'Creators', text: `${by(['invited']).length} convidado(s) ainda não responderam`, due: camp.application_deadline, go: () => {} });
-  by(['producing', 'revision', 'shipping']).length && pend.push({ who: 'Creators', text: `${by(['producing', 'revision']).length} produzindo / ajustando`, due: camp.delivery_deadline, go: () => {} });
+  !isAdmin && parts.filter((p) => p.payment_status === 'aguardando_marca' && p.brand_reported_at).length && pend.push({ who: 'Squad UGC', text: 'Confirmar o recebimento do seu pagamento' });
+  !isAdmin && parts.filter((p) => p.payment_status === 'recebido').length && pend.push({ who: 'Squad UGC', text: 'Repassar o cachê aos creators', due: parts.filter((p) => p.payment_status === 'recebido').map((p) => p.payout_due_at).sort()[0] });
+  by(['invited']).length && pend.push({ who: 'Creators', text: `${by(['invited']).length} convidado(s) ainda não responderam`, due: camp.application_deadline });
+  by(['producing', 'revision', 'shipping']).length && pend.push({ who: 'Creators', text: `${by(['producing', 'revision']).length} produzindo / ajustando`, due: camp.delivery_deadline });
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -100,8 +107,8 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
         </div>
         <div className="flex flex-wrap gap-2">
           {camp.status === 'draft' && <Button size="sm" onClick={() => onEditDraft(camp)}>Continuar e publicar</Button>}
-          {camp.status !== 'draft' && <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(publicLink); setToast('Link copiado'); setTimeout(() => setToast(''), 2500); }}><Copy className="w-3.5 h-3.5" />Copiar link público</Button>}
-          {camp.status === 'open' && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act('sel', () => campaignFlow.setStatus(camp.id, 'selecting'), 'Candidaturas encerradas')}>Encerrar candidaturas</Button>}
+          {isAdmin && camp.status !== 'draft' && <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(publicLink); setToast('Link copiado'); setTimeout(() => setToast(''), 2500); }}><Copy className="w-3.5 h-3.5" />Copiar link público</Button>}
+          {isAdmin && camp.status === 'open' && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act('sel', () => campaignFlow.setStatus(camp.id, 'selecting'), 'Candidaturas encerradas')}>Encerrar candidaturas</Button>}
           {['in_progress', 'selecting'].includes(camp.status) && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => window.confirm('Concluir a campanha? Pagamentos pendentes continuam visíveis.') && act('done', () => campaignFlow.setStatus(camp.id, 'completed'), 'Campanha concluída')}>Concluir</Button>}
           <Button size="sm" variant="ghost" onClick={() => onDuplicate(camp)}>Duplicar</Button>
           <Button size="sm" variant="ghost" onClick={load} aria-label="Atualizar"><RefreshCw className="w-3.5 h-3.5" /></Button>
@@ -110,8 +117,8 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
 
       {justPublished && (
         <div className="p-4 rounded-2xl bg-primary/40 border-2 border-black">
-          <p className="font-bold text-foreground">Campanha publicada. Agora selecione ou convide creators.</p>
-          <p className="text-xs text-foreground/80">Publicada não quer dizer contratada: os creators leem as condições, aceitam e você escolhe quem contratar.</p>
+          <p className="font-bold text-foreground">{isAdmin ? 'Campanha publicada. Agora selecione ou convide creators.' : 'Campanha publicada. A Squad UGC vai selecionar os creators.'}</p>
+          <p className="text-xs text-foreground/80">{isAdmin ? 'Publicada não quer dizer contratada: os creators leem as condições, aceitam e a Squad escolhe quem contratar.' : 'Você acompanha aqui quem foi contratado, revisa os vídeos que a Squad aprovar e faz o pagamento.'}</p>
         </div>
       )}
       {toast && <div role="status" className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-700">{toast}</div>}
@@ -120,8 +127,10 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
       {/* números operacionais verificáveis */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {([
-          ['Convidados', by(['invited']).length + parts.filter((p) => p.invited_at && p.stage !== 'invited').length],
-          ['Aceitaram as condições', parts.filter((p) => p.terms_accepted_at).length],
+          ...(isAdmin ? [
+            ['Convidados', by(['invited']).length + parts.filter((p) => p.invited_at && p.stage !== 'invited').length],
+            ['Aceitaram as condições', parts.filter((p) => p.terms_accepted_at).length],
+          ] : []),
           ['Contratados', `${hired.length}/${camp.creator_slots}`],
           ['Conteúdos entregues', contents.length ? new Set(contents.map((k) => k.creator_id)).size : 0],
           ['Aprovados', approvedContents.length],
@@ -132,13 +141,15 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
       </div>
       {approvedContents.length > 0 && paid > 0 && <p className="text-[11px] text-muted-foreground">Custo por conteúdo aprovado (pago à Squad ÷ aprovados): <strong>{brl(paid / approvedContents.length)}</strong>. Vendas e cliques só aparecem quando houver uma fonte conectada.</p>}
 
-      <div className="flex gap-2 border-b border-border">
-        {([['acompanhar', 'Acompanhar'], ['selecionar', 'Selecionar e convidar creators']] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-3 py-2 text-xs font-bold border-b-2 ${tab === k ? 'border-black text-foreground' : 'border-transparent text-muted-foreground'}`}>{l}</button>
-        ))}
-      </div>
+      {isAdmin && (
+        <div className="flex gap-2 border-b border-border">
+          {([['acompanhar', 'Acompanhar'], ['selecionar', 'Selecionar e convidar creators']] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} className={`px-3 py-2 text-xs font-bold border-b-2 ${tab === k ? 'border-black text-foreground' : 'border-transparent text-muted-foreground'}`}>{l}</button>
+          ))}
+        </div>
+      )}
 
-      {tab === 'selecionar' && <Selector camp={camp} creators={creators} parts={parts} busy={busy} onInvite={(ids) => act('inv', () => campaignFlow.invite(camp.id, ids), `${ids.length} creator(s) convidado(s). Eles veem o convite ao entrar; nenhum e-mail foi enviado.`)} />}
+      {isAdmin && tab === 'selecionar' && <Selector camp={camp} creators={creators} parts={parts} busy={busy} onInvite={(ids) => act('inv', () => campaignFlow.invite(camp.id, ids), `${ids.length} creator(s) convidado(s). Eles veem o convite ao entrar; nenhum e-mail foi enviado.`)} />}
 
       {tab === 'acompanhar' && (
         <div className="space-y-5">
@@ -150,38 +161,44 @@ export const CampaignWorkspace: React.FC<{ campaignId: string; onBack: () => voi
                 {pend.map((p, i) => (
                   <li key={i} className="py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span><span className={`mr-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${p.who === 'Você' ? 'bg-black text-white' : 'bg-muted text-muted-foreground'}`}>{p.who}</span>{p.text}{p.due ? <span className="text-muted-foreground"> · até {br(p.due)}</span> : null}</span>
-                    {p.who === 'Você' && <Button size="sm" variant="outline" onClick={p.go}>Resolver</Button>}
+                    {p.who === 'Você' && p.go && <Button size="sm" variant="outline" onClick={p.go}>Resolver</Button>}
                   </li>
                 ))}
               </ul>
             )}
           </section>
 
-          <Section id="sec-applied" title="Candidatos e aceites" empty="Nenhuma candidatura ainda." items={by(['invited', 'applied'])}>
-            {(p) => (
-              <Row key={p.id} p={p} extra={p.terms_accepted_at ? `Aceitou as condições v${p.terms_version} em ${br(p.terms_accepted_at)}${p.message ? ` · “${p.message}”` : ''}` : 'Convite enviado · aguardando resposta'}>
-                {p.stage === 'applied' && <>
-                  <Button size="sm" disabled={!!busy} onClick={() => act(p.id, () => campaignFlow.participant(p.id, 'hire'), 'Creator contratado')}>Contratar</Button>
-                  <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => act(p.id, () => campaignFlow.participant(p.id, 'reject'), 'Candidatura recusada')}>Recusar</Button>
-                </>}
-              </Row>
-            )}
-          </Section>
+          {isAdmin && <>
+            <Section id="sec-applied" title="Candidatos e aceites" empty="Nenhuma candidatura ainda." items={by(['invited', 'applied'])}>
+              {(p) => (
+                <Row key={p.id} p={p} extra={p.terms_accepted_at ? `Aceitou as condições v${p.terms_version} em ${br(p.terms_accepted_at)}${p.message ? ` · “${p.message}”` : ''}` : 'Convite enviado · aguardando resposta'}>
+                  {p.stage === 'applied' && <>
+                    <Button size="sm" disabled={!!busy} onClick={() => act(p.id, () => campaignFlow.participant(p.id, 'hire'), 'Creator contratado')}>Contratar</Button>
+                    <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => act(p.id, () => campaignFlow.participant(p.id, 'reject'), 'Candidatura recusada')}>Recusar</Button>
+                  </>}
+                </Row>
+              )}
+            </Section>
 
-          <Section id="sec-shipping" title="Envio de produtos" empty="Nenhum envio pendente." items={by(['shipping'])}>
-            {(p) => <ShipRow key={p.id} p={p} busy={busy} onShip={(note) => act(p.id, () => campaignFlow.participant(p.id, 'shipped', note), 'Envio informado ao creator')} />}
-          </Section>
+            <Section id="sec-shipping" title="Envio de produtos (a marca manda para a Squad)" empty="Nenhum envio pendente." items={by(['shipping'])}>
+              {(p) => <ShipRow key={p.id} p={p} busy={busy} onShip={(note) => act(p.id, () => campaignFlow.participant(p.id, 'shipped', note), 'Envio informado ao creator')} />}
+            </Section>
+          </>}
 
-          <Section id="sec-production" title="Em produção" empty="Ninguém produzindo agora." items={by(['producing', 'revision'])}>
-            {(p) => <Row key={p.id} p={p} extra={p.stage === 'revision' ? 'Ajustando após seu pedido' : `Entrega até ${br(camp.delivery_deadline)}`} />}
+          <Section id="sec-production" title={isAdmin ? 'Em produção' : 'Creators contratados pela Squad'} empty={isAdmin ? 'Ninguém produzindo agora.' : 'A Squad UGC ainda está selecionando os creators.'} items={isAdmin ? by(['producing', 'revision']) : hired}>
+            {(p) => <Row key={p.id} p={p} extra={isAdmin
+              ? (p.stage === 'revision' ? 'Ajustando após pedido' : `Entrega até ${br(camp.delivery_deadline)}`)
+              : [p.creator?.instagram, p.creator?.tiktok].filter(Boolean).join(' · ') || undefined} />}
           </Section>
 
           <section id="sec-review" className="p-4 rounded-2xl bg-card border border-border space-y-3">
             <h2 className="text-sm font-bold text-foreground">Entregas e revisões</h2>
+            {!isAdmin && <p className="text-[11px] text-muted-foreground">A Squad UGC confere cada vídeo antes; aqui chegam só os que passaram.</p>}
             {contents.length === 0 ? <p className="text-xs text-muted-foreground">Nenhuma entrega recebida.</p> : (
               [...new Set(contents.map((k) => k.creator_id))].map((cid) => (
-                <ReviewBlock key={cid} camp={camp} part={parts.find((p) => p.creator_id === cid)} versions={contents.filter((k) => k.creator_id === cid)} busy={busy}
-                  onDecide={(id, decision, comment) => act(id, () => campaignFlow.review(id, decision, comment), decision === 'approved' ? 'Entrega aprovada' : 'Ajuste solicitado ao creator')} />
+                <ReviewBlock key={cid} camp={camp} part={parts.find((p) => p.creator_id === cid)} versions={contents.filter((k) => k.creator_id === cid)} busy={busy} isAdmin={isAdmin}
+                  onDecide={(id, decision, comment) => act(id, () => campaignFlow.review(id, decision, comment), decision === 'approved' ? 'Entrega aprovada' : 'Ajuste solicitado ao creator')}
+                  onScreen={(id, decision, comment) => act(id, () => campaignFlow.screen(id, decision, comment), decision === 'forward' ? 'Entrega encaminhada à marca' : 'Ajuste solicitado ao creator')} />
               ))
             )}
           </section>
@@ -289,10 +306,12 @@ function PayRow({ p, busy, isAdmin, onReport, onAdmin }: { p: Participation; bus
     </div>
   );
 }
-function ReviewBlock({ camp, part, versions, busy, onDecide }: { camp: FlowCampaign; part?: Participation; versions: Content[]; busy: string | null; onDecide: (id: string, d: 'approved' | 'revision', comment?: string) => void }) {
+const CONTENT_STATUS: Record<string, string> = { squad_review: 'Em triagem pela Squad', reviewing: 'Aguardando revisão da marca', revision_requested: 'Ajuste pedido', approved: 'Aprovado' };
+function ReviewBlock({ camp, part, versions, busy, isAdmin, onDecide, onScreen }: { camp: FlowCampaign; part?: Participation; versions: Content[]; busy: string | null; isAdmin: boolean; onDecide: (id: string, d: 'approved' | 'revision', comment?: string) => void; onScreen: (id: string, d: 'forward' | 'revision', comment?: string) => void }) {
   const [comment, setComment] = useState('');
   const [preview, setPreview] = useState<Record<string, string>>({});
   const latest = versions[0];
+  // ajustes pedidos pela Squad na triagem não contam nas revisões da marca
   const used = versions.flatMap((v) => v.reviews || []).filter((r) => r.decision === 'revision').length;
   const open = async (k: Content, download = false) => {
     if (!k.file_path) return;
@@ -307,7 +326,7 @@ function ReviewBlock({ camp, part, versions, busy, onDecide }: { camp: FlowCampa
         <div key={k.id} className={`p-2 rounded-lg border ${k.id === latest.id ? 'border-black' : 'border-border opacity-80'} text-xs space-y-1`}>
           <div className="flex flex-wrap justify-between gap-2">
             <span className="font-bold">v{k.version} · {k.file_name || 'link'} · {br(k.submitted_at)}</span>
-            <span className={k.status === 'approved' ? 'text-emerald-700 font-bold' : k.status === 'revision_requested' ? 'text-amber-700 font-bold' : 'font-bold'}>{k.status === 'approved' ? (k.auto_approved ? 'Aprovado automaticamente (prazo)' : 'Aprovado') : k.status === 'revision_requested' ? 'Ajuste pedido' : 'Aguardando sua revisão'}</span>
+            <span className={k.status === 'approved' ? 'text-emerald-700 font-bold' : k.status === 'revision_requested' ? 'text-amber-700 font-bold' : 'font-bold'}>{k.status === 'approved' && k.auto_approved ? 'Aprovado automaticamente (prazo)' : k.status === 'reviewing' && !isAdmin ? 'Aguardando sua revisão' : CONTENT_STATUS[k.status] || k.status}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {k.file_path && <button className="underline inline-flex items-center gap-1" onClick={() => open(k)}><Video className="w-3.5 h-3.5" />Ver vídeo</button>}
@@ -316,9 +335,19 @@ function ReviewBlock({ camp, part, versions, busy, onDecide }: { camp: FlowCampa
           </div>
           {preview[k.id] && (k.mime?.startsWith('image') ? <img src={preview[k.id]} alt={`Entrega v${k.version}`} className="max-h-80 rounded-lg" /> : <video src={preview[k.id]} controls className="max-h-80 rounded-lg w-full bg-black" />)}
           {k.caption && <p className="text-muted-foreground">Legenda: {k.caption}</p>}
-          {(k.reviews || []).map((r) => <p key={r.id} className="text-muted-foreground">↳ {r.decision === 'revision' ? 'Ajuste pedido' : r.decision === 'approved' ? 'Aprovação' : 'Comentário'}: {r.comment}</p>)}
+          {(k.reviews || []).map((r) => <p key={r.id} className="text-muted-foreground">↳ {r.decision === 'revision' ? 'Ajuste pedido' : r.decision === 'squad_revision' ? 'Ajuste pedido pela Squad' : r.decision === 'approved' ? 'Aprovação' : 'Comentário'}: {r.comment}</p>)}
         </div>
       ))}
+      {isAdmin && latest.status === 'squad_review' && (
+        <div className="space-y-2">
+          <label htmlFor={`s-${latest.id}`} className="text-xs font-bold">Comentário para o creator (triagem da Squad)</label>
+          <textarea id={`s-${latest.id}`} rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Obrigatório para pedir ajuste. A marca não vê esta versão." className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border" />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={!!busy} onClick={() => onScreen(latest.id, 'forward')}><Send className="w-3.5 h-3.5" />Encaminhar à marca</Button>
+            <Button size="sm" variant="outline" disabled={!!busy || !comment.trim()} onClick={() => onScreen(latest.id, 'revision', comment)}>Pedir ajuste (não gasta revisão da marca)</Button>
+          </div>
+        </div>
+      )}
       {latest.status === 'reviewing' && (
         <div className="space-y-2">
           <label htmlFor={`c-${latest.id}`} className="text-xs font-bold">Comentário para o creator</label>

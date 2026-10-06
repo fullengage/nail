@@ -63,7 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
   // 2. Brand Admin Menu (Empresa Contratante)
   const brandMenuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard da Marca', icon: LayoutDashboard },
-    { id: 'creators', label: 'Contratar Creators', icon: Users },
     { id: 'campaigns', label: 'Minhas Campanhas & Pipeline', icon: Briefcase, count: pendingSubsCount },
     { id: 'retail', label: 'Nossos PDVs', icon: Store },
     { id: 'affiliates', label: 'Afiliados & Cupons', icon: DollarSign },

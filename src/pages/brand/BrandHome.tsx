@@ -34,8 +34,6 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
   const all = Object.values(parts).flat();
   const count = (stage: string) => all.filter((p) => p.stage === stage).length;
   const pending = [
-    { n: count('applied'), t: 'candidatura(s) para avaliar' },
-    { n: all.filter((p) => p.stage === 'shipping' && p.shipping).length, t: 'produto(s) para enviar' },
     { n: count('submitted'), t: 'entrega(s) para revisar' },
     { n: all.filter((p) => p.payment_status === 'aguardando_marca' && !p.brand_reported_at).length, t: 'pagamento(s) a fazer à Squad' },
   ].filter((x) => x.n > 0);
@@ -43,8 +41,8 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
   const running = camps.filter((c) => ['open', 'selecting', 'in_progress'].includes(c.status));
   const next = !camps.length ? { t: 'Crie sua primeira campanha', a: create }
     : drafts.length && !running.length ? { t: `Publique o rascunho “${drafts[0].title}”`, a: () => go(drafts[0].id) }
-    : pending.length ? { t: `Resolver: ${pending[0].n} ${pending[0].t}`, a: () => go(Object.keys(parts).find((id) => parts[id].some((p) => ['applied', 'submitted', 'shipping', 'approved'].includes(p.stage)))) }
-    : running.some((c) => !(parts[c.id] || []).length) ? { t: 'Convide creators para a campanha publicada', a: () => go(running.find((c) => !(parts[c.id] || []).length)?.id) }
+    : pending.length ? { t: `Resolver: ${pending[0].n} ${pending[0].t}`, a: () => go(Object.keys(parts).find((id) => parts[id].some((p) => ['submitted', 'approved'].includes(p.stage)))) }
+    : running.some((c) => (parts[c.id] || []).length < c.creator_slots) ? { t: 'A Squad UGC está selecionando os creators', a: () => go(running.find((c) => (parts[c.id] || []).length < c.creator_slots)?.id) }
     : { t: 'Acompanhe a produção das campanhas', a: () => go() };
 
   return (
@@ -70,7 +68,7 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
           {!camps.length ? (
             <section className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
               <p className="text-base font-bold text-foreground">Crie sua primeira campanha para receber vídeos, divulgar produtos ou recrutar afiliados.</p>
-              <p className="text-xs text-muted-foreground">São 3 passos: produto e resultado, creators e pagamento, briefing. Leva poucos minutos e fica salvo enquanto você preenche.</p>
+              <p className="text-xs text-muted-foreground">São 3 passos: produto e resultado, creators e pagamento, briefing. Depois de publicar, a Squad UGC seleciona e contrata os creators para você.</p>
             </section>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -84,7 +82,7 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
                     return (
                       <li key={c.id} className="py-2.5 flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0"><p className="text-sm font-bold text-foreground truncate">{c.title}</p>
-                          <p className="text-[11px] text-muted-foreground">{ps.filter((p) => p.hired_at).length}/{c.creator_slots} contratados · {ps.filter((p) => p.stage === 'applied').length} aguardando sua decisão</p></div>
+                          <p className="text-[11px] text-muted-foreground">{ps.length}/{c.creator_slots} contratados pela Squad</p></div>
                         <div className="flex items-center gap-2"><span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${st.cls}`}>{st.label}</span><Button size="sm" variant="outline" onClick={() => go(c.id)}>Abrir</Button></div>
                       </li>
                     );
@@ -101,7 +99,6 @@ export const BrandHome: React.FC<{ onNavigate: (view: string) => void }> = ({ on
               </section>
             </div>
           )}
-          <p className="text-[11px] text-muted-foreground">Quer explorar a base antes? <button className="underline font-bold" onClick={() => onNavigate('creators')}>Ver creators</button></p>
         </>
       )}
     </div>

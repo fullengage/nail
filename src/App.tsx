@@ -42,7 +42,6 @@ import { CreatorProfilePage } from './pages/creator/CreatorProfile';
 // Brand Legacy / Dedicated Pages
 import { BrandDashboard } from './pages/brand/BrandDashboard';
 import { BrandCreators } from './pages/brand/BrandCreators';
-import { BrandApplications } from './pages/brand/BrandApplications';
 import { BrandContent } from './pages/brand/BrandContent';
 import { BrandProducts } from './pages/brand/BrandProducts';
 
@@ -147,7 +146,9 @@ const MainApp: React.FC = () => {
         // a marca entra pela tarefa (criar/acompanhar campanha), não pelas métricas de prospecção
         return role === 'brand_admin' || role === 'brand' ? <BrandHome onNavigate={setCurrentView} /> : <SquadraDashboard onNavigate={setCurrentView} />;
       case 'creators':
-        return <SquadraCreators onNavigate={setCurrentView} />;
+      case 'brand-creators':
+        // curadoria: a empresa não vê a base de creators (quem seleciona é a Squad)
+        return role === 'brand_admin' || role === 'brand' ? <BrandHome onNavigate={setCurrentView} /> : <SquadraCreators onNavigate={setCurrentView} />;
       case 'retail':
         return <SquadraRetail />;
       case 'campaigns':
@@ -201,10 +202,8 @@ const MainApp: React.FC = () => {
         return checkPermission('brand', <CampaignsPage />);
       case 'brand-create-campaign':
         return checkPermission('brand', <CampaignsPage startBuilding key="novo" />);
-      case 'brand-creators':
-        return <SquadraCreators onNavigate={setCurrentView} />;
       case 'brand-applications':
-        return checkPermission('brand', <BrandApplications />);
+        return <BrandHome onNavigate={setCurrentView} />;
       case 'brand-content':
         return checkPermission('brand', <BrandContent />);
       case 'brand-products':

@@ -139,12 +139,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               >
                 Dashboard
               </button>
-              <button
-                onClick={() => onNavigate('creators')}
-                className={`transition-colors hover:text-primary ${currentView === 'creators' ? 'text-primary font-bold' : 'text-muted-foreground'}`}
-              >
-                Creators
-              </button>
+              {!isBrand && (
+                <button
+                  onClick={() => onNavigate('creators')}
+                  className={`transition-colors hover:text-primary ${currentView === 'creators' ? 'text-primary font-bold' : 'text-muted-foreground'}`}
+                >
+                  Creators
+                </button>
+              )}
               <button
                 onClick={() => onNavigate('campaigns')}
                 className={`transition-colors hover:text-primary ${currentView === 'campaigns' ? 'text-primary font-bold' : 'text-muted-foreground'}`}
@@ -395,12 +397,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
             >
               Dashboard
             </button>
-            <button
-              onClick={() => { onNavigate('creators'); setMobileMenuOpen(false); }}
-              className="block w-full text-left px-3 py-2 text-sm font-medium rounded-lg hover:bg-muted"
-            >
-              Creators
-            </button>
+            {!isBrand && (
+              <button
+                onClick={() => { onNavigate('creators'); setMobileMenuOpen(false); }}
+                className="block w-full text-left px-3 py-2 text-sm font-medium rounded-lg hover:bg-muted"
+              >
+                Creators
+              </button>
+            )}
             <button
               onClick={() => { onNavigate('campaigns'); setMobileMenuOpen(false); }}
               className="block w-full text-left px-3 py-2 text-sm font-medium rounded-lg hover:bg-muted"

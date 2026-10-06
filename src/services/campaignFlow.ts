@@ -62,7 +62,7 @@ export function humanError(e: unknown): string {
   const m = (e as { message?: string })?.message || String(e || '');
   if (/Failed to fetch|NetworkError|network/i.test(m)) return 'Sem conexão. Seus dados estão salvos neste aparelho; tente de novo.';
   if (/JWT|not authenticated|permission denied|row-level security/i.test(m)) return 'Entre com sua conta para continuar.';
-  if (/schema cache|does not exist|PGRST20/i.test(m)) return 'Recurso ainda não ativado no banco (migração 20261006 pendente).';
+  if (/schema cache|does not exist|PGRST20/i.test(m)) return 'Recurso ainda não ativado no banco (migração pendente: rode as migrações até 20261008).';
   return m.replace(/^.*?ERROR:\s*/, '');
 }
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -148,8 +148,10 @@ export const campaignFlow = {
   },
 
   // ---------- participantes ----------
-  async participants(campaignId: string): Promise<Participation[]> {
+  // curadoria: a marca só recebe os contratados (brand_squad, sem endereço/mensagem); a tabela inteira é do admin
+  async participants(campaignId: string, asAdmin = false): Promise<Participation[]> {
     if (!supabase) return [];
+    if (!asAdmin) return rpc<Participation[]>('brand_squad', { p_campaign: campaignId });
     const { data, error } = await supabase.from('campaign_creators').select('*').eq('campaign_id', campaignId).order('updated_at', { ascending: false });
     if (error) throw new Error(humanError(error));
     const rows = (data || []) as Participation[];
@@ -216,6 +218,8 @@ export const campaignFlow = {
     return data?.signedUrl ?? null;
   },
   review: (contentId: string, decision: 'approved' | 'revision', comment?: string) => rpc<string>('brand_review', { p_content: contentId, p_decision: decision, p_comment: comment || null }),
+  // admin: encaminhar a entrega à marca ou pedir ajuste antes
+  screen: (contentId: string, decision: 'forward' | 'revision', comment?: string) => rpc<string>('squad_screen', { p_content: contentId, p_decision: decision, p_comment: comment || null }),
   // marca informa que pagou a Squad (referência + comprovante opcional); o admin confirma
   async reportPayment(ccId: string, campaignId: string, creatorId: string, note: string, proof?: File | null): Promise<string> {
     const proofPath = proof ? await uploadProof(campaignId, creatorId, 'marca', proof) : null;
@@ -244,19 +248,19 @@ export const campaignFlow = {
 // ---------- textos de estado (uma fonte só para empresa, creator e admin) ----------
 export const CAMPAIGN_STATUS: Record<string, { label: string; hint: string; cls: string }> = {
   draft: { label: 'Rascunho', hint: 'Só você vê. Publique quando estiver pronta.', cls: 'bg-muted text-muted-foreground border-border' },
-  open: { label: 'Publicada · recebendo candidaturas', hint: 'Creators podem se candidatar. Ninguém foi contratado ainda.', cls: 'bg-sky-500/10 text-sky-700 border-sky-500/30' },
-  selecting: { label: 'Em seleção', hint: 'Candidaturas encerradas: escolha quem contratar.', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30' },
+  open: { label: 'Publicada · Squad selecionando creators', hint: 'A Squad UGC escolhe e contrata os creators. Ninguém foi contratado ainda.', cls: 'bg-sky-500/10 text-sky-700 border-sky-500/30' },
+  selecting: { label: 'Em seleção', hint: 'Candidaturas encerradas: a Squad UGC está escolhendo quem contratar.', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30' },
   in_progress: { label: 'Em produção', hint: 'Há creators contratados produzindo.', cls: 'bg-violet-500/10 text-violet-700 border-violet-500/30' },
   completed: { label: 'Concluída', hint: 'Campanha encerrada.', cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' },
   cancelled: { label: 'Cancelada', hint: '', cls: 'bg-red-500/10 text-red-700 border-red-500/30' },
 };
 export const STAGE: Record<string, { label: string; who: 'marca' | 'creator' | '—'; next: string }> = {
   invited: { label: 'Convidado', who: 'creator', next: 'Creator precisa ler as condições e aceitar' },
-  applied: { label: 'Aceitou as condições', who: 'marca', next: 'Contratar ou recusar' },
+  applied: { label: 'Aceitou as condições', who: '—', next: 'Squad contrata ou recusa' },
   hired: { label: 'Contratado', who: 'creator', next: 'Produzir o conteúdo' },
-  shipping: { label: 'Aguardando produto', who: 'marca', next: 'Enviar o produto (o creator informa o endereço)' },
+  shipping: { label: 'Aguardando produto', who: '—', next: 'Squad envia o produto (o creator informa o endereço)' },
   producing: { label: 'Produzindo', who: 'creator', next: 'Entregar o conteúdo' },
-  submitted: { label: 'Entregue · aguardando revisão', who: 'marca', next: 'Aprovar ou pedir ajuste' },
+  submitted: { label: 'Entregue · em revisão', who: 'marca', next: 'Squad filtra; depois a marca aprova ou pede ajuste' },
   revision: { label: 'Ajuste solicitado', who: 'creator', next: 'Enviar nova versão' },
   approved: { label: 'Aprovado', who: 'marca', next: 'Pagar e informar o pagamento' },
   paid: { label: 'Pago', who: '—', next: 'Concluído' },

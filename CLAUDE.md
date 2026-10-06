@@ -18,6 +18,12 @@
 - Pagamento passa pela Squad (manual, PIX fora do sistema): marca paga a Squad (cachê + taxa %) → admin confirma recebimento → admin registra repasse ao creator. Taxa e prazos vêm de squad_settings (padrão 15%, revisão 5 dias úteis com aprovação automática, marca paga em 7 dias, repasse em 5 dias úteis). Nada de saque, fatura ou escrow simulados.
 - Teste do banco: `npm i --no-save @electric-sql/pglite && node scripts/test-fluxo/fluxo.test.cjs` (precisa passar 100%).
 
+## Curadoria pela Squad (migração 20261008_curadoria_squad)
+- A empresa **não vê a base nem escolhe creators**: convidar/contratar/recusar/enviar produto só admin (brand_invite e brand_participant exigem admin). Marca envia os produtos para a Squad.
+- A marca vê só os creators **já contratados** da campanha dela, via rpc `brand_squad` (sem endereço, mensagem ou dados do repasse). Tabela campaign_creators: só admin e o próprio creator.
+- Entrega nasce `squad_review`; a Squad usa `squad_screen` (forward → marca revisa com prazo; revision → ajuste que não gasta as revisões da marca). A marca só lê conteúdos/arquivos com `forwarded_at`.
+- Base de creators e creator_metrics: leitura só admin e o próprio creator (visitante e marca recebem vazio).
+
 ## Métricas do creator (migração 20261007_creator_metrics)
 - Snapshots em `creator_metrics` (um por coleta). Fórmulas só em `src/lib/creatorQuality.ts` (computeMetrics, reachPct, growth30d, suspicionAlerts, metricsQuality). Coleta: `scripts/medir-creator-tiktok.mjs` (vídeos fixados ficam fora da média).
 - Sem preço/CPM, demografia ou autenticidade de audiência até existir base real. Sem medição: "Ainda não medido" e "—".
