@@ -175,7 +175,7 @@ CREATE POLICY "cc_owner_delete" ON public.campaign_creators FOR DELETE TO authen
   USING (public.can_manage_campaign(campaign_id) AND terms_accepted_at IS NULL);
 REVOKE UPDATE ON public.campaign_creators FROM anon, authenticated;
 GRANT UPDATE (notes, fee, operational_score, updated_at) ON public.campaign_creators TO authenticated;
-REVOKE SELECT ON public.campaign_creators FROM anon;
+GRANT SELECT ON public.campaign_creators TO anon; -- RLS cc_read restringe linhas aos usuários autenticados (anon recebe vazio 200 OK sem 401)
 
 DROP POLICY IF EXISTS "Allow public read contents" ON public.contents;
 DROP POLICY IF EXISTS "contents_member_write" ON public.contents;
@@ -183,7 +183,7 @@ DROP POLICY IF EXISTS "contents_read" ON public.contents;
 CREATE POLICY "contents_read" ON public.contents FOR SELECT TO authenticated
   USING (public.can_manage_campaign(campaign_id) OR creator_id = public.my_creator_id());
 REVOKE INSERT, UPDATE, DELETE ON public.contents FROM anon, authenticated;
-REVOKE SELECT ON public.contents FROM anon;
+GRANT SELECT ON public.contents TO anon;
 
 DROP POLICY IF EXISTS "Allow public read content_reviews" ON public.content_reviews;
 DROP POLICY IF EXISTS "content_reviews_member_write" ON public.content_reviews;
@@ -191,11 +191,12 @@ DROP POLICY IF EXISTS "reviews_read" ON public.content_reviews;
 CREATE POLICY "reviews_read" ON public.content_reviews FOR SELECT TO authenticated USING (EXISTS (
   SELECT 1 FROM public.contents c WHERE c.id = content_id AND (public.can_manage_campaign(c.campaign_id) OR c.creator_id = public.my_creator_id())));
 REVOKE INSERT, UPDATE, DELETE ON public.content_reviews FROM anon, authenticated;
-REVOKE SELECT ON public.content_reviews FROM anon;
+GRANT SELECT ON public.content_reviews TO anon;
 
 DROP POLICY IF EXISTS "Allow public read shipments" ON public.shipments;
 DROP POLICY IF EXISTS "shipments_member_write" ON public.shipments;
 REVOKE ALL ON public.shipments FROM anon;
+GRANT SELECT ON public.shipments TO anon;
 
 -- ---------- regras da Squad (ajustáveis pelo admin; nada de número escondido no código) ----------
 CREATE TABLE IF NOT EXISTS public.squad_settings (key text PRIMARY KEY, value numeric NOT NULL, label text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
