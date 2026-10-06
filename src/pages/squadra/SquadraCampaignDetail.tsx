@@ -88,6 +88,9 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
     return submissions.filter(s => s.campaign_id === campaign.id);
   }, [submissions, campaign?.id]);
 
+  // Comentário de revisão (hooks sempre antes de qualquer return)
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+
   if (!campaign) {
     return (
       <div className="p-12 text-center rounded-2xl bg-card border border-border max-w-md mx-auto my-12 space-y-4">
@@ -98,9 +101,6 @@ export const SquadraCampaignDetail: React.FC<SquadraCampaignDetailProps> = ({
       </div>
     );
   }
-
-  // Comentário de revisão
-  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
   const handleSendComment = (contentId: string) => {
     const text = commentInputs[contentId];

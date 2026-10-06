@@ -25,3 +25,70 @@ export const SIZES = {
 } as const;
 export type SizeKey = keyof typeof SIZES;
 export const sizeOf = (n: number): SizeKey => (n >= 1e6 ? 'macro' : n >= 1e5 ? 'medio' : n >= 1e4 ? 'micro' : 'nano');
+
+// ---------- métricas por post (tabela creator_metrics) ----------
+// Mesmas faixas do selo acima; a barra de faixas da interface usa estes limites (não há base de comparação externa).
+export const ER_BANDS = [0.1, 1, 3, 40] as const;
+
+export interface PostStat { views: number; likes: number; comments: number; shares: number; created_at?: string | null }
+export interface MetricsSummary {
+  posts_analyzed: number; period_days: number | null;
+  avg_views: number | null; avg_likes: number | null; avg_comments: number | null; avg_shares: number | null;
+  er_by_views: number | null; er_by_followers: number | null;
+}
+const r2 = (n: number) => Math.round(n * 100) / 100;
+// porcentagem no padrão brasileiro (vírgula)
+export const pctBR = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+// er_by_views = (curtidas + comentários + compartilhamentos) / views × 100
+// er_by_followers = (curtidas + comentários + compartilhamentos) / seguidores × 100  (médias por post)
+export function computeMetrics(posts: PostStat[], followers: number | null): MetricsSummary {
+  const n = posts.length;
+  const v = avg(posts.map((p) => p.views || 0)), l = avg(posts.map((p) => p.likes || 0));
+  const c = avg(posts.map((p) => p.comments || 0)), s = avg(posts.map((p) => p.shares || 0));
+  const inter = n ? (l || 0) + (c || 0) + (s || 0) : null;
+  const dates = posts.map((p) => (p.created_at ? Date.parse(p.created_at) : NaN)).filter((d) => !Number.isNaN(d));
+  return {
+    posts_analyzed: n,
+    period_days: dates.length > 1 ? Math.max(1, Math.round((Math.max(...dates) - Math.min(...dates)) / 86400000)) : null,
+    avg_views: v == null ? null : r2(v), avg_likes: l == null ? null : r2(l), avg_comments: c == null ? null : r2(c), avg_shares: s == null ? null : r2(s),
+    er_by_views: inter != null && v ? r2((inter / v) * 100) : null,
+    er_by_followers: inter != null && followers ? r2((inter / followers) * 100) : null,
+  };
+}
+// alcance = média de views / seguidores × 100
+export const reachPct = (avgViews: number | null | undefined, followers: number | null | undefined) =>
+  avgViews != null && followers ? r2((avgViews / followers) * 100) : null;
+
+// crescimento: snapshot mais recente × o mais próximo de 30 dias antes dele. Menos de 2 coletas → null ("—").
+export function growth30d(snaps: { collected_at: string; followers: number | null }[]) {
+  const s = snaps.filter((x) => x.followers != null).sort((a, b) => Date.parse(b.collected_at) - Date.parse(a.collected_at));
+  if (s.length < 2) return null;
+  const last = s[0], target = Date.parse(last.collected_at) - 30 * 86400000;
+  const base = s.slice(1).reduce((best, x) => (Math.abs(Date.parse(x.collected_at) - target) < Math.abs(Date.parse(best.collected_at) - target) ? x : best));
+  const delta = (last.followers as number) - (base.followers as number);
+  return { delta, pct: base.followers ? r2((delta / (base.followers as number)) * 100) : null, from: base.collected_at, to: last.collected_at };
+}
+
+export interface Alert { key: 'comments_over_likes' | 'comments_over_views' | 'er_too_high'; title: string; why: string }
+// sinais de engajamento suspeito, explicados para a marca
+export function suspicionAlerts(m: Pick<MetricsSummary, 'avg_views' | 'avg_likes' | 'avg_comments' | 'er_by_views'> | null): Alert[] {
+  if (!m) return [];
+  const out: Alert[] = [];
+  if (m.avg_comments != null && m.avg_likes != null && m.avg_comments > m.avg_likes)
+    out.push({ key: 'comments_over_likes', title: 'Mais comentários que curtidas', why: 'Comentários acima das curtidas costuma indicar grupo de engajamento ou sorteio ("comente para ganhar").' });
+  if (m.avg_comments != null && m.avg_views && m.avg_comments / m.avg_views > 0.1)
+    out.push({ key: 'comments_over_views', title: 'Comentários demais para as views', why: `${pctBR(r2((m.avg_comments / m.avg_views) * 100))} de quem vê comenta; o normal é bem abaixo de 1%. Confira se os comentários são de pessoas reais.` });
+  if (m.er_by_views != null && m.er_by_views > ER_BANDS[3])
+    out.push({ key: 'er_too_high', title: 'Engajamento fora da curva', why: `${pctBR(m.er_by_views)} de interação por view é acima do normal. Confira os posts antes de contratar.` });
+  return out;
+}
+
+// selo a partir das médias medidas; com alerta nunca vira "Audiência engajada"
+export function metricsQuality(m: MetricsSummary | null, fallback: Pick<CreatorProfile, 'engagement_rate'>): Quality {
+  if (!m || m.er_by_views == null) return audienceQuality(fallback);
+  const alerts = suspicionAlerts(m);
+  if (alerts.length) return { key: 'verificar', label: 'Engajamento atípico', why: alerts.map((a) => a.title).join(' · '), cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30' };
+  return audienceQuality({ engagement_rate: m.er_by_views });
+}

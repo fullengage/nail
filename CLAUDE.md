@@ -12,8 +12,13 @@
 - `data/` com planilhas e contatos fica fora do git.
 
 ## Fluxo de campanha (migração 20261006_fluxo_campanha)
-- Campanhas reais usam `src/services/campaignFlow.ts`. Mudança de estado só por funções do banco (campaign_publish, creator_apply, brand_participant, creator_submit, brand_review, brand_mark_paid) — nunca `update` direto de status/stage/pagamento.
+- Campanhas reais usam `src/services/campaignFlow.ts`. Mudança de estado só por funções do banco (campaign_publish, creator_apply, brand_participant, creator_submit, brand_review, brand_report_payment, admin_payment) — nunca `update` direto de status/stage/pagamento.
 - Estados: campanha draft → open → selecting → in_progress → completed; creator invited → applied (aceite registrado) → hired → shipping → producing → submitted → revision → approved → paid.
 - "Publicada" ≠ "contratado"; perfil mapeado ≠ confirmado. Convite não envia e-mail.
 - Pagamento passa pela Squad (manual, PIX fora do sistema): marca paga a Squad (cachê + taxa %) → admin confirma recebimento → admin registra repasse ao creator. Taxa e prazos vêm de squad_settings (padrão 15%, revisão 5 dias úteis com aprovação automática, marca paga em 7 dias, repasse em 5 dias úteis). Nada de saque, fatura ou escrow simulados.
 - Teste do banco: `npm i --no-save @electric-sql/pglite && node scripts/test-fluxo/fluxo.test.cjs` (precisa passar 100%).
+
+## Métricas do creator (migração 20261007_creator_metrics)
+- Snapshots em `creator_metrics` (um por coleta). Fórmulas só em `src/lib/creatorQuality.ts` (computeMetrics, reachPct, growth30d, suspicionAlerts, metricsQuality). Coleta: `scripts/medir-creator-tiktok.mjs` (vídeos fixados ficam fora da média).
+- Sem preço/CPM, demografia ou autenticidade de audiência até existir base real. Sem medição: "Ainda não medido" e "—".
+- Teste das fórmulas: `node --experimental-strip-types scripts/creatorMetrics.check.mts`.

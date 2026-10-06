@@ -164,6 +164,26 @@ export interface Profile {
   updated_at: string;
 }
 
+// Snapshot de desempenho (tabela creator_metrics, migração 20261007). Números null = não medido.
+export interface CreatorMetrics {
+  id: string;
+  creator_id: string;
+  platform: 'tiktok' | 'instagram';
+  collected_at: string;
+  followers: number | null;
+  posts_analyzed: number;
+  period_days: number | null;
+  avg_views: number | null;
+  avg_likes: number | null;
+  avg_comments: number | null;
+  avg_shares: number | null;
+  er_by_views: number | null;
+  er_by_followers: number | null;
+  paid_posts_180d: number | null;
+  top_hashtags: string[];
+  recent_posts: { url: string; cover: string | null; views: number | null; created_at: string | null }[];
+}
+
 export interface CreatorProfile {
   id: string;
   user_id: string;

@@ -8,14 +8,11 @@ import { Modal } from '../../components/ui/Modal';
 import { formatNumber } from '../../lib/utils';
 import {
   Search,
-  MapPin,
-  Sparkles,
-  Send,
-  Heart,
+  MapPin,
   CheckCircle2
 } from 'lucide-react';
 import { InstagramIcon } from '../../components/ui/InstagramIcon';
-import { MOCK_PORTFOLIO } from '../../data/mockData';
+import { CreatorAnalytics } from '../../components/creator/CreatorAnalytics';
 import confetti from 'canvas-confetti';
 
 export const BrandCreators: React.FC = () => {
@@ -186,65 +183,35 @@ export const BrandCreators: React.FC = () => {
           onClose={() => setActiveCreator(null)}
           title={activeCreator.professional_name}
           description={`${activeCreator.city}/${activeCreator.state} • ${formatNumber(activeCreator.instagram_followers)} seguidores`}
-          maxWidth="xl"
+          maxWidth="4xl"
         >
           {inviteSuccess ? (
             <div className="py-8 text-center space-y-3">
               <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-bold font-display text-foreground">Convite VIP Enviado com Sucesso!</h3>
-              <p className="text-xs text-muted-foreground">A creator foi notificada no painel e recebeu o convite para a campanha.</p>
+              <h3 className="text-lg font-bold font-display text-foreground">Convite registrado</h3>
+              <p className="text-xs text-muted-foreground">O creator vê o convite ao entrar na conta. Ele só participa depois de aceitar as condições.</p>
             </div>
           ) : (
-            <div className="space-y-6 text-left">
-              <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Sobre a Creator</h4>
-                <p className="text-xs text-foreground leading-relaxed">{activeCreator.bio}</p>
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {activeCreator.techniques.map((t) => (
-                    <Badge key={t} variant="gold" size="sm">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Portfolio sample */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">
-                  Trabalhos em Destaque no Portfólio
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {MOCK_PORTFOLIO.slice(0, 3).map((item) => (
-                    <div key={item.id} className="relative rounded-xl overflow-hidden aspect-square bg-muted">
-                      <img src={item.media_url} alt="Nail work" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-1 right-1 bg-black/60 backdrop-blur text-[10px] text-white px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                        <Heart className="w-2.5 h-2.5 fill-red-500 text-red-500" /> {item.likes_count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Invite Form */}
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-                <h4 className="font-bold text-xs text-primary flex items-center gap-1.5">
-                  <Send className="w-4 h-4" /> Convidar Diretamente para Campanha
-                </h4>
-                <select
-                  value={selectedCampaignId}
-                  onChange={(e) => setSelectedCampaignId(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3.5 py-2 text-xs focus:ring-2 focus:ring-primary font-medium"
-                >
-                  {campaigns.map((camp) => (
-                    <option key={camp.id} value={camp.id}>
-                      {camp.title} (Cachê: R$ {camp.commission_value})
-                    </option>
-                  ))}
-                </select>
-                <Button className="w-full" size="sm" onClick={handleSendInvite} isLoading={inviteSent}>
-                  Enviar Convite VIP com Cachê Garantido
-                </Button>
-              </div>
+            <div className="text-left max-h-[75vh] overflow-y-auto">
+              <CreatorAnalytics
+                key={activeCreator.id}
+                creator={activeCreator}
+                actions={<>
+                  <select
+                    aria-label="Campanha"
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-medium"
+                  >
+                    {campaigns.map((camp) => (
+                      <option key={camp.id} value={camp.id}>{camp.title}</option>
+                    ))}
+                  </select>
+                  <Button size="sm" onClick={handleSendInvite} isLoading={inviteSent}>Convidar para campanha</Button>
+                </>}
+              />
             </div>
           )}
         </Modal>

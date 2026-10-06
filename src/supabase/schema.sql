@@ -314,3 +314,29 @@ CREATE POLICY "Public products are viewable by everyone" ON public.products FOR 
 CREATE POLICY "Public campaigns are viewable by everyone" ON public.campaigns FOR SELECT USING (true);
 CREATE POLICY "Public courses are viewable by everyone" ON public.courses FOR SELECT USING (true);
 CREATE POLICY "Public lessons are viewable by everyone" ON public.lessons FOR SELECT USING (true);
+
+-- ==============================================================================
+-- creator_metrics (migração 20261007_creator_metrics.sql): histórico de coletas de desempenho.
+-- Referencia public.creators (schema atual em migrations/20261002_squadra_mvp.sql).
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.creator_metrics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id uuid NOT NULL REFERENCES public.creators(id) ON DELETE CASCADE,
+  platform text NOT NULL CHECK (platform IN ('tiktok', 'instagram')),
+  collected_at timestamptz NOT NULL DEFAULT now(),
+  followers integer,
+  posts_analyzed integer NOT NULL DEFAULT 0,
+  period_days integer,
+  avg_views numeric(14,2),
+  avg_likes numeric(14,2),
+  avg_comments numeric(14,2),
+  avg_shares numeric(14,2),
+  er_by_views numeric(8,2),
+  er_by_followers numeric(8,2),
+  paid_posts_180d integer,
+  top_hashtags text[] NOT NULL DEFAULT ARRAY[]::text[],
+  recent_posts jsonb NOT NULL DEFAULT '[]'::jsonb
+);
+CREATE INDEX IF NOT EXISTS creator_metrics_creator_platform_idx ON public.creator_metrics (creator_id, platform, collected_at DESC);
+ALTER TABLE public.creator_metrics ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "creator_metrics_read" ON public.creator_metrics FOR SELECT TO authenticated USING (true);

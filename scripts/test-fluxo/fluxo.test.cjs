@@ -135,6 +135,16 @@ let db;
   const cnt = (await q1(null, 'select squad_contact_counts() c')).c;
   check('contagem de contatos para o painel', cnt.any === 2 && cnt.email === 2 && cnt.phone === 2, JSON.stringify(cnt));
   check('visitante continua sem ler e-mail', !!(await erro(() => as(db, null, 'select email from creators'))));
+  // creator_metrics: leitura só logado; escrita só service role
+  const cid = '11111111-0000-0000-0000-000000000001';
+  check('service grava snapshot', !(await erro(() => as(db, 'service', `insert into creator_metrics (creator_id, platform, followers, posts_analyzed, avg_views, er_by_views) values ($1,'tiktok',19700,27,1526.74,111.16)`, [cid]))));
+  check('marca logada lê métricas', (await as(db, U.marca, 'select er_by_views from creator_metrics')).length === 1);
+  check('visitante não lê métricas', !!(await erro(() => as(db, null, 'select id from creator_metrics'))));
+  check('usuário logado não grava métricas', !!(await erro(() => as(db, U.marca, `insert into creator_metrics (creator_id, platform) values ($1,'tiktok')`, [cid]))));
+  check('usuário logado não altera métricas', (await as(db, U.admin, `update creator_metrics set er_by_views = 1 returning id`).catch(() => [])).length === 0);
+  check('plataforma inválida é recusada', !!(await erro(() => as(db, 'service', `insert into creator_metrics (creator_id, platform) values ($1,'youtube')`, [cid]))));
+  await as(db, 'service', 'delete from creators where id=$1', [cid]);
+  check('apagar creator apaga as métricas', (await q1('service', 'select count(*)::int n from creator_metrics')).n === 0);
   console.log(`\n${ok} verificações OK, ${falhas.length} falhas`);
   falhas.forEach((f) => console.log('  ✗', f));
   process.exit(falhas.length ? 1 : 0);

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { TikTokLink, tiktokUrl, InstagramLink } from '../../components/ui/TikTokLink';
+import { TikTokLink, InstagramLink } from '../../components/ui/TikTokLink';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { CreatorProfile } from '../../types/database';
@@ -17,7 +17,6 @@ import {
   Video,
   Mail,
   Phone,
-  ExternalLink,
   Award,
   ChevronLeft,
   ChevronRight,
@@ -41,6 +40,7 @@ import { Button } from '../../components/ui/Button';
 import { CampaignType } from '../../types/database';
 import { audienceQuality, followersOf, sizeOf, SIZES, SizeKey } from '../../lib/creatorQuality';
 import { useRules } from '../../components/campaign/CampaignBuilder';
+import { CreatorAnalytics } from '../../components/creator/CreatorAnalytics';
 
 const QualityBadge: React.FC<{ c: CreatorProfile }> = ({ c }) => {
   const q = audienceQuality(c);
@@ -1258,140 +1258,60 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
       {/* Modal 3: Detalhe do Creator (/creators/:id) */}
       {detailCreator && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center text-lg shadow-sm">
-                  {detailCreator.professional_name.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-lg font-bold font-display text-foreground">{detailCreator.professional_name}</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                      Score: {detailCreator.operational_score ?? 0}/100
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground"><TikTokLink handle={detailCreator.tiktok} />{detailCreator.instagram && <> · <InstagramLink handle={detailCreator.instagram} /></>}{detailCreator.city && ` • ${[detailCreator.city, detailCreator.state].filter(Boolean).join(', ')}`}</p>
-                </div>
-              </div>
-
-              <button onClick={() => setDetailCreator(null)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Perfil de ${detailCreator.professional_name}`} onClick={() => setDetailCreator(null)}>
+          <div className="bg-background border border-border rounded-2xl max-w-4xl w-full p-4 sm:p-5 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Perfil do creator</p>
+              <button onClick={() => setDetailCreator(null)} aria-label="Fechar" className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Bio */}
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border text-xs text-foreground leading-relaxed">
-              {detailCreator.bio}
-            </div>
-
-            {/* Métricas Principais */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-card border border-border text-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Seguidores</span>
-                <p className="text-base font-extrabold text-foreground mt-0.5">
-                  {followersOf(detailCreator).toLocaleString('pt-BR')}
-                </p>
-              </div>
-              {detailCreator.instagram && (
-              <div className="p-3 rounded-xl bg-card border border-border text-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Instagram</span>
-                <p className="text-sm font-extrabold text-foreground mt-1 truncate">
-                  <InstagramLink handle={detailCreator.instagram} />
-                </p>
-              </div>
-              )}
-              <div className="p-3 rounded-xl bg-card border border-border text-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Engajamento</span>
-                <p className="text-base font-extrabold text-emerald-600 mt-0.5">
-                  {detailCreator.engagement_rate ? `${detailCreator.engagement_rate}%` : '—'}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{audienceQuality(detailCreator).why}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-card border border-border text-center">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Pontuação Operacional</span>
-                <p className="text-base font-extrabold text-primary mt-0.5">
-                  {detailCreator.operational_score ?? 0} pts
-                </p>
-              </div>
-            </div>
-
-            {/* Tags e Nichos */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-bold text-foreground">Tags & Especialidades:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {(detailCreator.tags || []).map((t, i) => (
-                  <Badge key={i} variant="secondary">{t}</Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Contato & Links */}
-            <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-2 text-xs">
-              {/* contato direto: só time Squad UGC e só quando existe */}
-              {canSeeContacts && detailCreator.email && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">E-mail:</span>
-                  <span className="font-semibold text-foreground">{detailCreator.email}</span>
-                </div>
-              )}
-              {canSeeContacts && detailCreator.phone && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">WhatsApp:</span>
-                  <span className="font-semibold text-foreground">{detailCreator.phone}</span>
-                </div>
-              )}
-              {detailCreator.tiktok && <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">TikTok:</span>
-                <a
-                  href={tiktokUrl(detailCreator.tiktok) || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary font-bold hover:underline flex items-center"
+            <CreatorAnalytics
+              key={detailCreator.id}
+              creator={detailCreator}
+              actions={<>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    createSquadFromCreators(campaigns[0]?.id || '', [detailCreator.id]);
+                    setDetailCreator(null);
+                    showToast(`${detailCreator.professional_name} convidado(a). Só entra no squad depois de aceitar as condições e você contratar.`);
+                  }}
                 >
-                  <span>{tiktokUrl(detailCreator.tiktok)?.replace('https://www.', '')}</span>
-                  <ExternalLink className="w-3 h-3 ml-1" />
-                </a>
-              </div>}
-            </div>
-
-            {/* Rodapé do Modal */}
-            <div className="flex justify-end space-x-2 pt-2 border-t border-border">
-              <Button variant="secondary" onClick={() => setDetailCreator(null)}>Fechar</Button>
-              <Button
-                variant="secondary"
-                title="Mesmo porte, mesma rede e nicho, só audiência real"
-                onClick={() => {
-                  // ponytail: parecido = mesmo porte + rede + nicho; similaridade por conteúdo quando houver embeddings
-                  const d = detailCreator;
-                  setSearch('');
-                  setSelectedTier('all');
-                  setSelectedNiche(d.specialties?.[0] || 'all');
-                  setMinFollowers('');
-                  setMaxFollowers('');
-                  setSize(sizeOf(followersOf(d)));
-                  setPlatform(d.tiktok && d.instagram ? 'both' : d.instagram ? 'instagram' : 'tiktok');
-                  setQuality('real');
-                  setCurrentPage(1);
-                  setDetailCreator(null);
-                  showToast(`Mostrando creators parecidos com ${d.professional_name}`);
-                }}
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-1" />Ver parecidos
-              </Button>
-              <Button
-                onClick={() => {
-                  createSquadFromCreators(campaigns[0]?.id || '', [detailCreator.id]);
-                  setDetailCreator(null);
-                  showToast(`${detailCreator.professional_name} convidado(a). Só entra no squad depois de aceitar as condições e você contratar.`);
-                }}
-              >
-                Convidar para campanha
-              </Button>
-            </div>
-
+                  Convidar para campanha
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title="Mesmo porte, mesma rede e nicho, só audiência real"
+                  onClick={() => {
+                    // ponytail: parecido = mesmo porte + rede + nicho; similaridade por conteúdo quando houver embeddings
+                    const d = detailCreator;
+                    setSearch('');
+                    setSelectedTier('all');
+                    setSelectedNiche(d.specialties?.[0] || 'all');
+                    setMinFollowers('');
+                    setMaxFollowers('');
+                    setSize(sizeOf(followersOf(d)));
+                    setPlatform(d.tiktok && d.instagram ? 'both' : d.instagram ? 'instagram' : 'tiktok');
+                    setQuality('real');
+                    setCurrentPage(1);
+                    setDetailCreator(null);
+                    showToast(`Mostrando creators parecidos com ${d.professional_name}`);
+                  }}
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1" />Ver parecidos
+                </Button>
+              </>}
+              privateSlot={canSeeContacts && (detailCreator.email || detailCreator.phone) ? (
+                // contato direto: só time Squad UGC e só quando existe
+                <div className="p-3 rounded-2xl bg-card border border-border space-y-1.5 text-xs">
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground">Contato (só admin)</p>
+                  {detailCreator.email && <p className="flex justify-between gap-2"><span className="text-muted-foreground">E-mail</span><span className="font-semibold text-foreground break-all">{detailCreator.email}</span></p>}
+                  {detailCreator.phone && <p className="flex justify-between gap-2"><span className="text-muted-foreground">WhatsApp</span><span className="font-semibold text-foreground">{detailCreator.phone}</span></p>}
+                </div>
+              ) : null}
+            />
           </div>
         </div>
       )}

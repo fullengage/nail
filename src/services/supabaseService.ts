@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Campaign, CreatorProfile, BrandProfile, Product, CampaignApplication, RetailPoint, CampaignParticipant } from '../types/database';
+import { Campaign, CreatorProfile, BrandProfile, Product, CampaignApplication, RetailPoint, CampaignParticipant, CreatorMetrics } from '../types/database';
 
 // tabela de leads ainda não criada no banco (migração 20261004_leads_e_cache) → mensagem clara, não técnica
 const friendlyLeadError = (error: { code?: string; message?: string }) =>
@@ -13,6 +13,7 @@ const ORG_ID = '00000000-0000-0000-0000-000000000001';
 // Colunas públicas (migração 20261005_protege_contatos): e-mail, telefone e gerente só chegam
 // para admin logado, pelas funções admin_*_contacts. Nunca usar select('*') nessas tabelas.
 const CREATOR_COLS = 'id,user_id,professional_name,bio,city,state,instagram,tiktok,youtube,instagram_followers,tiktok_followers,youtube_followers,operational_score,engagement_rate,tags,specialties,techniques,media_kit_url,portfolio_cover_url,profile_completion,verification_status,created_at,updated_at';
+const METRICS_COLS = 'id,creator_id,platform,collected_at,followers,posts_analyzed,period_days,avg_views,avg_likes,avg_comments,avg_shares,er_by_views,er_by_followers,paid_posts_180d,top_hashtags,recent_posts';
 const RETAIL_COLS = 'id,organization_id,name,trade_name,network,cnpj,type,city,state,address,status,created_at';
 
 // junta os contatos (se o usuário for admin; para os demais a função devolve vazio)
@@ -157,6 +158,14 @@ export const supabaseService = {
     } catch {
       return null;
     }
+  },
+
+  // Histórico de métricas do creator (creator_metrics, mais recente primeiro). Só para usuários logados.
+  async getCreatorMetrics(creatorId: string): Promise<{ rows: CreatorMetrics[]; error: 'migracao' | 'login' | null }> {
+    if (!isSupabaseConfigured || !supabase) return { rows: [], error: null };
+    const { data, error } = await supabase.from('creator_metrics').select(METRICS_COLS).eq('creator_id', creatorId).order('collected_at', { ascending: false }).limit(60);
+    if (error) return { rows: [], error: /schema cache|does not exist|PGRST20/i.test(error.message) ? 'migracao' : 'login' };
+    return { rows: (data || []).map((r: any) => ({ ...r, ...Object.fromEntries(['followers', 'avg_views', 'avg_likes', 'avg_comments', 'avg_shares', 'er_by_views', 'er_by_followers'].map((k) => [k, r[k] == null ? null : Number(r[k])])) })) as CreatorMetrics[], error: null };
   },
 
   // Fetch creator profiles from Supabase
