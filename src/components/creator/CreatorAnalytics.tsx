@@ -5,6 +5,16 @@ import type { CreatorMetrics, CreatorProfile } from '../../types/database';
 import { supabaseService } from '../../services/supabaseService';
 import { ER_BANDS, followersOf, growth30d, metricsQuality, pctBR, reachPct, suspicionAlerts, type MetricsSummary } from '../../lib/creatorQuality';
 import { TikTokLink, InstagramLink } from '../ui/TikTokLink';
+import { useAuth } from '../../context/AuthContext';
+
+// sem snapshot o número de engajamento é o da busca inicial (definições diferentes): nunca vira "Audiência engajada"
+function estimatedBadge(c: Pick<CreatorProfile, 'engagement_rate'>) {
+  const e = Number(c.engagement_rate) || 0;
+  const cls = 'bg-muted text-muted-foreground border-border';
+  return e > 0
+    ? { label: `Engajamento estimado na captação · ${pct(e)}`, why: 'Número da busca inicial do perfil, não medido post a post. Pode usar outra fórmula.', cls }
+    : { label: 'Sem medição', why: 'Engajamento ainda não medido.', cls };
+}
 
 // Perfil do creator com análise de desempenho (snapshots de creator_metrics).
 // Regra: sem medição, "—" e "Ainda não medido". Nada estimado, padrão ou de exemplo.
@@ -68,6 +78,8 @@ interface Props {
 }
 
 export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlot }) => {
+  const { role } = useAuth();
+  const isAdmin = role === 'admin_master' || role === 'admin';
   const [rows, setRows] = useState<CreatorMetrics[] | null>(null);
   const [status, setStatus] = useState<'migracao' | 'login' | null>(null);
   useEffect(() => {
@@ -99,7 +111,7 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
             <TikTokLink handle={creator.tiktok} />{creator.instagram && <> · <InstagramLink handle={creator.instagram} /></>}
           </p>
           <p className="text-xs text-foreground"><strong>{num(followers)}</strong> seguidores{[creator.city, creator.state].filter(Boolean).length ? ` · ${[creator.city, creator.state].filter(Boolean).join('/')}` : ''}</p>
-          <span title={q.why} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${q.cls}`}><ShieldCheck className="w-3.5 h-3.5" />{q.label}</span>
+          {(() => { const b = last ? q : estimatedBadge(creator); return <span title={b.why} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${b.cls}`}><ShieldCheck className="w-3.5 h-3.5" />{b.label}</span>; })()}
           {creator.bio && <p className="text-[11px] text-muted-foreground text-left leading-relaxed">{creator.bio}</p>}
           {actions && <div className="flex flex-col gap-2 pt-1">{actions}</div>}
         </div>
@@ -117,15 +129,25 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
         {rows == null ? (
           <p className="p-6 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Carregando métricas…</p>
         ) : !last ? (
-          <div className="p-5 rounded-2xl border border-dashed border-border space-y-1">
-            <p className="text-sm font-bold text-foreground">Ainda não medido</p>
+          <div className="p-6 rounded-2xl border border-dashed border-border space-y-3">
+            <p className="text-base font-bold text-foreground">Ainda não medido</p>
             <p className="text-xs text-muted-foreground">
               {status === 'migracao' ? 'As métricas por post ficam disponíveis depois da migração 20261007 no banco.'
                 : status === 'login' ? 'Entre com sua conta para ver as métricas por post.'
-                : 'Ainda não coletamos os posts deste creator. Os números aparecem após a primeira medição.'}
+                : 'Ainda não coletamos os posts deste creator. Médias, engajamento, alcance, histórico e publis aparecem depois da primeira medição.'}
             </p>
+            <p className="text-xs text-foreground"><strong>Previsão:</strong> sem data marcada (a medição é feita sob demanda, antes de indicar o creator para uma campanha).</p>
+            {isAdmin && creator.tiktok && status !== 'migracao' && (
+              <div className="text-xs space-y-1">
+                <p className="font-bold text-foreground">Como medir (TikTok, ~US$ 0,09):</p>
+                <code className="block p-2 rounded-lg bg-muted text-[11px] break-all">node --experimental-strip-types --env-file=.env scripts/medir-creator-tiktok.mjs --usuario {creator.tiktok}</code>
+                <p className="text-muted-foreground">Depois grave com <code>--apply</code>.</p>
+              </div>
+            )}
           </div>
         ) : null}
+
+        {last && (<>
 
         {/* vídeos recentes */}
         {last && last.recent_posts?.length > 0 && (
@@ -231,6 +253,7 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
             <p className="text-[11px] text-muted-foreground flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" />TikTok · medido em {date(last.collected_at)} · {last.posts_analyzed} posts analisados. Não medimos demografia nem autenticidade da audiência.</p>
           </Card>
         )}
+        </>)}
       </div>
     </div>
   );
