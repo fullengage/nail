@@ -97,7 +97,7 @@ export const RegisterCreatorModal: React.FC<RegisterCreatorModalProps> = ({
             <Input
               label="E-mail"
               type="email"
-              placeholder="camila@exemplo.com"
+              placeholder="voce@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

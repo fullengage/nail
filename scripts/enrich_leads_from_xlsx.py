@@ -54,7 +54,7 @@ for idx, row in df.iterrows():
 print(f"Loaded {len(xlsx_map)} prioritized leads from leads_tiktok.xlsx")
 
 # Load existing realLeads.json
-with open('src/data/realLeads.json', 'r', encoding='utf-8') as f:
+with open('data/realLeads.json', 'r', encoding='utf-8') as f:
     leads = json.load(f)
 
 matched = 0
@@ -103,7 +103,7 @@ for lead in leads:
 
 print(f"Matched and enriched {matched} leads out of {len(leads)}")
 
-with open('src/data/realLeads.json', 'w', encoding='utf-8') as f:
+with open('data/realLeads.json', 'w', encoding='utf-8') as f:
     json.dump(leads, f, indent=2, ensure_ascii=False)
 
-print("Saved enriched src/data/realLeads.json successfully.")
+print("Saved enriched data/realLeads.json successfully.")

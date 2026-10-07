@@ -12,7 +12,6 @@ import {
   SourceCounts,
   ScoreWeights
 } from '../types/database';
-import rawLeads from './realLeads.json';
 
 // 2. Pesos padrão para o cálculo da Pontuação Operacional
 export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
@@ -35,8 +34,8 @@ export const SQUADRA_BRANDS: BrandProfile[] = [
     logo_url: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=300',
     website: 'https://squadranutrition.com.br',
     contact_name: 'Equipe de Marketing',
-    contact_email: 'contato@squadranutrition.com.br',
-    contact_phone: '(11) 98888-7711',
+    contact_email: 'contato@example.com',
+    contact_phone: '',
     city: 'São Paulo',
     state: 'SP',
     status: 'active',
@@ -53,8 +52,8 @@ export const SQUADRA_BRANDS: BrandProfile[] = [
     logo_url: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=300',
     website: 'https://longevita.com.br',
     contact_name: 'Dr. Roberto Longevita',
-    contact_email: 'contato@longevita.com.br',
-    contact_phone: '(41) 99111-2233',
+    contact_email: 'contato@example.com',
+    contact_phone: '',
     city: 'Curitiba',
     state: 'PR',
     status: 'active',
@@ -71,8 +70,8 @@ export const SQUADRA_BRANDS: BrandProfile[] = [
     logo_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300',
     website: 'https://bioequilibrio.com.br',
     contact_name: 'Mariana Nutri',
-    contact_email: 'parcerias@bioequilibrio.com.br',
-    contact_phone: '(31) 99777-6655',
+    contact_email: 'parcerias@example.com',
+    contact_phone: '',
     city: 'Belo Horizonte',
     state: 'MG',
     status: 'active',
@@ -81,41 +80,9 @@ export const SQUADRA_BRANDS: BrandProfile[] = [
   }
 ];
 
-// 3. Carregar os 808 Creators Reais da base do cliente
-// Só dados reais coletados (scripts/clean-creators.mjs). Campo sem dado fica vazio — nada é inventado.
-export const SQUADRA_CREATORS: CreatorProfile[] = (rawLeads as any[]).map((lead, idx) => ({
-  id: `creator-${idx + 1}`,
-  user_id: '',
-  professional_name: lead.professional_name || lead.tiktok || '',
-  bio: lead.bio || '',
-  city: lead.city || '',
-  state: lead.state || '',
-  instagram: lead.instagram || '',
-  tiktok: lead.tiktok || '',
-  youtube: lead.youtube || '',
-  instagram_followers: Number(lead.instagram_followers || 0),
-  tiktok_followers: Number(lead.tiktok_followers || 0),
-  youtube_followers: Number(lead.youtube_followers || 0),
-  years_experience: 0,
-  specialties: lead.specialties || [],
-  techniques: lead.techniques || [],
-  accepts_product_campaigns: true,
-  accepts_paid_campaigns: true,
-  accepts_affiliate_campaigns: true,
-  accepts_live_campaigns: !!lead.vende_por_live,
-  portfolio_cover_url: '',
-  profile_completion: 0,
-  verification_status: lead.verification_status === 'verified' ? 'verified' : 'unverified',
-  operational_score: Number(lead.operational_score || 0),
-  engagement_rate: Number(lead.engagement_rate || 0),
-  tags: lead.tags || [],
-  email: lead.email || '',
-  phone: lead.phone || '',
-  media_kit_url: lead.media_kit_url || '',
-  is_featured: idx < 10,
-  created_at: lead.ultimo_post || new Date().toISOString(),
-  updated_at: new Date().toISOString()
-}));
+// 3. Creators: a base real vem SÓ do banco (contatos só por admin_creator_contacts, com login).
+// Nada de lista de creators reais dentro do JavaScript do site: ele é público e qualquer um lê.
+export const SQUADRA_CREATORS: CreatorProfile[] = [];
 
 // 4. Carregar 200 PDVs (Pontos de Venda)
 const NETWORKS = [

@@ -63,7 +63,7 @@ function viewFromUrl(): string {
 }
 
 const MainApp: React.FC = () => {
-  const { role } = useAuth();
+  const { role, hasSession } = useAuth();
   // Home = site institucional; o painel fica atrás de "Acessar painel"
   const [currentView, setCurrentView] = useState<string>(() => viewFromUrl());
 
@@ -102,6 +102,11 @@ const MainApp: React.FC = () => {
     currentView === 'reset-password';
 
   const isDashboardView = !isPublicStandaloneView;
+  // sem sessão do Supabase não existe painel (o modo demonstração usa só dados de exemplo)
+  const needsLogin = isDashboardView && !isSiteView && hasSession === false;
+  useEffect(() => {
+    if (needsLogin) setCurrentView('auth');
+  }, [needsLogin]);
 
   // Permission Guard Function
   const checkPermission = (requiredRole: 'creator' | 'brand' | 'admin', component: React.ReactNode) => {
@@ -144,6 +149,7 @@ const MainApp: React.FC = () => {
       // 1. Squadra Core Suite
       case 'dashboard':
         // a marca entra pela tarefa (criar/acompanhar campanha), não pelas métricas de prospecção
+        if (role === 'creator') return <CreatorWorkReal />;
         return role === 'brand_admin' || role === 'brand' ? <BrandHome onNavigate={setCurrentView} /> : <SquadraDashboard onNavigate={setCurrentView} />;
       case 'creators':
       case 'brand-creators':
@@ -225,6 +231,11 @@ const MainApp: React.FC = () => {
         return <SquadraDashboard onNavigate={setCurrentView} />;
     }
   };
+
+  // painel só depois de confirmar a sessão (nada de dados ou menus de admin piscando sem login)
+  if (isDashboardView && !isSiteView && hasSession !== true) {
+    return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Verificando acesso…</div>;
+  }
 
   if (isSiteView) {
     const pages: Record<string, React.FC<{ actions: SiteActions }>> = {

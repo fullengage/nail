@@ -64,9 +64,9 @@ async function run() {
     }
   }
 
-  // Also write to src/data/realLeads.json for instant offline/demo caching
-  fs.writeFileSync('src/data/realLeads.json', JSON.stringify(creatorsToInsert, null, 2));
-  console.log('Saved src/data/realLeads.json successfully!');
+  // Also write to data/realLeads.json for instant offline/demo caching
+  fs.writeFileSync('data/realLeads.json', JSON.stringify(creatorsToInsert, null, 2));
+  console.log('Saved data/realLeads.json successfully!');
 }
 
 run().catch(console.error);

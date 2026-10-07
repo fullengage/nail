@@ -185,7 +185,7 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
               <Input
                 label="E-mail Corporativo *"
                 type="email"
-                placeholder="beatriz@marca.com.br"
+                placeholder="voce@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -199,7 +199,7 @@ export const FoundingBrandModal: React.FC<FoundingBrandModalProps> = ({ isOpen, 
                 </label>
                 <input
                   type="text"
-                  placeholder="(11) 99999-9999"
+                  placeholder="DDD + número"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
                   required

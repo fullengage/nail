@@ -1411,7 +1411,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                     type="email"
                     value={newCreatorForm.email}
                     onChange={(e) => setNewCreatorForm({ ...newCreatorForm, email: e.target.value })}
-                    placeholder="contato@creator.com"
+                    placeholder="voce@example.com"
                     className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
                   />
                 </div>
@@ -1421,7 +1421,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
                     type="tel"
                     value={newCreatorForm.phone}
                     onChange={(e) => setNewCreatorForm({ ...newCreatorForm, phone: e.target.value })}
-                    placeholder="(11) 99999-9999"
+                    placeholder="DDD + número"
                     className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none"
                   />
                 </div>

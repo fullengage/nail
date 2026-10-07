@@ -9,7 +9,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
 });
 
 async function run() {
-  const raw = fs.readFileSync('src/data/realLeads.json', 'utf-8');
+  const raw = fs.readFileSync('data/realLeads.json', 'utf-8');
   const leads = JSON.parse(raw);
   console.log(`Updating ${leads.length} leads in Supabase with prioritized XLSX data...`);
 

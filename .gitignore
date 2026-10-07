@@ -37,3 +37,6 @@ data/feira/
 data/feira_raw.json
 data/tt-metricas.json
 data/apify/
+
+# dados com contatos/planilhas: NUNCA no git (repositório público)
+data/

@@ -7,7 +7,7 @@
 //      node --env-file=.env scripts/enrich-from-links.mjs --apply   (grava no realLeads.json e no Supabase)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const LEADS = new URL('../src/data/realLeads.json', import.meta.url);
+const LEADS = new URL('../data/realLeads.json', import.meta.url);
 const CACHE = new URL('../data/enrich-cache.json', import.meta.url);
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
 const AGGREGATORS = /(linktr\.ee|beacons\.ai|bio\.link|lnk\.bio|linkbio|linkin\.bio|taplink|campsite\.bio|msha\.ke|linkme|carrd\.co|allmylinks|solo\.to|hoo\.be|snipfeed|stan\.store|link\.me|linkpop|koji|bento\.me|zaap|ppl\.ink)/i;

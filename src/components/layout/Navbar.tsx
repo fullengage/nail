@@ -23,7 +23,9 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
-  const { user, role, logout, loginAsLevel } = useAuth();
+  const { user, role, logout, loginAsLevel, hasSession } = useAuth();
+  // sem sessão (fora da demonstração): sem menus do painel nem seletor de papel
+  const showPanelNav = import.meta.env.VITE_DEMO_MODE === 'true' || hasSession === true;
   const { notifications: localNotifs, markNotificationAsRead } = useData();
   // com login: notificações reais do servidor; sem login (demonstração): as locais
   const [serverNotifs, setServerNotifs] = useState<typeof localNotifs | null>(null);
@@ -89,15 +91,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
             </span>
           </div>
 
-          {/* Role Badge in Header */}
-          <div className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${roleMeta.badgeClass}`}>
+          {/* Role Badge in Header (só com sessão) */}
+          {showPanelNav && <div className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${roleMeta.badgeClass}`}>
             <RoleIcon className="w-3.5 h-3.5 shrink-0" />
             <span>{roleMeta.name}</span>
-          </div>
+          </div>}
         </div>
 
         {/* Center Navigation Links based on role */}
-        <nav className="hidden md:flex items-center space-x-5 text-xs font-semibold">
+        {showPanelNav && <nav className="hidden md:flex items-center space-x-5 text-xs font-semibold">
           {isCreator ? (
             <>
               <button
@@ -175,7 +177,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               )}
             </>
           )}
-        </nav>
+        </nav>}
 
         {/* Right Section (Notifications, Role switcher & Profile) */}
         <div className="flex items-center space-x-2 sm:space-x-3">
@@ -229,6 +231,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
           </div>
 
           {/* User Profile / Access Level Switcher Dropdown */}
+          {showPanelNav ? (
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
@@ -360,6 +363,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
               </div>
             )}
           </div>
+          ) : (
+            <button onClick={() => onNavigate('auth')} className="px-4 py-2 rounded-full bg-black text-white text-xs font-bold hover:bg-primary hover:text-black">Entrar</button>
+          )}
 
           {/* Quick Dashboard Action */}
           <Button

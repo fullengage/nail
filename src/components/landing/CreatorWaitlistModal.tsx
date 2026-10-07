@@ -189,7 +189,7 @@ export const CreatorWaitlistModal: React.FC<CreatorWaitlistModalProps> = ({ isOp
                 </label>
                 <input
                   type="text"
-                  placeholder="(11) 99999-9999"
+                  placeholder="DDD + número"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
                   required

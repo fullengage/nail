@@ -11,7 +11,7 @@ import { classify } from './creator-filtro.mjs';
 const TOKEN = process.env.APIFY_TOKEN;
 const CACHE = new URL('../data/ig-descoberta.json', import.meta.url);
 const OUT = new URL('../data/creators_instagram_novos.csv', import.meta.url);
-const LEADS = JSON.parse(readFileSync(new URL('../src/data/realLeads.json', import.meta.url), 'utf8'));
+const LEADS = JSON.parse(readFileSync(new URL('../data/realLeads.json', import.meta.url), 'utf8'));
 const HASHTAGS = [
   // gerais de UGC / publi
   'ugcbrasil', 'ugcbr', 'ugcbrazil', 'ugccreatorbrasil', 'creatorugc', 'criadoradeconteudougc', 'ugccreator', 'publipost',

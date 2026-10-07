@@ -116,8 +116,8 @@ export const SquadraBrands: React.FC = () => {
       website: formData.website.trim() || undefined,
       logo_url: formData.logo_url,
       contact_name: 'Administrador da Marca',
-      contact_email: 'contato@marca.com.br',
-      contact_phone: '(11) 98888-0000',
+      contact_email: 'contato@example.com',
+      contact_phone: '',
       status: 'active',
       updated_at: new Date().toISOString()
     });

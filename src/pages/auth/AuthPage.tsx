@@ -32,7 +32,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
   });
 
   // Login form state
-  const [email, setEmail] = useState('admin@squadra.app');
+  const [email, setEmail] = useState(import.meta.env.VITE_DEMO_MODE === 'true' ? 'admin@example.com' : '');
   // senha de demonstração só aparece preenchida em modo demo
   const DEMO_PWD = import.meta.env.VITE_DEMO_MODE === 'true' ? 'Squadra@2026' : '';
   const [password, setPassword] = useState(DEMO_PWD);
@@ -83,13 +83,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
     setSelectedRole(level);
     setAuthError('');
     if (level === 'admin_master') {
-      setEmail('admin@squadra.app');
+      setEmail('admin@example.com');
       setPassword(DEMO_PWD);
     } else if (level === 'brand_admin') {
-      setEmail('empresa@squadra.app');
+      setEmail('empresa@example.com');
       setPassword(DEMO_PWD);
     } else {
-      setEmail('ugc@squadra.app');
+      setEmail('ugc@example.com');
       setPassword(DEMO_PWD);
     }
   };
@@ -100,7 +100,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
     const res = await login(email, password);
     if (res.success) {
       confetti({ particleCount: 60, spread: 50 });
-      if (selectedRole === 'creator') onNavigate('creator-dashboard');
+      if (import.meta.env.VITE_DEMO_MODE === 'true' && selectedRole === 'creator') onNavigate('creator-dashboard');
       else onNavigate('dashboard');
     } else {
       setAuthError(res.message || 'Falha ao autenticar.');
@@ -169,20 +169,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
         
         {/* Brand Header */}
         <div className="text-center space-y-2">
+          {import.meta.env.VITE_DEMO_MODE === 'true' && (
           <div className="inline-flex items-center space-x-2 bg-primary/10 border border-primary/20 px-3 py-1 rounded-full text-xs font-bold text-primary mb-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
             <span>3 Níveis de Acesso Autenticado</span>
           </div>
+          )}
           <h1 className="text-3xl font-extrabold font-display tracking-tight text-foreground">
-            SQUADRA <span className="text-primary font-black">UGC</span>
+            Squad <span className="text-primary font-black">UGC</span>
           </h1>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
             Plataforma SaaS para contratação, gestão de squads e entregas de criadores UGC com controle multi-nível.
           </p>
         </div>
 
-        {/* 3 Quick Role Selection Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {/* 3 Quick Role Selection Cards (só demonstração; em produção o papel vem da conta) */}
+        {import.meta.env.VITE_DEMO_MODE === 'true' && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {/* Level 1: Admin Geral */}
           <button
             type="button"
@@ -248,7 +250,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
               Oferta de serviço, vídeos e cupons
             </p>
           </button>
-        </div>
+        </div>}
 
         {/* Auth Mode Toggle (Login vs Cadastro) */}
         <div className="flex p-1 bg-muted/80 rounded-2xl border border-border">
@@ -275,6 +277,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
         {/* LOGIN FORM */}
         {isLogin ? (
           <Card variant="elevated" className="p-6 space-y-4 border-border/80 text-left">
+            {import.meta.env.VITE_DEMO_MODE === 'true' && (
             <div className="p-3 rounded-xl bg-muted/60 border border-border text-xs flex items-center justify-between">
               <div>
                 <p className="font-bold text-foreground">
@@ -285,6 +288,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
                 </p>
               </div>
             </div>
+            )}
 
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <Input
@@ -316,7 +320,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
             </form>
 
             {/* Quick 1-Click Access for Testing */}
-            <div className="pt-3 border-t border-border text-center space-y-2">
+            {import.meta.env.VITE_DEMO_MODE === 'true' && (
+<div className="pt-3 border-t border-border text-center space-y-2">
               <p className="text-[11px] text-muted-foreground font-medium">
                 Atalho de Teste / Demonstração:
               </p>
@@ -329,6 +334,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
                 Entrar Imediatamente como {SQUADRA_AUTH_LEVELS[selectedRole].label}
               </button>
             </div>
+            )}
           </Card>
         ) : (
           /* REGISTER FORM */
@@ -355,7 +361,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
                     type="email"
                     value={creatorEmail}
                     onChange={(e) => setCreatorEmail(e.target.value)}
-                    placeholder="gabriela@exemplo.com"
+                    placeholder="voce@example.com"
                     required
                   />
                   <Input
@@ -492,7 +498,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
                     type="email"
                     value={brandEmail}
                     onChange={(e) => setBrandEmail(e.target.value)}
-                    placeholder="marketing@empresa.com.br"
+                    placeholder="voce@example.com"
                     required
                   />
                 </div>
@@ -509,7 +515,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
                     label="WhatsApp / Telefone"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="(11) 99999-9999"
+                    placeholder="DDD + número"
                     required
                   />
                 </div>

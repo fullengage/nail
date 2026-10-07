@@ -392,7 +392,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [notifications]);
 
   useEffect(() => {
-    try { localStorage.setItem('squadra_creators_v2', JSON.stringify(creators)); } catch { /* cota cheia: a base vem do banco a cada carga */ }
+    // cache sem e-mail/telefone: contato nunca fica guardado no navegador
+    try { localStorage.setItem('squadra_creators_v2', JSON.stringify(creators.map(({ email: _e, phone: _p, ...c }) => c))); } catch { /* cota cheia: a base vem do banco a cada carga */ }
   }, [creators]);
 
   useEffect(() => {

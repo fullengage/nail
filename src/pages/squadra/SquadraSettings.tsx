@@ -84,16 +84,16 @@ const DEFAULT_BRAND_SETTINGS: BrandSettingsData = {
   max_review_hours: 48,
 
   state_registration: '110.234.567.890',
-  billing_email: 'financeiro@squadra.com.br',
+  billing_email: 'financeiro@example.com',
   monthly_budget_cap: 50000,
-  pix_key: 'financeiro@squadra.com.br',
+  pix_key: 'financeiro@example.com',
   pix_key_type: 'email',
   default_payout_model: 'fixed_pix',
 
   notify_whatsapp: true,
   notify_email: true,
-  alert_phone: '(11) 98888-0002',
-  alert_email: 'marketing@squadra.com.br',
+  alert_phone: '',
+  alert_email: 'marketing@example.com',
 };
 
 export const SquadraSettings: React.FC = () => {
@@ -113,8 +113,8 @@ export const SquadraSettings: React.FC = () => {
     tiktok: '@squadra_fit',
     logo_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=300',
     contact_name: 'Camila Brand Manager',
-    contact_email: 'camila@squadra.com.br',
-    contact_phone: '(11) 98888-0002',
+    contact_email: 'camila@example.com',
+    contact_phone: '',
     city: 'São Paulo',
     state: 'SP',
     status: 'active',
@@ -175,9 +175,9 @@ export const SquadraSettings: React.FC = () => {
 
   // Membros da equipe da marca
   const [teamMembers, setTeamMembers] = useState([
-    { id: '1', name: 'Camila Brand Manager', email: 'camila@squadra.com.br', role: 'Gestora de Marketing & Campanhas', status: 'Ativo' },
-    { id: '2', name: 'Lucas Santos', email: 'lucas.conteudo@squadra.com.br', role: 'Analista de Conteúdo & Revisão de Vídeos', status: 'Ativo' },
-    { id: '3', name: 'Juliana Costa', email: 'financeiro@squadra.com.br', role: 'Financeiro & Pagamentos PIX', status: 'Ativo' },
+    { id: '1', name: 'Camila Brand Manager', email: 'camila@example.com', role: 'Gestora de Marketing & Campanhas', status: 'Ativo' },
+    { id: '2', name: 'Lucas Santos', email: 'lucas.conteudo@example.com', role: 'Analista de Conteúdo & Revisão de Vídeos', status: 'Ativo' },
+    { id: '3', name: 'Juliana Costa', email: 'financeiro@example.com', role: 'Financeiro & Pagamentos PIX', status: 'Ativo' },
   ]);
 
   const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -894,7 +894,7 @@ export const SquadraSettings: React.FC = () => {
                   type="tel"
                   value={settings.alert_phone}
                   onChange={(e) => setSettings({ ...settings, alert_phone: e.target.value })}
-                  placeholder="(11) 99999-9999"
+                  placeholder="DDD + número"
                   className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground text-xs"
                 />
               </div>
@@ -913,7 +913,7 @@ export const SquadraSettings: React.FC = () => {
                   type="email"
                   value={settings.alert_email}
                   onChange={(e) => setSettings({ ...settings, alert_email: e.target.value })}
-                  placeholder="marketing@suamarca.com.br"
+                  placeholder="voce@example.com"
                   className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground text-xs"
                 />
               </div>
@@ -949,7 +949,7 @@ export const SquadraSettings: React.FC = () => {
                 <input
                   type="email"
                   required
-                  placeholder="email@empresa.com"
+                  placeholder="voce@example.com"
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-xl text-foreground focus:outline-none"
