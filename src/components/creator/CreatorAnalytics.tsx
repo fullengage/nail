@@ -89,14 +89,19 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
   }, [creator.id]);
 
   const tiktok = useMemo(() => (rows || []).filter((r) => r.platform === 'tiktok'), [rows]);
-  const last = tiktok[0] || null;
+  const insta = useMemo(() => (rows || []).filter((r) => r.platform === 'instagram'), [rows]);
+  const [pick, setPick] = useState<'tiktok' | 'instagram' | null>(null);
+  const plat = pick || (tiktok.length || !insta.length ? 'tiktok' : 'instagram');
+  const snaps = plat === 'tiktok' ? tiktok : insta;
+  const isIG = plat === 'instagram';
+  const last = snaps[0] || null;
   const m: MetricsSummary | null = last;
   const q = metricsQuality(m, creator);
   const alerts = suspicionAlerts(m);
   const followers = last?.followers ?? (followersOf(creator) || null);
   const reach = reachPct(last?.avg_views, last?.followers);
-  const growth = growth30d(tiktok);
-  const history = [...tiktok].reverse().filter((r) => r.followers != null).map((r) => ({ d: date(r.collected_at), seguidores: r.followers }));
+  const growth = growth30d(snaps);
+  const history = [...snaps].reverse().filter((r) => r.followers != null).map((r) => ({ d: date(r.collected_at), seguidores: r.followers }));
   const categories = [...new Set([...(creator.specialties || []), ...(creator.tags || []).filter((t) => !isInternalTag(t))])];
   const commentsOverLikes = alerts.some((a) => a.key === 'comments_over_likes');
 
@@ -147,6 +152,14 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
           </div>
         ) : null}
 
+        {tiktok.length > 0 && insta.length > 0 && (
+          <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit" role="tablist" aria-label="Rede">
+            {(['tiktok', 'instagram'] as const).map((k) => (
+              <button key={k} role="tab" aria-selected={plat === k} onClick={() => setPick(k)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${plat === k ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>{k === 'tiktok' ? 'TikTok' : 'Instagram'}</button>
+            ))}
+          </div>
+        )}
+
         {last && (<>
 
         {/* vídeos recentes */}
@@ -156,7 +169,7 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
               <a key={i} href={p.url || '#'} target="_blank" rel="noreferrer" className="relative aspect-[9/16] rounded-xl overflow-hidden bg-muted border border-border group">
                 <Play className="absolute inset-0 m-auto w-6 h-6 text-muted-foreground" aria-hidden />
                 {p.cover && <img src={p.cover} alt={`Vídeo de ${date(p.created_at)}`} loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="relative w-full h-full object-cover group-hover:scale-105 transition" />}
-                <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1"><Eye className="w-3 h-3" />{num(p.views)}</span>
+                {p.views != null && <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1"><Eye className="w-3 h-3" />{num(p.views)}</span>}
               </a>
             ))}
           </div>
@@ -169,10 +182,10 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
             {last && <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${q.cls}`}>{q.label}</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <Stat label="Engajamento sobre views" value={pct(last?.er_by_views)} hint="(curtidas + comentários + compartilhamentos) ÷ views" />
+            <Stat label="Engajamento sobre views" value={pct(last?.er_by_views)} hint={isIG ? '(curtidas + comentários) ÷ views dos vídeos' : '(curtidas + comentários + compartilhamentos) ÷ views'} />
             <Stat label="Crescimento de seguidores (30 dias)" value={growth?.pct == null ? '—' : `${growth.pct > 0 ? '+' : ''}${pct(growth.pct)}`} hint={growth ? `${growth.delta > 0 ? '+' : ''}${growth.delta.toLocaleString('pt-BR')} desde ${date(growth.from)}` : 'Precisa de 2 medições com intervalo'} />
           </div>
-          {last && <p className="text-[11px] text-muted-foreground">Médias de {last.posts_analyzed} publicações{last.period_days ? ` dos últimos ${last.period_days} dias` : ''} · vídeos fixados no topo não entram.</p>}
+          {last && <p className="text-[11px] text-muted-foreground">Médias de {last.posts_analyzed} publicações{last.period_days ? ` dos últimos ${last.period_days} dias` : ''} · posts fixados no topo não entram{isIG ? ' · no Instagram, views e engajamento sobre views contam só os vídeos (foto não tem view)' : ''}.</p>}
         </Card>
 
         {/* taxa de engajamento com faixas */}
@@ -195,7 +208,7 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
             <Stat label="Views" value={num(last?.avg_views)} icon={<Eye className="w-3.5 h-3.5" />} />
             <Stat label="Curtidas" value={num(last?.avg_likes)} icon={<Heart className="w-3.5 h-3.5" />} warn={commentsOverLikes} />
             <Stat label="Comentários" value={num(last?.avg_comments)} icon={<MessageCircle className="w-3.5 h-3.5" />} warn={alerts.length > 0 && alerts.some((a) => a.key !== 'er_too_high')} />
-            <Stat label="Compartilhamentos" value={num(last?.avg_shares)} icon={<Share2 className="w-3.5 h-3.5" />} />
+            <Stat label="Compartilhamentos" value={num(last?.avg_shares)} icon={<Share2 className="w-3.5 h-3.5" />} hint={isIG && last ? 'O Instagram não informa' : undefined} />
           </div>
           {alerts.length > 0 && (
             <ul className="space-y-2" aria-label="Alertas de engajamento">
@@ -246,11 +259,11 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
         {last && (
           <Card title="O que medimos">
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
-              {['Seguidores no dia da coleta', 'Views, curtidas, comentários e compartilhamentos por post', 'Engajamento sobre views e sobre seguidores', 'Alcance (views ÷ seguidores)', 'Sinais de engajamento atípico', 'Publis marcadas e hashtags'].map((t) => (
+              {['Seguidores no dia da coleta', isIG ? 'Curtidas e comentários por post; views dos vídeos' : 'Views, curtidas, comentários e compartilhamentos por post', 'Engajamento sobre views e sobre seguidores', 'Alcance (views ÷ seguidores)', 'Sinais de engajamento atípico', 'Publis marcadas e hashtags'].map((t) => (
                 <li key={t} className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />{t}</li>
               ))}
             </ul>
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" />TikTok · medido em {date(last.collected_at)} · {last.posts_analyzed} posts analisados. Não medimos demografia nem autenticidade da audiência.</p>
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" />{isIG ? 'Instagram' : 'TikTok'} · medido em {date(last.collected_at)} · {last.posts_analyzed} posts analisados. Não medimos demografia nem autenticidade da audiência.</p>
           </Card>
         )}
         </>)}

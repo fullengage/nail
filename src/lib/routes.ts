@@ -49,6 +49,7 @@ export const VIEW_TO_PATH: Record<string, string> = {
   campaigns: '/painel/campanhas',
   affiliates: '/painel/afiliados',
   reports: '/painel/relatorios',
+  'social-bi': '/painel/bi-redes',
   brands: '/painel/marcas',
   settings: '/painel/configuracoes',
 
@@ -133,6 +134,7 @@ export const PATH_TO_VIEW: Record<string, string> = {
   '/relatorios': 'reports',
   '/reports': 'reports',
   '/painel/relatorios': 'reports',
+  '/painel/bi-redes': 'social-bi',
   '/marcas': 'brands',
   '/brands': 'brands',
   '/painel/marcas': 'brands',

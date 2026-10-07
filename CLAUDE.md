@@ -27,6 +27,8 @@
 - Base de creators e creator_metrics: leitura só admin e o próprio creator (visitante e marca recebem vazio).
 
 ## Métricas do creator (migração 20261007_creator_metrics)
-- Snapshots em `creator_metrics` (um por coleta). Fórmulas só em `src/lib/creatorQuality.ts` (computeMetrics, reachPct, growth30d, suspicionAlerts, metricsQuality). Coleta: `scripts/medir-creator-tiktok.mjs` (vídeos fixados ficam fora da média).
+- Snapshots em `creator_metrics` (um por coleta). Fórmulas só em `src/lib/creatorQuality.ts` (computeMetrics, reachPct, growth30d, suspicionAlerts, metricsQuality). Coleta: `scripts/medir-creator-tiktok.mjs` (12 vídeos por perfil, decisão do Richard; vídeos fixados ficam fora da média).
+- Post do Apify → snapshot só em `scripts/lib/snapshot.mjs` (TikTok e Instagram; Instagram sem compartilhamentos e views só de vídeo). `scripts/importar-metricas-apify.mjs` importa o que já foi raspado (data/apify/, sem custo), mínimo 3 posts por perfil.
+- BI de redes: `src/pages/squadra/SquadraSocialBI.tsx` (/painel/bi-redes, só admin), medianas da última medição por creator e rede.
 - Sem preço/CPM, demografia ou autenticidade de audiência até existir base real. Sem medição: "Ainda não medido" e "—".
 - Teste das fórmulas: `node --experimental-strip-types scripts/creatorMetrics.check.mts`.

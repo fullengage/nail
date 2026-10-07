@@ -1,68 +1,25 @@
-// Mede o desempenho dos creators no TikTok (últimos 30 posts) e grava um snapshot em creator_metrics.
+// Mede o desempenho dos creators no TikTok (últimos 12 posts) e grava um snapshot em creator_metrics.
 // Apify clockworks~free-tiktok-scraper, input por perfil. Cache retomável em data/tt-metricas.json.
 //
 // Uso: node --env-file=.env scripts/medir-creator-tiktok.mjs --usuario @agar293   (só mede e mostra)
 //      node --env-file=.env scripts/medir-creator-tiktok.mjs --limite 100          (mede 100 da base)
 //      node --env-file=.env scripts/medir-creator-tiktok.mjs --apply               (grava o que está no cache)
 // .env: APIFY_TOKEN (sem VITE_), SUPABASE_SERVICE_ROLE_KEY (gravação), APIFY_MAX_USD (trava, padrão 18.5)
-// Custo: ~US$ 0,003 por post × 30 posts = ~US$ 0,09 por creator (~US$ 9 por 100).
+// Custo: ~US$ 0,003 por post × 12 posts = ~US$ 0,036 por creator (~US$ 3,60 por 100).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { computeMetrics } from '../src/lib/creatorQuality.ts';
+import { POSTS, snapshotOf } from './lib/snapshot.mjs';
 
 const TOKEN = process.env.APIFY_TOKEN;
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CACHE = new URL('../data/tt-metricas.json', import.meta.url);
-const POSTS = 30;
 const BATCH = 10; // perfis por chamada
 const MAX_USD = Number(process.env.APIFY_MAX_USD || 18.5);
 const arg = (k) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : null);
 const handleOf = (h) => (h || '').replace(/^@/, '').trim().toLowerCase();
 const cache = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {};
 const save = () => writeFileSync(CACHE, JSON.stringify(cache));
-const PAID_TAGS = /^(publi|ad|ads|parceriapaga|publicidade|patrocinado|sponsored)$/i;
 const DAY = 86400000;
-
-// vídeo do scraper → números do post
-export function postOf(v) {
-  return {
-    views: v.playCount || 0, likes: v.diggCount || 0, comments: v.commentCount || 0, shares: v.shareCount || 0,
-    created_at: v.createTimeISO || (v.createTime ? new Date(v.createTime * 1000).toISOString() : null),
-    url: v.webVideoUrl || null, cover: v.videoMeta?.coverUrl || v.videoMeta?.originalCoverUrl || null,
-    hashtags: (v.hashtags || []).map((h) => (h.name || '').toLowerCase()).filter(Boolean),
-    // parceria paga: flag do TikTok ou hashtag #publi/#ad/#parceriapaga
-    paid: v.isAd === true || v.isSponsored === true || (v.hashtags || []).some((h) => PAID_TAGS.test(h.name || '')),
-    paidKnown: 'isAd' in v || 'isSponsored' in v || Array.isArray(v.hashtags),
-    pinned: v.isPinned === true,
-  };
-}
-// vídeos de um perfil → snapshot pronto para creator_metrics
-export function snapshotOf(videos, now = Date.now()) {
-  // vídeos fixados no topo são antigos e costumam ser os mais virais: ficam fora da média
-  const posts = videos.map(postOf).filter((p) => !p.pinned).sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0)).slice(0, POSTS);
-  const followers = videos.find((v) => v.authorMeta?.fans != null)?.authorMeta.fans ?? null;
-  const m = computeMetrics(posts, followers);
-  const tagCount = {};
-  posts.flatMap((p) => p.hashtags).forEach((t) => { tagCount[t] = (tagCount[t] || 0) + 1; });
-  const recent180 = posts.filter((p) => p.created_at && now - Date.parse(p.created_at) <= 180 * DAY);
-  return {
-    platform: 'tiktok', followers, ...m,
-    paid_posts_180d: posts.some((p) => p.paidKnown) ? recent180.filter((p) => p.paid).length : null,
-    top_hashtags: Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t),
-    recent_posts: posts.slice(0, 6).map((p) => ({ url: p.url, cover: p.cover, views: p.views, created_at: p.created_at })),
-  };
-}
-
-// auto-checagem das fórmulas (caso @agar293: médias 1,5 mil views, 396 curtidas, 1 mil comentários, 287 compart.)
-{
-  const v = { playCount: 1500, diggCount: 396, commentCount: 1000, shareCount: 287, createTimeISO: new Date().toISOString(), authorMeta: { fans: 19700 }, hashtags: [{ name: 'publi' }], isAd: false };
-  const s = snapshotOf([v, { ...v, hashtags: [] }]);
-  console.assert(s.er_by_views === 112.2 && s.er_by_followers === 8.54, 'ER', s);
-  console.assert(s.avg_views === 1500 && s.posts_analyzed === 2, 'médias', s);
-  console.assert(s.paid_posts_180d === 1, 'publi pela hashtag', s);
-  console.assert(snapshotOf([{ playCount: 10, diggCount: 1, commentCount: 0, shareCount: 0 }]).paid_posts_180d === null, 'sem campo de parceria → null');
-  console.assert(snapshotOf([v, { ...v, playCount: 999999, isPinned: true }]).avg_views === 1500, 'fixado fora da média');
-}
 
 async function budgetOk() {
   const r = await fetch(`https://api.apify.com/v2/users/me/limits?token=${TOKEN}`).then((x) => x.json()).catch(() => null);

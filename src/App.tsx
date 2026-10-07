@@ -26,6 +26,7 @@ import { SquadraCreators } from './pages/squadra/SquadraCreators';
 import { SquadraRetail } from './pages/squadra/SquadraRetail';
 import { CampaignsPage } from './pages/squadra/CampaignsPage';
 import { BrandHome } from './pages/brand/BrandHome';
+import { SquadraSocialBI } from './pages/squadra/SquadraSocialBI';
 import { CreatorOpportunitiesReal, CreatorWorkReal, CreatorEarningsReal } from './pages/creator/CreatorFlow';
 import { SquadraCampaignApply } from './pages/squadra/SquadraCampaignApply';
 import { SquadraAffiliates } from './pages/squadra/SquadraAffiliates';
@@ -222,6 +223,8 @@ const MainApp: React.FC = () => {
       case 'admin-moderation-brands':
       case 'admin-moderation-campaigns':
         return <AdminAuthGuard onNavigate={setCurrentView}><AdminModeration /></AdminAuthGuard>;
+      case 'social-bi':
+        return <AdminAuthGuard onNavigate={setCurrentView}><SquadraSocialBI /></AdminAuthGuard>;
       case 'admin-finance':
         return <AdminAuthGuard onNavigate={setCurrentView}><AdminFinance /></AdminAuthGuard>;
       case 'admin-academy':
