@@ -41,6 +41,7 @@ import { CampaignType } from '../../types/database';
 import { audienceQuality, followersOf, sizeOf, SIZES, SizeKey } from '../../lib/creatorQuality';
 import { useRules } from '../../components/campaign/CampaignBuilder';
 import { CreatorAnalytics } from '../../components/creator/CreatorAnalytics';
+import { useLockBodyScroll } from '../../lib/useLockBodyScroll';
 
 const QualityBadge: React.FC<{ c: CreatorProfile }> = ({ c }) => {
   const q = audienceQuality(c);
@@ -110,6 +111,7 @@ export const SquadraCreators: React.FC<SquadraCreatorsProps> = ({ onNavigate }) 
 
   // Detalhe de Creator (Modal /creators/:id)
   const [detailCreator, setDetailCreator] = useState<CreatorProfile | null>(null);
+  useLockBodyScroll(!!detailCreator, () => setDetailCreator(null));
 
   // Novo Creator (Modal de Adição Direta)
   const [isAddCreatorModalOpen, setIsAddCreatorModalOpen] = useState(false);
