@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import {
   Campaign,
   CampaignApplication,
@@ -130,6 +131,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  const { hasSession, user } = useAuth();
 
   const [selectedBrandId, setSelectedBrandId] = useState<string>(() => {
     return localStorage.getItem('squadra_selected_brand') || 'brand-1';
@@ -166,12 +168,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [retailTotal, setRetailTotal] = useState<number | null>(null);
   // contatos não saem do banco para quem não é admin: a contagem vem pronta (só números)
   const [contactCounts, setContactCounts] = useState<{ any: number; email: number; phone: number } | null>(null);
-  useEffect(() => {
-    supabase?.rpc('squad_contact_counts').then(({ data, error }) => { if (!error && data) setContactCounts(data as { any: number; email: number; phone: number }); });
-  }, []);
-  useEffect(() => {
-    supabaseService.countRetailByType().then((r) => { if (r?.total) setRetailTotal(r.total); });
-  }, []);
+
   const sourceCounts = useMemo<SourceCounts>(() => {
     const filled = (v?: string | null) => !!v && v.trim() !== '';
     // conta de teste não entra em número nenhum
@@ -328,8 +325,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return SQUADRA_AFFILIATE_APPLICATIONS;
   });
 
-  // When Supabase is configured, sync in background
+  // Sincroniza dados com o Supabase sempre que a sessão for iniciada ou modificada
   useEffect(() => {
+    if (hasSession === false) return;
+
+    supabase?.rpc('squad_contact_counts').then(({ data, error }) => {
+      if (!error && data) setContactCounts(data as { any: number; email: number; phone: number });
+    });
+
+    supabaseService.countRetailByType().then((r) => {
+      if (r?.total) setRetailTotal(r.total);
+    });
+
     supabaseService.getCampaigns().then((data) => {
       if (Array.isArray(data)) {
         setCampaigns(data);
@@ -346,17 +353,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     });
+
     supabaseService.getCreators().then((data) => {
-      if (data && data.length >= 100) setCreators(data);
+      if (data && data.length > 0) setCreators(data);
     });
+
     // PDVs reais do banco substituem os de demonstração assim que existir pelo menos um
     supabaseService.getRetailPoints().then((data) => {
       if (data && data.length > 0) setRetailPoints(data);
     });
+
     supabaseService.getBrands().then((data) => {
       if (data && data.length > 0) setBrands(data);
     });
-  }, []);
+  }, [hasSession, user?.id]);
 
   // Sync to localStorage
   useEffect(() => {
