@@ -63,7 +63,7 @@ function viewFromUrl(): string {
 }
 
 const MainApp: React.FC = () => {
-  const { role, hasSession } = useAuth();
+  const { role, hasSession, isLoading } = useAuth();
   // Home = site institucional; o painel fica atrás de "Acessar painel"
   const [currentView, setCurrentView] = useState<string>(() => viewFromUrl());
 
@@ -103,7 +103,7 @@ const MainApp: React.FC = () => {
 
   const isDashboardView = !isPublicStandaloneView;
   // sem sessão do Supabase não existe painel (o modo demonstração usa só dados de exemplo)
-  const needsLogin = isDashboardView && !isSiteView && hasSession === false;
+  const needsLogin = isDashboardView && !isSiteView && hasSession === false && !isLoading;
   useEffect(() => {
     if (needsLogin) setCurrentView('auth');
   }, [needsLogin]);

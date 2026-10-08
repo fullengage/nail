@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth, SQUADRA_AUTH_LEVELS } from '../../context/AuthContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -22,7 +22,7 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'admin_master' }) => {
-  const { login, signUpCreator, signUpBrand, loginAsLevel, isLoading } = useAuth();
+  const { login, signUpCreator, signUpBrand, loginAsLevel, isLoading, hasSession, user, role } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
   const [selectedRole, setSelectedRole] = useState<'admin_master' | 'brand_admin' | 'creator'>(() => {
@@ -30,6 +30,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, defaultRole = 'a
     if (defaultRole === 'brand' || defaultRole === 'brand_admin') return 'brand_admin';
     return 'admin_master';
   });
+
+  // Se já autenticado no Supabase com perfil carregado, direciona para o painel
+  useEffect(() => {
+    if (hasSession && user) {
+      if (role === 'creator') {
+        onNavigate('creator-dashboard');
+      } else {
+        onNavigate('dashboard');
+      }
+    }
+  }, [hasSession, user, role, onNavigate]);
 
   // Login form state
   const [email, setEmail] = useState(import.meta.env.VITE_DEMO_MODE === 'true' ? 'admin@example.com' : '');

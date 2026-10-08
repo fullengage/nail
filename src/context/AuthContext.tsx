@@ -160,9 +160,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseConfigured || !supabase) { setHasSession(false); return; }
     const applySession = async (authId: string | null) => {
       if (!authId) { setUser(null); setRoleState('creator'); setHasSession(false); return; }
-      const { data: prof } = await supabase!.from('profiles').select('*').eq('auth_user_id', authId).maybeSingle();
-      if (prof) { setUser(prof as Profile); setRoleState((prof as Profile).role); }
-      setHasSession(!!prof);
+      const { data: prof } = await supabase!
+        .from('profiles')
+        .select('*')
+        .or(`auth_user_id.eq.${authId},id.eq.${authId}`)
+        .maybeSingle();
+
+      if (prof) {
+        const typedProfile = prof as Profile;
+        setUser(typedProfile);
+        setRoleState(typedProfile.role);
+        setHasSession(true);
+
+        if (typedProfile.role === 'creator') {
+          const { data: cData } = await supabase!.rpc('my_creator').maybeSingle();
+          if (cData) {
+            setCreatorProfile(cData as CreatorProfile);
+            localStorage.setItem('squadra_creator_profile', JSON.stringify(cData));
+          }
+        } else if (typedProfile.role === 'brand_admin' || typedProfile.role === 'brand') {
+          const { data: bData } = await supabase!.from('brands').select('*').limit(1).maybeSingle();
+          if (bData) {
+            setBrandProfile(bData as BrandProfile);
+            localStorage.setItem('squadra_brand_profile', JSON.stringify(bData));
+          }
+        }
+      } else {
+        setHasSession(false);
+      }
     };
     supabase.auth.getSession().then(({ data }) => applySession(data.session?.user?.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { applySession(session?.user?.id ?? null); });
@@ -209,13 +234,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: profile, error: profErr } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', cleanEmail)
+          .or(`auth_user_id.eq.${authData.user.id},email.eq.${cleanEmail}`)
           .maybeSingle();
 
         if (profile) {
           const typedProfile = profile as Profile;
           setUser(typedProfile);
           setRoleState(typedProfile.role);
+          setHasSession(true);
 
           // Se for creator, busca na tabela public.creators
           if (typedProfile.role === 'creator') {
