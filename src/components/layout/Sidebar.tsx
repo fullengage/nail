@@ -56,6 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
     { id: 'affiliates', label: 'Afiliados & Vendas', icon: DollarSign },
     { id: 'brands', label: 'Marcas (Multiempresa)', icon: Building2 },
     { id: 'reports', label: 'Relatórios & Exportação', icon: TrendingUp },
+    { id: 'social-bi', label: 'BI de Redes Sociais', icon: TrendingUp },
     { id: 'settings', label: 'Pesos & Parâmetros IA', icon: Sparkles },
     { id: 'public-apply', label: 'Formulário Público', icon: ExternalLink },
   ];
