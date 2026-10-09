@@ -32,3 +32,9 @@
 - BI de redes: `src/pages/squadra/SquadraSocialBI.tsx` (/painel/bi-redes, só admin), medianas da última medição por creator e rede.
 - Sem preço/CPM, demografia ou autenticidade de audiência até existir base real. Sem medição: "Ainda não medido" e "—".
 - Teste das fórmulas: `node --experimental-strip-types scripts/creatorMetrics.check.mts`.
+
+## Direção do produto (09/10/2026)
+- **TikTok Shop primeiro.** O dinheiro não passa pela Squad: o TikTok cobra o cliente e paga creator e agência. Cachê de UGC pago pelo sistema e comissão em loja própria ficam para a fase 2 (gateway com split; nada de saldo, saque ou escrow próprios).
+- Curadoria continua valendo: o marketplace é aberto só do lado do creator (vitrine de campanhas, página da oportunidade com simulador de comissão, Creator Kit e Live Kit). CRM/Kanban de creators é do admin. Onde o arquivo `solicitação` pedir que a empresa aprove ou veja candidatos, vale a regra de curadoria.
+- Vendas por creator só com dado vindo do TikTok Shop (app custom autorizado pela marca). Sem integração: "—" e "Ainda não conectado", nunca estimativa.
+- Disponibilidade no Brasil do programa de agência parceira e das APIs de afiliados **ainda não confirmada**: não escrever no site que a Squad é parceira oficial do TikTok.
