@@ -213,6 +213,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
 
+    // site publicado sem conexão com o banco: dizer isso, não "senha incorreta"
+    if (!DEMO && (!isSupabaseConfigured || !supabase)) {
+      setIsLoading(false);
+      return { success: false, message: 'Login indisponível: o site está sem conexão com o banco de dados. Avise o suporte da Squad UGC.' };
+    }
+
     if (isSupabaseConfigured && supabase) {
       try {
         // 1. Tentar login direto via Supabase Auth
@@ -225,17 +231,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (authErr || !authData?.user) {
           if (!DEMO) {
             setIsLoading(false);
-            return { success: false, message: 'E-mail ou senha incorretos.' };
+            const m = authErr?.message || '';
+            if (/invalid login credentials/i.test(m)) return { success: false, message: 'E-mail ou senha incorretos.' };
+            if (/email not confirmed/i.test(m)) return { success: false, message: 'Confirme o seu e-mail (link enviado na criação da conta) antes de entrar.' };
+            if (/fetch|network/i.test(m)) return { success: false, message: 'Sem conexão com o servidor. Verifique a internet e tente de novo.' };
+            return { success: false, message: `Não foi possível entrar agora (${m || 'erro desconhecido'}).` };
           }
           throw new Error(authErr?.message || 'sem sessão');
         }
 
         // 2. Buscar perfil na tabela public.profiles
-        const { data: profile, error: profErr } = await supabase
+        const byId = await supabase.from('profiles').select('*').eq('auth_user_id', authData.user.id).maybeSingle();
+        const { data: profile, error: profErr } = byId.data ? byId : await supabase
           .from('profiles')
           .select('*')
-          .or(`auth_user_id.eq.${authData.user.id},email.eq.${cleanEmail}`)
+          .ilike('email', cleanEmail)
           .maybeSingle();
+
+        if (!profile && !DEMO) {
+          await supabase.auth.signOut().catch(() => {});
+          setIsLoading(false);
+          return { success: false, message: 'Sua conta existe, mas não tem perfil de acesso no painel. Fale com o suporte da Squad UGC.' };
+        }
 
         if (profile) {
           const typedProfile = profile as Profile;
