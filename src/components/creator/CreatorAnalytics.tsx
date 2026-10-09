@@ -82,21 +82,45 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
   const isAdmin = role === 'admin_master' || role === 'admin';
   const [rows, setRows] = useState<CreatorMetrics[] | null>(null);
   const [status, setStatus] = useState<'migracao' | 'login' | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<'tiktok' | 'instagram'>('tiktok');
+
   useEffect(() => {
     let alive = true;
-    supabaseService.getCreatorMetrics(creator.id).then((r) => { if (alive) { setRows(r.rows); setStatus(r.error); } });
+    supabaseService.getCreatorMetrics(creator.id).then((r) => {
+      if (alive) {
+        setRows(r.rows);
+        setStatus(r.error);
+        if (r.rows && r.rows.length > 0) {
+          if (!r.rows.some((row) => row.platform === 'tiktok') && r.rows.some((row) => row.platform === 'instagram')) {
+            setSelectedPlatform('instagram');
+          } else {
+            setSelectedPlatform('tiktok');
+          }
+        }
+      }
+    });
     return () => { alive = false; };
   }, [creator.id]);
 
-  const tiktok = useMemo(() => (rows || []).filter((r) => r.platform === 'tiktok'), [rows]);
-  const last = tiktok[0] || null;
+  const hasTikTok = useMemo(() => (rows || []).some((r) => r.platform === 'tiktok'), [rows]);
+  const hasInstagram = useMemo(() => (rows || []).some((r) => r.platform === 'instagram'), [rows]);
+
+  const platformRows = useMemo(
+    () => (rows || []).filter((r) => r.platform === selectedPlatform),
+    [rows, selectedPlatform]
+  );
+  const last = platformRows[0] || (rows && rows[0]) || null;
+  const currentPlatform = last?.platform || selectedPlatform;
   const m: MetricsSummary | null = last;
   const q = metricsQuality(m, creator);
   const alerts = suspicionAlerts(m);
   const followers = last?.followers ?? (followersOf(creator) || null);
   const reach = reachPct(last?.avg_views, last?.followers);
-  const growth = growth30d(tiktok);
-  const history = [...tiktok].reverse().filter((r) => r.followers != null).map((r) => ({ d: date(r.collected_at), seguidores: r.followers }));
+  const growth = growth30d(platformRows);
+  const history = [...platformRows]
+    .reverse()
+    .filter((r) => r.followers != null)
+    .map((r) => ({ d: date(r.collected_at), seguidores: r.followers }));
   const categories = [...new Set([...(creator.specialties || []), ...(creator.tags || []).filter((t) => !isInternalTag(t))])];
   const commentsOverLikes = alerts.some((a) => a.key === 'comments_over_likes');
 
@@ -126,6 +150,27 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
 
       {/* análise */}
       <div className="space-y-4 min-w-0">
+        {hasTikTok && hasInstagram && (
+          <div className="flex items-center gap-2 p-1 bg-muted rounded-xl w-fit">
+            <button
+              onClick={() => setSelectedPlatform('tiktok')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                selectedPlatform === 'tiktok' ? 'bg-primary text-black shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              TikTok
+            </button>
+            <button
+              onClick={() => setSelectedPlatform('instagram')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                selectedPlatform === 'instagram' ? 'bg-primary text-black shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Instagram
+            </button>
+          </div>
+        )}
+
         {rows == null ? (
           <p className="p-6 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Carregando métricas…</p>
         ) : !last ? (
@@ -140,7 +185,7 @@ export const CreatorAnalytics: React.FC<Props> = ({ creator, actions, privateSlo
             {isAdmin && creator.tiktok && status !== 'migracao' && (
               <div className="text-xs space-y-1">
                 <p className="font-bold text-foreground">Como medir (TikTok, ~US$ 0,09):</p>
-                <code className="block p-2 rounded-lg bg-muted text-[11px] break-all">node --experimental-strip-types --env-file=.env scripts/medir-creator-tiktok.mjs --usuario {creator.tiktok}</code>
+                <code className="block p-2 rounded-lg bg-muted text-[11px] break-all">node --experimental-strip-types --env-file=.env scripts/medir-creator-tiktok.mjs --usuario "{creator.tiktok}"</code>
                 <p className="text-muted-foreground">Depois grave com <code>--apply</code>.</p>
               </div>
             )}
