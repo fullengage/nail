@@ -107,7 +107,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <p className={`${SERIF} text-2xl`}>{p.nome}</p>
-                  <p className={`${HEAVY} text-3xl`}>{brl(p.preco)}</p>
+                  <p className="font-display font-black tracking-tight text-3xl">{brl(p.preco)}</p>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm">
                   {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, 'Entrega em 21 dias após a chegada dos produtos', 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
