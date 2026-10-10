@@ -50,6 +50,9 @@ export const BrandLeadsInbox: React.FC = () => {
             <div key={l.id} className="px-4 py-3 text-xs grid grid-cols-1 md:grid-cols-12 gap-2">
               <div className="md:col-span-4">
                 <p className="font-bold text-foreground">{l.company}</p>
+                {l.origin === 'piloto_squad' && (
+                  <p className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-primary text-black font-bold">Pedido de piloto</p>
+                )}
                 <p className="text-muted-foreground">
                   {l.name}{l.role ? ` · ${l.role}` : ''}
                 </p>
@@ -59,6 +62,7 @@ export const BrandLeadsInbox: React.FC = () => {
                 <p>{l.category || '—'}</p>
                 <p>{l.sales_channel || '—'}</p>
                 <p>{l.budget_tier || '—'}</p>
+                {l.notes && <p className="whitespace-pre-line text-foreground">{l.notes}</p>}
               </div>
               <div className="md:col-span-4 space-y-0.5">
                 <p className="font-semibold text-foreground">{STATUS_LABEL[l.status] || 'Novo'}</p>

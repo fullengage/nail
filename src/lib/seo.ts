@@ -1,5 +1,6 @@
 import { getViewPath } from './routes';
 import { FAQ_PLANOS } from '../pages/site/PlanosPage';
+import { FAQ_PILOTO } from '../pages/site/PilotoPage';
 import { FAQ_FERRAMENTAS } from '../pages/site/FerramentasPage';
 
 export interface PageSEO {
@@ -73,6 +74,17 @@ export const SEO_METADATA: Record<string, PageSEO> = {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
       mainEntity: FAQ_PLANOS.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+    },
+  },
+  piloto: {
+    title: 'Piloto Squad: 20 vídeos de creators no TikTok Shop em 21 dias | Squad UGC',
+    description: 'Creators reais gravam e publicam vídeos com o seu produto na vitrine do TikTok Shop. Preço fechado, 50% de sinal e relatório de vendas por creator.',
+    keywords: 'ugc tiktok shop, vídeos de creators para tiktok shop, contratar creators tiktok shop, afiliados tiktok shop para marcas, pacote de vídeos ugc',
+    ogType: 'website',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ_PILOTO.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
     },
   },
   ferramentas: {

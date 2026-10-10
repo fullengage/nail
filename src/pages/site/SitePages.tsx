@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Mail, AtSign } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { LIME, INK, HEAVY, SERIF, PILL, WRAP, Marquee, SiteActions } from './SiteLayout';
 import { NavLink } from '../../components/common/NavLink';
 
@@ -177,9 +177,10 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
     <PageHero
       kicker="Para marcas"
       title={<>sua marca nas mãos de quem <Box>decide a compra</Box></>}
-      text="Monte um squad de creators que vendem ao vivo e produzem UGC. Envie produtos, aprove conteúdos e acompanhe as vendas de cada live em um só painel."
+      text="A Squad monta um time de creators que vendem ao vivo e produzem UGC para a sua marca. Você envia os produtos, aprova os conteúdos e acompanha as vendas por creator em um só painel."
     >
-      <button onClick={actions.openBrand} className={btnDark + ' text-lg'}>Candidate sua marca (3 vagas)</button>
+      <NavLink view="piloto" onNavigate={actions.onNavigate} className={btnDark + ' text-lg'}>Começar com um piloto</NavLink>
+      <button onClick={actions.openBrand} className={btnWhite + ' text-lg'}>Candidate sua marca (3 vagas)</button>
       <NavLink view="auth" onNavigate={actions.onNavigate} className={btnWhite + ' text-lg'}>Acessar painel</NavLink>
     </PageHero>
     <Marquee className="bg-black text-white" items={['Live commerce', 'TikTok Shop', 'UGC com direito de uso', 'Product seeding', 'Afiliados']} />
@@ -189,8 +190,8 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
       </h2>
       <NumberedGrid
         items={[
-          ['Base de creators qualificada', 'Mais de 800 creators de TikTok mapeados, com score, nicho, contato e marcação de quem já vende em live.'],
-          ['Pipeline de campanha', 'Kanban de 14 etapas, do convite à publicação, com squads e seleção em massa.'],
+          ['Base de creators medida', 'Mais de 2.500 creators brasileiros mapeados, com nicho, alcance medido e marcação de quem já vende no TikTok Shop. A seleção para a sua campanha é feita pela Squad.'],
+          ['Campanha acompanhada', 'Do convite à publicação, cada etapa do squad fica registrada e visível para você.'],
           ['Lives de venda', 'Agenda de lives do squad com roteiro, cupom e produto no carrinho, e os melhores cortes viram anúncio.'],
           ['Aprovação de conteúdo', 'Mosaico de entregas com comentários e fluxo de aprovação.'],
           ['Afiliados & GMV', 'Links, cupons, vendas e comissões por creator.'],
@@ -202,7 +203,7 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
       title={<>Programa <em>marcas fundadoras</em></>}
       steps={[
         ['Candidatura da marca', 'Insira produtos, categoria e objetivo da campanha.'],
-        ['Seleção das creators', 'Apresentamos perfis compatíveis com a sua marca.'],
+        ['Seleção dos creators', 'A Squad escolhe os perfis compatíveis com a sua marca e você vê quem foi contratado.'],
         ['Envio & produção', 'Envie os kits e acompanhe a gravação do conteúdo.'],
         ['Aprovação do material', 'Valide vídeos e fotos antes da liberação do cachê.'],
         ['Direitos & métricas', 'Use os vídeos em tráfego pago e acompanhe resultados.'],
@@ -224,7 +225,7 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
       items={[
         ['O que é o programa de marcas fundadoras?', 'Um piloto com 3 marcas, condições especiais e acompanhamento próximo do nosso time.'],
         ['Posso usar os conteúdos em anúncios?', 'Sim. Os contratos incluem direito de uso de imagem para tráfego pago.'],
-        ['Como os creators são selecionados?', 'Por score operacional, nicho, região e histórico de entregas, com pesos configuráveis pela sua marca.'],
+        ['Como os creators são selecionados?', 'Pela Squad, com base em nicho, alcance medido, região e histórico de entregas. Você vê o perfil de quem foi contratado para a sua campanha.'],
       ]}
     />
   </>
@@ -255,13 +256,11 @@ export const ContatoPage: React.FC<PageProps> = ({ actions }) => (
       ))}
     </section>
     <section className={`${INK} text-white`}>
-      <div className={`${WRAP} py-14 flex flex-wrap gap-10`}>
-        <a href="mailto:contato@squadra.app" className="flex items-center gap-3 hover:text-[#DFE82A]">
-          <Mail className="w-5 h-5" /> contato@squadra.app
-        </a>
-        <span className="flex items-center gap-3">
-          <AtSign className="w-5 h-5" /> @squadra
-        </span>
+      <div className={`${WRAP} py-14 flex flex-wrap items-center justify-between gap-6`}>
+        <p className={`${SERIF} text-2xl`}>Quer começar já? Peça um piloto com preço fechado.</p>
+        <NavLink view="piloto" onNavigate={actions.onNavigate} className={`${PILL} bg-[#DFE82A] text-black`}>
+          Ver o Piloto Squad <ArrowRight className="w-4 h-4" />
+        </NavLink>
       </div>
     </section>
   </>
