@@ -68,7 +68,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
           20 vídeos de creators reais em <span className="inline-block bg-white px-3 -rotate-1 shadow-[5px_5px_0_#000]">21 dias</span>
         </h1>
         <p className="mt-6 max-w-2xl text-base sm:text-lg font-medium">
-          Seu produto na mão de creators com audiência medida, que já vendem no TikTok Shop. A Squad escolhe, acompanha a gravação e entrega os vídeos publicados na vitrine, com direito de uso em anúncios e relatório de vendas por creator. Preço fechado, a partir de R$ 1.290.
+          Seu produto na mão de creators com audiência medida, escolhidos pela Squad para a sua categoria. A Squad seleciona, acompanha a gravação e entrega os vídeos publicados na vitrine, com direito de uso em anúncios e relatório de vendas por creator. Preço fechado, a partir de R$ 1.290.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href="#pedido" className={`${PILL} bg-black text-white text-lg`}>Pedir meu piloto <ArrowRight className="w-4 h-4" /></a>
