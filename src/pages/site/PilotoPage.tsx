@@ -8,14 +8,14 @@ import { supabaseService } from '../../services/supabaseService';
 // nada de cobrança automática aqui. Só promessas que a operação cumpre: entrega de vídeos, não de vendas.
 
 export const PILOTO_PACOTES = [
-  { id: 'piloto-10', nome: 'Piloto 10 creators', creators: 10, videos: 20, preco: 3900, dias: 21, sinal: 0.5 },
-  { id: 'piloto-5', nome: 'Piloto 5 creators', creators: 5, videos: 10, preco: 2200, dias: 21, sinal: 0.5 },
+  { id: 'piloto-10', nome: 'Piloto 10 creators', creators: 10, videos: 20, preco: 3900, dias: 21, sinal: 0.6 },
+  { id: 'piloto-5', nome: 'Piloto 5 creators', creators: 5, videos: 10, preco: 2200, dias: 21, sinal: 0.6 },
   { id: 'teste-3', nome: 'Teste 3 creators', creators: 3, videos: 6, preco: 1290, dias: 14, sinal: 1 },
 ] as const;
 
 export const FAQ_PILOTO: [string, string][] = [
   ['O que eu recebo no piloto?', 'Creators escolhidos pela Squad gravam vídeos com o seu produto, a Squad edita (corte, legenda e chamada para a vitrine) e o creator publica na vitrine do TikTok Shop. No fim, você recebe um relatório com os vídeos, as visualizações e as vendas atribuídas a cada creator.'],
-  ['Como funciona o pagamento?', 'Nos pilotos, metade na contratação e metade na entrega dos vídeos. No teste de 3 creators, o pagamento é integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator, conforme a comissão configurada na sua loja.'],
+  ['Como funciona o pagamento?', 'Nos pilotos, 60% na contratação e 40% na entrega dos vídeos. No teste de 3 creators, o pagamento é integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator, conforme a comissão configurada na sua loja.'],
   ['Vocês garantem vendas?', 'Não. Garantimos a entrega dos vídeos publicados no prazo. O volume de vendas depende do produto, do preço e da comissão oferecida.'],
   ['Eu escolho os creators?', 'A seleção é feita pela Squad, com base em nicho, alcance medido e histórico de venda no TikTok Shop. Você vê o perfil de quem foi contratado para a sua campanha.'],
   ['O que eu preciso enviar?', 'Uma unidade do produto para cada creator e o produto ativo na sua loja do TikTok Shop, com comissão de afiliado habilitada.'],
@@ -119,7 +119,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
               </button>
             ))}
             <p className="text-xs text-white/60">
-              Pilotos: 50% na contratação e 50% na entrega. Teste: pagamento integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator.
+              Pilotos: 60% na contratação e 40% na entrega. Teste: pagamento integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator.
             </p>
           </div>
 
