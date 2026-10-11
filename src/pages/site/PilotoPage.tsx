@@ -8,13 +8,14 @@ import { supabaseService } from '../../services/supabaseService';
 // nada de cobrança automática aqui. Só promessas que a operação cumpre: entrega de vídeos, não de vendas.
 
 export const PILOTO_PACOTES = [
-  { id: 'piloto-10', nome: 'Piloto 10 creators', creators: 10, videos: 20, preco: 3900, destaque: true },
-  { id: 'piloto-5', nome: 'Piloto 5 creators', creators: 5, videos: 10, preco: 2200, destaque: false },
+  { id: 'piloto-10', nome: 'Piloto 10 creators', creators: 10, videos: 20, preco: 3900, dias: 21, sinal: 0.5 },
+  { id: 'piloto-5', nome: 'Piloto 5 creators', creators: 5, videos: 10, preco: 2200, dias: 21, sinal: 0.5 },
+  { id: 'teste-3', nome: 'Teste 3 creators', creators: 3, videos: 6, preco: 1290, dias: 14, sinal: 1 },
 ] as const;
 
 export const FAQ_PILOTO: [string, string][] = [
   ['O que eu recebo no piloto?', 'Creators escolhidos pela Squad gravam e publicam vídeos com o seu produto na vitrine do TikTok Shop. No fim, você recebe um relatório com os vídeos, as visualizações e as vendas atribuídas a cada creator.'],
-  ['Como funciona o pagamento?', 'Metade na contratação e metade na entrega dos vídeos, por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator, conforme a comissão configurada na sua loja.'],
+  ['Como funciona o pagamento?', 'Nos pilotos, metade na contratação e metade na entrega dos vídeos. No teste de 3 creators, o pagamento é integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator, conforme a comissão configurada na sua loja.'],
   ['Vocês garantem vendas?', 'Não. Garantimos a entrega dos vídeos publicados no prazo. O volume de vendas depende do produto, do preço e da comissão oferecida.'],
   ['Eu escolho os creators?', 'A seleção é feita pela Squad, com base em nicho, alcance medido e histórico de venda no TikTok Shop. Você vê o perfil de quem foi contratado para a sua campanha.'],
   ['O que eu preciso enviar?', 'Uma unidade do produto para cada creator e o produto ativo na sua loja do TikTok Shop, com comissão de afiliado habilitada.'],
@@ -34,7 +35,8 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
   const [feito, setFeito] = useState(false);
 
   const escolhido = PILOTO_PACOTES.find((p) => p.id === pacote) || PILOTO_PACOTES[0];
-  const sinal = escolhido.preco / 2;
+  const sinal = escolhido.preco * escolhido.sinal;
+  const integral = escolhido.sinal === 1;
   const ok = f.nome.trim() && f.marca.trim() && /\S+@\S+\.\S+/.test(f.email) && f.whatsapp.replace(/\D/g, '').length >= 10 && f.produto.trim();
 
   const enviar = async (e: React.FormEvent) => {
@@ -51,7 +53,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
       sales_channel: 'TikTok Shop / Live commerce',
       budget_tier: `${escolhido.nome} · ${brl(escolhido.preco)}`,
       origin: 'piloto_squad',
-      notes: `Pedido de piloto: ${escolhido.nome} (${escolhido.videos} vídeos) por ${brl(escolhido.preco)}; sinal ${brl(sinal)}.\nProduto: ${f.produto.trim()}\nLoja: ${f.loja.trim() || 'não informada'}`,
+      notes: `Pedido de piloto: ${escolhido.nome} (${escolhido.videos} vídeos em ${escolhido.dias} dias) por ${brl(escolhido.preco)}; ${integral ? 'pagamento integral na contratação' : `sinal ${brl(sinal)}`}.\nProduto: ${f.produto.trim()}\nLoja: ${f.loja.trim() || 'não informada'}`,
     });
     setSending(false);
     if (res.success) setFeito(true);
@@ -66,7 +68,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
           20 vídeos de creators reais em <span className="inline-block bg-white px-3 -rotate-1 shadow-[5px_5px_0_#000]">21 dias</span>
         </h1>
         <p className="mt-6 max-w-2xl text-base sm:text-lg font-medium">
-          Seu produto na mão de creators que já vendem no TikTok Shop. A Squad escolhe, acompanha a gravação e entrega os vídeos publicados na vitrine, com relatório de vendas por creator. Preço fechado.
+          Seu produto na mão de creators com audiência medida, que já vendem no TikTok Shop. A Squad escolhe, acompanha a gravação e entrega os vídeos publicados na vitrine, com direito de uso em anúncios e relatório de vendas por creator. Preço fechado, a partir de R$ 1.290.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href="#pedido" className={`${PILL} bg-black text-white text-lg`}>Pedir meu piloto <ArrowRight className="w-4 h-4" /></a>
@@ -79,10 +81,10 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
         <ol className="grid grid-cols-1 md:grid-cols-5 gap-6 border-t border-black pt-8">
           {[
             ['Você pede', 'Escolhe o pacote e conta qual produto quer divulgar.'],
-            ['Sinal por Pix', 'Enviamos a proposta e a cobrança de 50% por e-mail, com nota fiscal.'],
+            ['Pagamento por Pix', 'Enviamos a proposta e a cobrança por e-mail, com nota fiscal.'],
             ['Envio dos produtos', 'Você manda uma unidade para cada creator do squad.'],
             ['Gravação e publicação', 'Cada creator publica 2 vídeos com o produto na vitrine.'],
-            ['Relatório e saldo', 'Vídeos, visualizações e vendas por creator. Os 50% finais são pagos na entrega.'],
+            ['Relatório', 'Vídeos, visualizações e vendas por creator. Nos pilotos, o saldo é pago na entrega.'],
           ].map(([t, d], i) => (
             <li key={t}>
               <span className={`${HEAVY} text-5xl`}>{String(i + 1).padStart(2, '0')}</span>
@@ -110,14 +112,14 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
                   <p className="font-display font-black tracking-tight text-3xl">{brl(p.preco)}</p>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm">
-                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, 'Entrega em 21 dias após a chegada dos produtos', 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
+                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, `Entrega em ${p.dias} dias após a chegada dos produtos`, 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
                     <li key={it} className="flex gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> {it}</li>
                   ))}
                 </ul>
               </button>
             ))}
             <p className="text-xs text-white/60">
-              50% na contratação e 50% na entrega, por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator.
+              Pilotos: 50% na contratação e 50% na entrega. Teste: pagamento integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator.
             </p>
           </div>
 
@@ -129,14 +131,14 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
                 <div className="border-2 border-black p-4 text-sm space-y-1">
                   <p><strong>{escolhido.nome}</strong> para {f.marca}</p>
                   <p>Valor total: {brl(escolhido.preco)}</p>
-                  <p>Sinal para começar: {brl(sinal)}</p>
+                  <p>{integral ? 'Pagamento para começar' : 'Sinal para começar'}: {brl(sinal)}</p>
                 </div>
                 <ol className="text-sm space-y-2 list-decimal pl-5">
-                  <li>Em até 1 dia útil você recebe em <strong>{f.email}</strong> a proposta e a cobrança Pix do sinal.</li>
-                  <li>Com o sinal confirmado, enviamos o endereço para remessa dos produtos e começamos a seleção dos creators.</li>
-                  <li>Os 21 dias contam a partir da chegada dos produtos.</li>
+                  <li>Em até 1 dia útil você recebe em <strong>{f.email}</strong> a proposta e a cobrança Pix.</li>
+                  <li>Com o pagamento confirmado, enviamos o endereço para remessa dos produtos e começamos a seleção dos creators.</li>
+                  <li>Os {escolhido.dias} dias contam a partir da chegada dos produtos.</li>
                 </ol>
-                <p className="text-xs text-black/60">O pedido só vira contrato depois do pagamento do sinal. Até lá você pode desistir sem custo.</p>
+                <p className="text-xs text-black/60">O pedido só vira contrato depois do pagamento. Até lá você pode desistir sem custo.</p>
               </div>
             ) : (
               <form onSubmit={enviar} className="space-y-4" noValidate>
@@ -171,7 +173,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
                 {erro && <p role="alert" className="text-sm font-semibold text-red-700">{erro}</p>}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-black pt-4">
                   <p className="text-sm">
-                    <strong>{escolhido.nome}</strong> · {brl(escolhido.preco)} · sinal de {brl(sinal)}
+                    <strong>{escolhido.nome}</strong> · {brl(escolhido.preco)} · {integral ? 'pagamento na contratação' : `sinal de ${brl(sinal)}`}
                   </p>
                   <button type="submit" disabled={!ok || sending} className={`${PILL} bg-black text-white disabled:opacity-40`}>
                     {sending ? 'Enviando…' : 'Registrar pedido'} <ArrowRight className="w-4 h-4" />
