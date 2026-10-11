@@ -14,7 +14,7 @@ export const PILOTO_PACOTES = [
 ] as const;
 
 export const FAQ_PILOTO: [string, string][] = [
-  ['O que eu recebo no piloto?', 'Creators escolhidos pela Squad gravam e publicam vídeos com o seu produto na vitrine do TikTok Shop. No fim, você recebe um relatório com os vídeos, as visualizações e as vendas atribuídas a cada creator.'],
+  ['O que eu recebo no piloto?', 'Creators escolhidos pela Squad gravam vídeos com o seu produto, a Squad edita (corte, legenda e chamada para a vitrine) e o creator publica na vitrine do TikTok Shop. No fim, você recebe um relatório com os vídeos, as visualizações e as vendas atribuídas a cada creator.'],
   ['Como funciona o pagamento?', 'Nos pilotos, metade na contratação e metade na entrega dos vídeos. No teste de 3 creators, o pagamento é integral na contratação. Sempre por Pix, com nota fiscal de serviço. A comissão de afiliado sobre as vendas é paga pelo TikTok direto ao creator, conforme a comissão configurada na sua loja.'],
   ['Vocês garantem vendas?', 'Não. Garantimos a entrega dos vídeos publicados no prazo. O volume de vendas depende do produto, do preço e da comissão oferecida.'],
   ['Eu escolho os creators?', 'A seleção é feita pela Squad, com base em nicho, alcance medido e histórico de venda no TikTok Shop. Você vê o perfil de quem foi contratado para a sua campanha.'],
@@ -112,7 +112,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
                   <p className="font-display font-black tracking-tight text-3xl">{brl(p.preco)}</p>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm">
-                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, `Entrega em ${p.dias} dias após a chegada dos produtos`, 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
+                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, `Entrega em ${p.dias} dias após a chegada dos produtos`, 'Edição pela Squad: corte, legenda e chamada para a vitrine', 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
                     <li key={it} className="flex gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> {it}</li>
                   ))}
                 </ul>
