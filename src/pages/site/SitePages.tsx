@@ -177,7 +177,7 @@ export const ParaMarcasPage: React.FC<PageProps> = ({ actions }) => (
     <PageHero
       kicker="Para marcas"
       title={<>sua marca nas mãos de quem <Box>decide a compra</Box></>}
-      text="A Squad monta um time de creators que vendem ao vivo e produzem UGC para a sua marca. Você envia os produtos, aprova os conteúdos e acompanha as vendas por creator em um só painel."
+      text="A Squad monta um time de creators que vendem ao vivo e produzem UGC para a sua marca. Você envia os produtos, aprova os conteúdos e acompanha o desempenho de cada creator em um só painel."
     >
       <NavLink view="piloto" onNavigate={actions.onNavigate} className={btnDark + ' text-lg'}>Começar com um piloto</NavLink>
       <button onClick={actions.openBrand} className={btnWhite + ' text-lg'}>Candidate sua marca (3 vagas)</button>
