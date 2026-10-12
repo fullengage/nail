@@ -78,7 +78,7 @@ export const SEO_METADATA: Record<string, PageSEO> = {
   },
   piloto: {
     title: 'Piloto Squad: 20 vídeos de creators no TikTok Shop em 21 dias | Squad UGC',
-    description: 'Creators reais gravam e publicam vídeos com o seu produto na vitrine do TikTok Shop. Preço fechado a partir de R$ 1.290, direito de uso em anúncios e relatório de vendas por creator.',
+    description: 'Creators reais gravam e publicam vídeos com o seu produto na vitrine do TikTok Shop. Preço fechado a partir de R$ 1.290, direito de uso em anúncios e relatório de desempenho por creator.',
     keywords: 'ugc tiktok shop, vídeos de creators para tiktok shop, contratar creators tiktok shop, afiliados tiktok shop para marcas, pacote de vídeos ugc',
     ogType: 'website',
     schema: {

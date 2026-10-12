@@ -68,7 +68,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
           20 vídeos de creators reais em <span className="inline-block bg-white px-3 -rotate-1 shadow-[5px_5px_0_#000]">21 dias</span>
         </h1>
         <p className="mt-6 max-w-2xl text-base sm:text-lg font-medium">
-          Seu produto na mão de creators com audiência medida, escolhidos pela Squad para a sua categoria. A Squad seleciona, acompanha a gravação e entrega os vídeos publicados na vitrine, com direito de uso em anúncios e relatório de vendas por creator. Preço fechado, a partir de R$ 1.290.
+          Seu produto na mão de creators com audiência medida, escolhidos pela Squad para a sua categoria. A Squad seleciona, acompanha a gravação e entrega os vídeos publicados na vitrine, com direito de uso em anúncios e relatório de desempenho por creator. Preço fechado, a partir de R$ 1.290.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href="#pedido" className={`${PILL} bg-black text-white text-lg`}>Pedir meu piloto <ArrowRight className="w-4 h-4" /></a>
@@ -84,7 +84,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
             ['Pagamento por Pix', 'Enviamos a proposta e a cobrança por e-mail, com nota fiscal.'],
             ['Envio dos produtos', 'Você manda uma unidade para cada creator do squad.'],
             ['Gravação e publicação', 'Cada creator publica 2 vídeos com o produto na vitrine.'],
-            ['Relatório', 'Vídeos, visualizações e vendas por creator. Nos pilotos, o saldo é pago na entrega.'],
+            ['Relatório', 'Vídeos, visualizações e engajamento por creator, mostrando qual vídeo rendeu mais. Vendas entram quando a marca compartilha o relatório do TikTok Shop. Nos pilotos, o saldo é pago na entrega.'],
           ].map(([t, d], i) => (
             <li key={t}>
               <span className={`${HEAVY} text-5xl`}>{String(i + 1).padStart(2, '0')}</span>
@@ -112,7 +112,7 @@ export const PilotoPage: React.FC<{ actions: SiteActions }> = () => {
                   <p className="font-display font-black tracking-tight text-3xl">{brl(p.preco)}</p>
                 </div>
                 <ul className="mt-3 space-y-1 text-sm">
-                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, `Entrega em ${p.dias} dias após a chegada dos produtos`, 'Edição pela Squad: corte, legenda e chamada para a vitrine', 'Relatório de vendas por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
+                  {[`${p.creators} creators escolhidos pela Squad`, `${p.videos} vídeos publicados na vitrine`, `Entrega em ${p.dias} dias após a chegada dos produtos`, 'Edição pela Squad: corte, legenda e chamada para a vitrine', 'Relatório de desempenho por creator', 'Direito de uso dos vídeos em anúncios'].map((it) => (
                     <li key={it} className="flex gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> {it}</li>
                   ))}
                 </ul>
