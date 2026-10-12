@@ -6,7 +6,7 @@
 //      node --env-file=.env scripts/buscar-creators-tiktok.mjs --so-filtrar
 //      node --env-file=.env scripts/buscar-creators-tiktok.mjs --apply
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { BRAND, PAGE, ES, PORTUGAL } from './creator-filtro.mjs';
+import { avaliar } from './creator-filtro.mjs';
 
 const TOKEN = process.env.APIFY_TOKEN;
 const CACHE = new URL('../data/tt-descoberta.json', import.meta.url);
@@ -27,13 +27,6 @@ const save = () => writeFileSync(CACHE, JSON.stringify(db));
 const tier = (n) => (n >= 1e6 ? 'macro 1M+' : n >= 1e5 ? 'médio 100k-1M' : 'micro até 100k');
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.]+/;
 
-// autor vira candidato se: escreve em português do Brasil, não é marca/loja/página, 1k+ seguidores
-export function avaliar(a) {
-  const bio = `${a.bio} ${a.nome}`;
-  const pt = a.langs.pt / Math.max(1, a.langs.total) >= 0.5;
-  const fora = ES.test(bio) || PORTUGAL.test(`${bio} ${a.textos}`);
-  return { ok: pt && !fora && !BRAND.test(bio) && !PAGE.test(bio) && !a.priv && a.seg >= 1000, brand: BRAND.test(bio) };
-}
 console.assert(avaliar({ bio: 'Indico só o que uso', nome: 'Cintia', langs: { pt: 2, total: 2 }, textos: '', priv: false, seg: 22700 }).ok, 'creator');
 console.assert(!avaliar({ bio: 'Loja oficial, frete grátis', nome: 'X', langs: { pt: 1, total: 1 }, textos: '', priv: false, seg: 9000 }).ok, 'loja');
 console.assert(!avaliar({ bio: 'reviews', nome: 'X', langs: { pt: 1, total: 1 }, textos: 'promo em Lisboa', priv: false, seg: 9000 }).ok, 'portugal');

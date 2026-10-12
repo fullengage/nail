@@ -24,3 +24,19 @@ console.assert(classify({ biography: 'UGC creator ✨ parcerias: contato@x.com' 
 console.assert(!classify({ biography: 'Loja de roupas 🛍️ enviamos para todo Brasil' }).creator, 'marca');
 console.assert(!classify({ biography: 'Tudo sobre o mundo dos famosos! publi: contato' }).creator && !classify({ biography: 'Ensino a ganhar R$ como UGC' }).creator, 'pagina/mentor');
 console.assert(classify({ biography: 'UGC creator 🇧🇷 São Paulo' }).br && !classify({ biography: 'Creadora de contenido UGC 🇲🇽' }).br && !classify({ biography: 'UGC creator | Lisboa 🇵🇹' }).br && !classify({ biography: 'UGC creator based in LA' }).br, 'brasil');
+
+// TikTok: autor vira candidato se escreve em português do Brasil, não é marca/loja/página, perfil público, 1k+ seguidores.
+// Idioma: maioria dos vídeos em pt; com 1 ou 2 vídeos lidos (o detector erra em legenda curta), decide pela bio.
+const PT_BIO = /\b(voc[êe]s?|n[ãa]o|tamb[ée]m|conte[úu]do|parcerias?|contato|publi|achadinhos?|indica[çc][õo]es|brasil|m[ãa]e|vida|dicas|receitas|beleza|moda|garimpo|link)\b/i;
+export function avaliar(a) {
+  const bio = `${a.bio} ${a.nome}`;
+  const total = a.langs?.total || 0;
+  const pt = (a.langs?.pt || 0) / Math.max(1, total) >= 0.5 || (total <= 2 && PT_BIO.test(a.bio || ''));
+  const fora = ES.test(bio) || PORTUGAL.test(`${bio} ${a.textos || ''}`);
+  return { ok: pt && !fora && !BRAND.test(bio) && !PAGE.test(bio) && !a.priv && a.seg >= 1000, brand: BRAND.test(bio) };
+}
+console.assert(avaliar({ bio: 'Indico só o que uso', nome: 'Cintia', langs: { pt: 2, total: 2 }, textos: '', priv: false, seg: 22700 }).ok, 'creator');
+console.assert(!avaliar({ bio: 'Loja oficial, frete grátis', nome: 'X', langs: { pt: 1, total: 1 }, textos: '', priv: false, seg: 9000 }).ok, 'loja');
+console.assert(!avaliar({ bio: 'reviews', nome: 'X', langs: { pt: 1, total: 1 }, textos: 'promo em Lisboa', priv: false, seg: 9000 }).ok, 'portugal');
+console.assert(avaliar({ bio: 'Achadinhos da Suka pra você!', nome: 'Suka', langs: { pt: 0, total: 1 }, textos: '', priv: false, seg: 4899 }).ok, 'bio em pt com 1 vídeo');
+console.assert(!avaliar({ bio: 'daily vlogs', nome: 'X', langs: { pt: 0, total: 1 }, textos: '', priv: false, seg: 4899 }).ok, 'bio sem pt');

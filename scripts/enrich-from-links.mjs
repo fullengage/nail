@@ -88,7 +88,15 @@ const leads = JSON.parse(readFileSync(LEADS, 'utf8'));
 const prio = (l) => (/^[AB]/.test(l.faixa || '') ? 0 : 1);
 
 if (!process.argv.includes('--apply')) {
-  const queue = [...leads].sort((a, b) => prio(a) - prio(b)).map((l) => l.tiktok.replace(/^@/, '')).filter((h) => !cache[h]?.ok);
+  let queue = [...leads].sort((a, b) => prio(a) - prio(b)).map((l) => l.tiktok.replace(/^@/, '')).filter((h) => !cache[h]?.ok);
+  // --shop: lê o link da bio dos creators de TikTok Shop achados pela descoberta (data/tt-descoberta.json),
+  // que nunca passaram por aqui. Depois: node --env-file=.env scripts/extrair-contatos-dos-caches.mjs --apply
+  if (process.argv.includes('--shop')) {
+    const { avaliar } = await import('./creator-filtro.mjs');
+    const desc = existsSync(new URL('../data/tt-descoberta.json', import.meta.url)) ? JSON.parse(readFileSync(new URL('../data/tt-descoberta.json', import.meta.url), 'utf8')).authors : {};
+    const naBase = new Set(leads.map((l) => l.tiktok.replace(/^@/, '').toLowerCase()));
+    queue = Object.values(desc).filter((a) => a.shop && avaliar(a).ok && !naBase.has(a.u) && !cache[a.u]?.ok).sort((x, y) => y.seg - x.seg).map((a) => a.u);
+  }
   console.log(`a coletar: ${queue.length} (já no cache: ${Object.values(cache).filter((c) => c.ok).length})`);
   let fails = 0;
   for (const [i, h] of queue.entries()) {
