@@ -1,0 +1,54 @@
+{
+  "name": "Squad UGC - Rotina Horária de Atualização de Métricas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Disparo a cada 1 hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "node --env-file=.env scripts/executar-fila-metricas.mjs --apply"
+      },
+      "id": "2",
+      "name": "Executar Fila de Métricas",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Disparo a cada 1 hora": {
+      "main": [
+        [
+          {
+            "node": "Executar Fila de Métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

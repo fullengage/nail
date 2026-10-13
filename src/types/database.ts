@@ -164,24 +164,42 @@ export interface Profile {
   updated_at: string;
 }
 
-// Snapshot de desempenho (tabela creator_metrics, migração 20261007). Números null = não medido.
+// Snapshot de desempenho (tabela creator_metrics). Números null = não medido.
 export interface CreatorMetrics {
   id: string;
   creator_id: string;
   platform: 'tiktok' | 'instagram';
   collected_at: string;
+  metric_type?: 'light' | 'heavy';
+  data_source?: string;
   followers: number | null;
   posts_analyzed: number;
   period_days: number | null;
   avg_views: number | null;
+  median_views?: number | null;
   avg_likes: number | null;
   avg_comments: number | null;
   avg_shares: number | null;
   er_by_views: number | null;
   er_by_followers: number | null;
   paid_posts_180d: number | null;
+  posts_per_week?: number | null;
+  last_post_at?: string | null;
   top_hashtags: string[];
   recent_posts: { url: string; cover: string | null; views: number | null; created_at: string | null }[];
+}
+
+export interface CreatorMetricRun {
+  id: string;
+  started_at: string;
+  completed_at?: string | null;
+  trigger_type: 'cron_hourly' | 'manual_profile' | 'quarterly_heavy' | 'cli';
+  metric_type: 'light' | 'heavy' | 'both';
+  total_target: number;
+  total_success: number;
+  total_failed: number;
+  errors?: { creator_id?: string; handle?: string; error: string }[];
+  status: 'running' | 'completed' | 'failed';
 }
 
 export interface CreatorProfile {
@@ -215,6 +233,13 @@ export interface CreatorProfile {
   media_kit_url?: string;
   is_featured?: boolean;
   featured_consent_at?: string;
+  last_light_sync_at?: string | null;
+  next_light_sync_at?: string | null;
+  last_heavy_sync_at?: string | null;
+  next_heavy_sync_at?: string | null;
+  last_post_at?: string | null;
+  sync_error_count?: number;
+  sync_error_last?: string | null;
   created_at: string;
   updated_at: string;
 }
