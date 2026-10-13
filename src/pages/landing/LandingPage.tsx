@@ -9,7 +9,7 @@ import { NavLink } from '../../components/common/NavLink';
 
 // Home do site institucional (estilo theugcclub.com)
 export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => {
-  const { openCreator, openBrand, onNavigate } = actions;
+  const { openCreator, onNavigate } = actions;
   const [publicCampaigns, setPublicCampaigns] = useState<Campaign[]>([]);
   const [featuredCreators, setFeaturedCreators] = useState<CreatorProfile[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -57,9 +57,9 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
               <button onClick={openCreator} className={`${PILL} bg-white text-lg sm:text-xl hover:bg-black hover:text-[#DFE82A] transition-all`}>
                 Quero entrar no squad
               </button>
-              <button onClick={openBrand} className={`${PILL} text-lg sm:text-xl hover:bg-black hover:text-[#DFE82A] transition-all`}>
-                Quero Contratar Creators
-              </button>
+              <NavLink view="piloto" onNavigate={onNavigate} className={`${PILL} text-lg sm:text-xl hover:bg-black hover:text-[#DFE82A] transition-all`}>
+                Sou marca: ver o piloto
+              </NavLink>
             </div>
           </div>
 
@@ -212,7 +212,7 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
             </h2>
             <p className="text-white/80 leading-relaxed">
               Sua marca ao vivo com quem realmente <em>faz a venda acontecer</em>. Pare de queimar verba com influenciadores
-              genéricos: monte um squad de creators por nicho, cidade e audiência para fazer lives de venda e UGC de{' '}
+              genéricos: a Squad monta um time de creators por nicho, cidade e audiência medida para fazer lives de venda e UGC de{' '}
               <strong>alta conversão</strong>.
             </p>
             <ul className="space-y-2 text-sm text-white/90">
@@ -220,9 +220,9 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
                 <li key={t} className="flex gap-2"><span className="text-[#DFE82A]">●</span>{t}</li>
               ))}
             </ul>
-            <button onClick={openBrand} className={`${PILL} border-white bg-white text-black text-sm uppercase hover:bg-[#DFE82A] hover:border-[#DFE82A] transition-all`}>
-              Cadastrar Minha Marca
-            </button>
+            <NavLink view="piloto" onNavigate={onNavigate} className={`${PILL} border-white bg-white text-black text-sm uppercase hover:bg-[#DFE82A] hover:border-[#DFE82A] transition-all`}>
+              Ver o piloto a partir de R$ 1.290
+            </NavLink>
           </div>
           <ol className="lg:col-span-6 divide-y divide-white/15 border-y border-white/15">
             {[
@@ -313,9 +313,9 @@ export const LandingPage: React.FC<{ actions: SiteActions }> = ({ actions }) => 
           <button onClick={openCreator} className={`${PILL} bg-black text-white hover:bg-white hover:text-black transition-all`}>
             Quero Entrar no Squad
           </button>
-          <button onClick={openBrand} className={`${PILL} bg-white hover:bg-black hover:text-white transition-all`}>
-            Cadastrar Minha Marca
-          </button>
+          <NavLink view="piloto" onNavigate={onNavigate} className={`${PILL} bg-white hover:bg-black hover:text-white transition-all`}>
+            Sou marca: ver o piloto
+          </NavLink>
         </div>
       </section>
     </div>

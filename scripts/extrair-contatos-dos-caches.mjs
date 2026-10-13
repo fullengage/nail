@@ -34,22 +34,21 @@ const IG_NOISE = /^(p|reel|reels|explore|accounts|stories|tv)$/i;
 const h = (x) => String(x || '').replace(/^@/, '').replace(/^https?:\/\/(www\.)?(tiktok|instagram)\.com\/@?/i, '').split(/[/?#\s]/)[0].trim().toLowerCase();
 const read = (name) => (existsSync(new URL(name, DATA)) ? JSON.parse(readFileSync(new URL(name, DATA), 'utf8')) : null);
 
+// Telefone brasileiro em 55 + DDD + celular com 9 dígitos (13 dígitos: 55 + DDD + 9 + 8 dígitos).
+// wa.me traz o código do país: aceita só se começar com 55 (rejeita +1 e outros países).
+// Telefone escrito na bio é local: DDD de 11 a 99 + número, recebe o 55.
+function brPhone(raw, comPais) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (comPais) return /^55[1-9]\d9\d{8}$/.test(d) ? d : '';
+  return /^[1-9][1-9]9\d{8}$/.test(d) ? `55${d}` : '';
+}
+
 function contactsFrom(...texts) {
   const t = texts.filter(Boolean).join(' \n ');
   const mails = [...new Set((t.match(EMAIL) || []).map((m) => m.toLowerCase().replace(/\.$/, '')).filter((m) => !MAIL_NOISE.test(m)))];
   const wa = t.match(WA_LINK);
   const ph = t.match(PHONE_TXT);
   const ig = t.match(IG_IN_TEXT);
-
-  let phone = '';
-  if (wa) {
-    const raw = wa[1].replace(/\D/g, '');
-    const num = raw.startsWith('55') ? raw : `55${raw}`;
-    if (/^55[1-9]\d9\d{8}$/.test(num)) phone = num;
-  } else if (ph) {
-    const num = `55${ph[1]}${ph[2]}${ph[3]}`;
-    if (/^55[1-9]\d9\d{8}$/.test(num)) phone = num;
-  }
 
   let instagram = '';
   if (ig && !IG_NOISE.test(ig[1])) {
@@ -65,7 +64,7 @@ function contactsFrom(...texts) {
 
   return {
     email: mails.length === 1 ? mails[0] : '',
-    phone,
+    phone: (wa && brPhone(wa[1], true)) || (ph ? brPhone(`${ph[1]}${ph[2]}${ph[3]}`) : ''),
     instagram,
   };
 }

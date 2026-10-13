@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import { Badge } from '../../components/ui/Badge';
 import { MissionSimulator } from '../../components/squadra/MissionSimulator';
+import { BrandLeadsInbox } from '../../components/squadra/BrandLeadsInbox';
 
 interface SquadraDashboardProps {
   onNavigate: (view: string) => void;
@@ -128,6 +129,11 @@ export const SquadraDashboard: React.FC<SquadraDashboardProps> = ({ onNavigate }
           </button>
         </div>
       </div>
+
+      {/* Leads de marcas vindos do site (só admin lê) */}
+
+      <BrandLeadsInbox />
+
 
       {/* 2. Bases Mapeadas por Fonte & PDVs (Atualizado em tempo real) */}
       <div>

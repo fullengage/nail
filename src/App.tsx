@@ -13,6 +13,7 @@ import { LandingPage } from './pages/landing/LandingPage';
 import { SiteLayout, SITE_VIEWS, SiteActions } from './pages/site/SiteLayout';
 import { ArtigoSquadPage } from './pages/site/ArtigoSquadPage';
 import { PlanosPage } from './pages/site/PlanosPage';
+import { PilotoPage } from './pages/site/PilotoPage';
 import { FerramentasPage } from './pages/site/FerramentasPage';
 import { SobrePage, ParaCreatorsPage, ParaMarcasPage, ContatoPage } from './pages/site/SitePages';
 import { AuthPage } from './pages/auth/AuthPage';
@@ -242,7 +243,7 @@ const MainApp: React.FC = () => {
 
   if (isSiteView) {
     const pages: Record<string, React.FC<{ actions: SiteActions }>> = {
-      landing: LandingPage, sobre: SobrePage, 'para-creators': ParaCreatorsPage, 'para-marcas': ParaMarcasPage, contato: ContatoPage, squad: ArtigoSquadPage, planos: PlanosPage, ferramentas: FerramentasPage,
+      landing: LandingPage, sobre: SobrePage, 'para-creators': ParaCreatorsPage, 'para-marcas': ParaMarcasPage, contato: ContatoPage, squad: ArtigoSquadPage, planos: PlanosPage, piloto: PilotoPage, ferramentas: FerramentasPage,
     };
     const Page = pages[currentView];
     return (

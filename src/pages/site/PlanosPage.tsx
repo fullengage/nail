@@ -16,7 +16,7 @@ export const FAQ_PLANOS: [string, string][] = [
 
 const STEPS: [string, string][] = [
   ['Defina o objetivo', 'Escolha o tipo (live de vendas, vídeos UGC, envio de produto ou afiliados) e uma meta com número.'],
-  ['Monte o squad', 'Filtre creators por nicho, seguidores e engajamento. Você vê o cachê e o total antes de confirmar.'],
+  ['A Squad monta o time', 'Escolhemos os creators por nicho, alcance medido e histórico. Você vê o cachê e o total antes de confirmar.'],
   ['Briefing em 3 instruções', 'O que criar, como marcar a marca (hashtag/cupom) e o prazo. Simples, para o creator executar sem erro.'],
   ['Aprove e pague', 'Revise cada vídeo ou live. O cachê só sai depois da sua aprovação, e o custo por conteúdo aparece no painel.'],
 ];
@@ -28,7 +28,7 @@ const PLANS = [
     price: 'Cachê por creator',
     items: [
       'Campanha com início e fim',
-      'Você escolhe quantos creators e quanto pagar',
+      'Você define quantos creators e quanto pagar',
       'Lives de venda, vídeos UGC ou envio de produto',
       'Aprovação de cada conteúdo antes do pagamento',
       'Direito de uso em anúncios definido na campanha',
